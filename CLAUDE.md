@@ -22,10 +22,16 @@ engine/
   policy-tree.js               ← 政策树 21 节点 + 编译器 + 史实自动驾驶节点化
   geodecode.js                 ← echarts 压缩坐标解码器（three.js 用真实地图的前提）
   china.json                   ← 34 省级单元地图数据（61KB，演示用；公开发布须换审图号标准地图）
-specs/                         ← 全部设计文档（v3.1 为现行真相，v2.1/v3.0 是历史件）
-experiments/                   ← 5 个可复现实验（evidence.md 逐条对应）
-demos/                         ← 3 个历史演示件；wanli-arena.html 布局与内嵌引擎双过期，按 frontend-layout-spec.md 重建
+specs/                         ← 全部设计文档（v3.1 为现行真相；v2.1/v3.0 历史件在 specs/history/）
+experiments/                   ← 可复现实验（evidence.md 逐条对应）
+demos/
+  wanli-arena.html             ← app4（自题于 :866；政策树组件 PNODES/nodeState 参考实现），布局过期
+  wanli-arena-v2.html          ← 现役施工现场：布局已按 frontend-layout-spec 起步，内嵌引擎仍为 v2.1-lite，待换现役 engine2
+reference-manifest.md          ← P0-R 交付物：八参考仓"去哪行·偷什么"靶点清单（仓库本体在 ../references/）
+grill-report.md                ← 2026-08-13 拷问报告：四桶结论 + 16h 定稿排期（附录 B/C）
 ```
+
+**交接缺件（如实登记）**：v2.1 点名的 `theory-registry.md`（39 条理论锚点）与两件历史 demo（`wanli-policy-windtunnel.html`/`wanli-map-shell.html`）未随包交接、无副本；理论锚点重建迷你版已并入 C2 任务。
 
 ## 运行
 
@@ -36,7 +42,7 @@ node experiments/shapley.js     # 及其余四个实验，evidence.md 每条附�
 
 ## 当前状态（截至交接）
 
-引擎侧已落地：政策树（21 节点/行动点 3/解锁三类/互斥，剧本编译与旧三元组逐位等价）；企业控制钩子 `step(policy, ctrl)`（玩家与 AI 同约束，随机流对齐）；进入选址+迁址（费 35%×K×capex/冷却 4 期/当期出货折半）；地方配套通道与承诺-兑现台账（场景开关，基线关）；8 名角（+政企绑定型/国资型）；4 名角省内阁（招商/财政/监管三席位票决执行折扣，零随机）；软预算约束救助（≤2 次）。前端三个演示件为参考级。**下一步队列见 specs/task-board.md 首屏。**
+引擎侧已落地：政策树（21 节点/行动点 3/解锁三类/互斥，剧本编译与旧三元组逐位等价）；企业控制钩子 `step(policy, ctrl)`（玩家与 AI 同约束，随机流对齐）；进入选址+迁址（费 35%×K×capex/冷却 4 期/当期出货折半）；地方配套通道与承诺-兑现台账（场景开关，基线关）；8 名角（+政企绑定型/国资型）；4 名角省内阁（招商/财政/监管三席位票决执行折扣，零随机）；软预算约束救助（≤2 次）。前端以 wanli-arena-v2.html 为施工现场（app4 为组件参考）。**下一步队列见 specs/task-board.md 首屏；16h 冲刺排期与冻结令见 grill-report.md 附录 B/C。**
 
 ## 拷打指引（grill-me）
 
@@ -55,7 +61,7 @@ git clone --depth 1 https://github.com/camel-ai/oasis                          #
 git clone --depth 1 https://github.com/jpmorganchase/abides-jpmc-public        # 市场微结构 ABM：确定性与撮合纪律的老牌范本
 git clone --depth 1 https://github.com/projectmesa/mesa                        # 经典 ABM 框架：调度器/数据采集器模式
 ```
-（八个地址已于交接当日全部验活。）
+（八个地址已于交接当日全部验活；P0-R 已交付，靶点清单见 reference-manifest.md，后续会话按清单行号直读、勿全仓检索。）
 
 ## 技术栈定稿（细节见 v3.1 §附）
 
