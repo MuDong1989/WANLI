@@ -32,29 +32,19 @@ var itv=run('干预剧本(度电60+核查70,2009起)', function(t){
 
 /* ---- 黄金回归 GR1-GR9 ---- */
 console.log('\n==== 黄金回归 ====');
-function died(sim,id){ var f=sim.firms.find(function(x){return x.id===id;}); return f.alive? -1 : (function(){
-  // 从事件无法直接取,用近似:找到其死亡不影响,改用标记——重跑记录
-  return f._deadT!==undefined? f._deadT : -2; })(); }
-// 简化:直接在历史里找alive数变化不可靠,改为在引擎里记录 deadT
-// (引擎未记 deadT: 用备用法——重跑并逐回合探测)
-function deathRound(policyFn,id){
-  var s=new E.Sim(E.CFG.seed), prev=true;
-  while(s.t<E.CFG.rounds){ s.step(policyFn(s.t));
-    var f=s.firms.find(function(x){return x.id===id;});
-    if(prev && !f.alive) return s.t-1;
-    prev=f.alive;
-  } return -1;
-}
-var ty=deathRound(E.scriptPolicy,'tianyang');
-var hg=deathRound(E.scriptPolicy,'hanguang');
+function deathRound(sim,id){ var f=sim.firms.find(function(x){return x.id===id;});
+  return f.deadT!==undefined? f.deadT : -1; }
+var ty=deathRound(base,'tianyang');
+var hg=deathRound(base,'hanguang');
 var hb=base.history, he=itv.history;
 var last=hb[hb.length-1], lastI=he[he.length-1];
 function gr(id,pass,detail){ console.log((pass?'✓':'✗')+' '+id+' '+detail); return pass?0:1; }
 var fails=0;
 fails+=gr('GR1 天阳破产∈[t7,t9]', ty>=7&&ty<=9, '实际 t'+ty+' ('+base.yearLabel(ty)+')');
 fails+=gr('GR2 汉光破产∈[t5,t9]', hg>=5&&hg<=9, '实际 t'+hg);
-var fraudLate=hb.some(function(h){return h.t>=8&&h.fraudRegion.reduce(function(a,b){return a+b;},0)>0;});
-fails+=gr('GR3 骗补仅t<8', !fraudLate, '');
+var fraudEarlyN=hb.filter(function(h){return h.t<8;}).reduce(function(a,h){return a+h.fraudRegion.reduce(function(x,y){return x+y;},0);},0);
+var fraudLateN=hb.filter(function(h){return h.t>=8;}).reduce(function(a,h){return a+h.fraudRegion.reduce(function(x,y){return x+y;},0);},0);
+fails+=gr('GR3 骗补双侧:装机期>0且度电期=0', fraudEarlyN>0&&fraudLateN===0, '装机期'+fraudEarlyN+'起/度电期'+fraudLateN+'起');
 fails+=gr('GR4 终局Cf∈[1.8,3.2]', last.Cf>=1.8&&last.Cf<=3.2, 'Cf='+last.Cf.toFixed(2));
 var crash=hb.some(function(h){return h.t>=7&&h.t<=10&&h.P<h.Cf;});
 fails+=gr('GR5 崩盘期存在P<Cf', crash, '');
@@ -68,10 +58,22 @@ var peak=Math.max.apply(null,hb.map(function(h){return h.exDeaths;}));
 fails+=gr('GR8 长尾死亡潮:t6-11累计≥50且峰值≥10', waveDeaths>=50&&peak>=10, '累计'+waveDeaths+' 峰值'+peak);
 var s1=new E.Sim(E.CFG.seed), s2=new E.Sim(E.CFG.seed);
 while(s1.t<E.CFG.rounds){ s1.step(E.scriptPolicy(s1.t)); s2.step(E.scriptPolicy(s2.t)); }
-var same=JSON.stringify(s1.history[19])===JSON.stringify(s2.history[19]);
-fails+=gr('GR9 双宇宙同政策逐位一致', same, '');
-/* 委托代理演示检验:干预剧本(核查70)下,骗补是否只剩C区 */
-var lateFraud=[0,0,0];
-he.forEach(function(h){ if(h.t<8) for(var j=0;j<3;j++) lateFraud[j]+=h.fraudRegion[j]; });
-console.log('· 干预剧本骗补区域分布 A/B/C = '+lateFraud.join('/')+' (期望集中于C)');
+var same=JSON.stringify(s1.history)===JSON.stringify(s2.history)
+      && JSON.stringify(s1.firms)===JSON.stringify(s2.firms);
+fails+=gr('GR9 双宇宙同政策逐位一致(全史+全主体深比对)', same, '');
+/* 编译器深断言(E2/A25):史实剧本节点化编译 = 裸三元组,逐期逐字段;x 通道须为空 */
+var P=require('./policy-tree.js'), aC={}, okC=true, whyC='';
+for(var tc=0;tc<E.CFG.rounds;tc++){
+  P.applyOps(aC,P.AUTOPILOT_OPS[tc]);
+  var pc=P.compilePolicy(aC), ps=E.scriptPolicy(tc);
+  if(pc.mode!==ps.mode||pc.intensity!==ps.intensity||pc.audit!==ps.audit||Object.keys(pc.x).length!==0){
+    okC=false; whyC='t'+tc+' 编译'+JSON.stringify(pc)+' ≠ 剧本'+JSON.stringify(ps); break; }
+}
+fails+=gr('GR-C compilePolicy深断言(剧本逐期等价+x空)', okC, whyC);
+/* 委托代理演示(标签修正):装机补贴期核查提至70(其余照史实)→骗补应仅剩执行折扣最深的C区
+   (旧版此行误用干预剧本[度电全程,骗补无从发生=0/0/0]配"期望集中于C"标签,标签与臂错配) */
+var pa=run('', function(t){ return t<8? {mode:'capacity',intensity:60,audit:70} : E.scriptPolicy(t); }, true);
+var paF=[0,0,0];
+pa.history.forEach(function(h){ if(h.t<8) for(var j=0;j<3;j++) paF[j]+=h.fraudRegion[j]; });
+console.log('· 委托代理演示(装机期核查70) 骗补 A/B/C = '+paF.join('/')+' (期望集中于C='+(paF[0]===0&&paF[1]===0&&paF[2]>0?'✓':'✗')+')');
 console.log(fails===0? '\n全部通过' : '\n未通过 '+fails+' 项');

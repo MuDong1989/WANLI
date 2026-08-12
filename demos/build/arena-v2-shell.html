@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>万历 · 政企推演场 v2 — 政策树 × 真实地图 × 决策链（光伏包）</title>
+<style>
+  :root{
+    --night:#080c12; --panel:rgba(13,18,26,0.92); --line:rgba(127,166,206,0.15);
+    --gold:#e8b64c; --ink:#cfd8e6; --dim:#8fa1b8; --teal:#7fd6c2; --red:#ef5350; --vio:#b9a8ef;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --serif:'Songti SC','Noto Serif SC','SimSun',serif;
+    /* —— 分区尺寸（比例可调，拓扑不可调，见 frontend-layout-spec §0）—— */
+    --treeW:272px; --evtW:236px; --chartW:236px; --tlH:38px; --topH:48px;
+    --dockR:calc(var(--evtW) + var(--chartW));
+    --centerH:calc(100vh - var(--topH) - var(--tlH));
+    --mapH:calc(var(--centerH) * 0.54);   /* 中列上切：three.js 主视口 */
+    --deciH:calc(var(--centerH) * 0.46);  /* 中列下切：Agent 与决策链（本版主角）*/
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--night);color:var(--ink);
+    font:13px/1.5 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
+
+  /* —— 中上：three.js 主视口 —— */
+  #c{position:fixed;left:var(--treeW);right:var(--dockR);top:var(--topH);height:var(--mapH);touch-action:none}
+  #labels{position:fixed;left:var(--treeW);right:var(--dockR);top:var(--topH);height:var(--mapH);
+    pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-100%);text-align:center;white-space:nowrap;
+    text-shadow:0 1px 5px #000;transition:opacity .3s}
+  .lbl b{font-size:11.5px;letter-spacing:.05em}
+  .lbl span{display:block;font:9.5px var(--mono);color:var(--dim)}
+  .lbl.dead b{color:#525d6b;text-decoration:line-through}
+
+  /* —— 顶栏 —— */
+  #topbar{position:fixed;top:0;left:0;right:0;height:var(--topH);z-index:30;display:flex;align-items:center;gap:10px;
+    padding:0 14px;background:linear-gradient(180deg,rgba(8,12,18,.97),rgba(8,12,18,.85));border-bottom:1px solid var(--line)}
+  #brand{display:flex;align-items:baseline;gap:8px}
+  #brand .zh{font:700 20px/1 var(--serif);letter-spacing:.16em;color:#f1e6cf;text-shadow:0 0 16px rgba(232,182,76,.35)}
+  #brand .en{font:600 8.5px var(--mono);letter-spacing:.4em;color:var(--gold)}
+  #brand .sub{font-size:11px;color:var(--dim);letter-spacing:.14em;border-left:1px solid var(--line);padding-left:9px}
+  #clock{font:600 13px var(--mono);color:var(--teal);min-width:92px}
+  #era{font-size:10.5px;color:var(--gold);letter-spacing:.1em;border:1px solid rgba(232,182,76,.3);border-radius:20px;padding:2px 10px}
+  .btn{border:1px solid var(--line);background:rgba(127,214,194,.05);color:var(--ink);
+    border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .btn:hover{border-color:var(--teal);color:var(--teal)}
+  .btn.primary{border-color:rgba(232,182,76,.55);color:var(--gold);background:rgba(232,182,76,.08)}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  #spacer{flex:1}
+  #apBox{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--dim);letter-spacing:.1em}
+  #apBox i{width:9px;height:9px;border-radius:50%;background:rgba(232,182,76,.15);border:1px solid rgba(232,182,76,.5)}
+  #apBox i.on{background:var(--gold);box-shadow:0 0 7px rgba(232,182,76,.7)}
+
+  /* —— 左整列：政策树 —— */
+  #treeDock{position:fixed;left:0;top:var(--topH);bottom:var(--tlH);width:var(--treeW);z-index:20;
+    background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .dhead{padding:9px 13px;border-bottom:1px solid var(--line);flex-shrink:0}
+  .dhead h3{font-size:11px;letter-spacing:.26em;color:var(--dim);font-weight:500}
+  #autopilotHint{margin-top:6px;padding:6px 8px;border-left:2px solid var(--gold);
+    background:rgba(232,182,76,.06);font-size:10.5px;color:var(--dim);line-height:1.5}
+  #autopilotHint b{color:var(--gold)}
+  #treeBody{flex:1;overflow-y:auto;padding:4px 0 14px}
+  .branch{margin-top:7px}
+  .bhead{padding:4px 13px;font-size:10px;letter-spacing:.2em;color:var(--dim);display:flex;align-items:center;gap:6px}
+  .bhead i{width:7px;height:7px;border-radius:2px}
+  .pnode{margin:3px 9px;padding:6px 8px 6px 10px;border:1px solid var(--line);border-radius:7px;
+    cursor:pointer;position:relative;transition:border-color .15s,background .15s}
+  .pnode .nrow{display:flex;align-items:center;gap:7px}
+  .pnode .nname{flex:1;font-size:11.5px;letter-spacing:.02em}
+  .pnode .pips{display:flex;gap:3px}
+  .pnode .pips i{width:6px;height:6px;border-radius:50%;background:rgba(127,166,206,.18)}
+  .pnode .lvtag{font:9.5px var(--mono);color:var(--dim);margin-top:2px;padding-left:23px}
+  .pnode.avail:hover{border-color:var(--teal);background:rgba(127,214,194,.05)}
+  .pnode.active{border-color:rgba(232,182,76,.55);background:rgba(232,182,76,.06)}
+  .pnode.active .pips i.on{background:var(--gold);box-shadow:0 0 6px rgba(232,182,76,.6)}
+  .pnode.locked,.pnode.blocked{opacity:.42;cursor:default}
+  .pnode.locked .nname::after{content:' 🔒';font-size:9px}
+  .pnode .ops{position:absolute;right:6px;top:5px;display:none;gap:3px}
+  .pnode.active:hover .ops,.pnode.avail:hover .ops{display:flex}
+  .pnode .ops b{font-size:10px;border:1px solid var(--line);border-radius:4px;padding:0 5px;
+    background:rgba(8,12,18,.8);cursor:pointer;color:var(--ink)}
+  .pnode .ops b:hover{border-color:var(--gold);color:var(--gold)}
+  #nodeTip{position:fixed;z-index:60;display:none;width:238px;padding:9px 11px;font-size:11px;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;pointer-events:none;line-height:1.55}
+  #nodeTip h6{font-size:11.5px;color:var(--gold);margin-bottom:3px}
+  #nodeTip .hist{margin-top:5px;padding-top:5px;border-top:1px dashed var(--line);color:var(--dim);font-size:10px}
+  #nodeTip .why{color:var(--red);font-size:10px;margin-top:4px}
+
+  /* —— 中下：Agent 与决策链（本版主角，占中列 46%）—— */
+  #decision{position:fixed;left:var(--treeW);right:var(--dockR);top:calc(var(--topH) + var(--mapH));
+    bottom:var(--tlH);z-index:20;background:var(--panel);border-top:1px solid var(--line);
+    display:flex;flex-direction:column;overflow:hidden}
+  #dpHead{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
+  #dpHead h3{font-size:11px;letter-spacing:.26em;color:var(--dim);font-weight:500}
+  #dpRound{font:9.5px var(--mono);color:var(--gold);letter-spacing:.08em}
+  #dpHint{margin-left:auto;font-size:10px;color:var(--dim)}
+  /* 决策卡流（顶带）*/
+  #cardFlow{flex:0 0 auto;height:84px;display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;
+    padding:7px 10px;align-items:stretch;border-bottom:1px solid var(--line)}
+  .rgroup{display:flex;gap:5px;align-items:stretch;padding-right:8px;border-right:1px dashed rgba(127,166,206,.14)}
+  .rgroup .rlab{writing-mode:vertical-rl;font:9.5px var(--mono);color:var(--dim);letter-spacing:.1em}
+  .acard{min-width:124px;max-width:146px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;
+    cursor:pointer;font-size:10.5px;line-height:1.45;background:rgba(8,12,18,.5)}
+  .acard:hover{border-color:var(--teal)}
+  .acard.sel{border-color:var(--gold);background:rgba(232,182,76,.07)}
+  .acard .who{font-size:11px;letter-spacing:.03em}
+  .acard .act{font:600 10px var(--mono);color:var(--teal);margin-top:1px}
+  .acard .rule{color:var(--dim);font-size:9.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  /* 决策链胶片（中带）——占位，待 T-E1 f.cards 全史 */
+  #filmStrip{flex:0 0 auto;height:26px;display:flex;align-items:center;gap:8px;padding:0 12px;
+    border-bottom:1px dashed var(--line);font:9.5px var(--mono);color:#5f6d80;letter-spacing:.08em}
+  #filmStrip i{display:inline-block;width:10px;height:10px;border:1px dashed rgba(127,166,206,.22);border-radius:2px}
+  /* 五段卡详情（底带）*/
+  #detail{flex:1;overflow-y:auto;padding:8px 12px 10px}
+  #dtHead{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  #dtHead .face{font-size:22px}
+  #dtHead h4{font-size:13.5px}
+  #dtHead small{display:block;font-size:10px;color:var(--dim)}
+  #dtHead .pnl{margin-left:auto;font:9.5px var(--mono);color:var(--dim);text-align:right;line-height:1.6}
+  #segs{display:grid;grid-template-columns:1.1fr 1.1fr 1fr 1.2fr;gap:10px}
+  .seg{border-left:1px solid var(--line);padding-left:9px;min-width:0}
+  .seg h5{font-size:9.5px;letter-spacing:.28em;color:var(--dim);font-weight:500;margin-bottom:4px}
+  .seg h5 i{font-style:normal;color:var(--gold);margin-right:4px}
+  .seg ul{list-style:none;font-size:11px}
+  .seg ul li{padding:1px 0 1px 10px;position:relative;line-height:1.5}
+  .seg ul li::before{content:'·';position:absolute;left:0;color:var(--dim)}
+  .rulePill{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:4px;line-height:1.5;
+    background:rgba(232,182,76,.09);border:1px solid rgba(232,182,76,.3);color:var(--gold)}
+  .segAct{font:600 12px var(--mono);color:var(--teal);margin-top:7px}
+  .segMono p{font-size:11px;margin:0 0 6px;padding-left:9px;border-left:2px solid var(--line)}
+  .segMono p b{display:block;font:9.5px var(--mono);color:var(--dim)}
+  #dtEmpty{color:var(--dim);font-size:11.5px;line-height:1.9;padding:6px 2px}
+  #dtEmpty b{color:var(--teal)}
+
+  /* —— 右二整列：事件流 —— */
+  #evtDock{position:fixed;right:var(--chartW);top:var(--topH);bottom:var(--tlH);width:var(--evtW);z-index:20;
+    background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column}
+  #evtBody{flex:1;overflow-y:auto;padding:6px 11px;font-size:11.5px;line-height:1.6}
+  #evtBody p{margin:2px 0;color:var(--dim);border-left:2px solid transparent;padding-left:6px}
+  #evtBody p b{display:block;font:9.5px var(--mono);color:#74839a;letter-spacing:.06em}
+  #evtBody p.market{color:#bcd0e8;border-color:#8b98ab}
+  #evtBody p.policy{color:var(--gold);border-color:var(--gold)}
+  #evtBody p.media{color:#f0a5a3;border-color:#f0a5a3}
+  #evtBody p.fraud{color:var(--red);border-color:var(--red)}
+  #evtBody p.firm{color:#a8e6d5;border-color:#a8e6d5}
+  #evtBody p.sys{color:var(--teal);border-color:var(--teal)}
+  #evtBody p.wave{color:#e8b0d0;border-color:#e8b0d0}
+  #evtBody p.region{color:var(--vio);border-color:var(--vio)}
+
+  /* —— 最右整列：数据图表 —— */
+  #chartDock{position:fixed;right:0;top:var(--topH);bottom:var(--tlH);width:var(--chartW);z-index:20;
+    background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:10px 13px}
+  #chartDock h3{font-size:11px;letter-spacing:.26em;color:var(--dim);font-weight:500;margin-bottom:6px}
+  .kpi{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;font-size:11.5px}
+  .kpi em{font-style:normal;color:var(--dim)}
+  .kpi b{font:600 12px var(--mono)}
+  .kpi b.gold{color:var(--gold)}.kpi b.teal{color:var(--teal)}.kpi b.red{color:var(--red)}
+  .kpi small{font:9.5px var(--mono);color:var(--dim)}
+  .chartCap{margin-top:8px;font-size:9.5px;letter-spacing:.16em;color:var(--dim)}
+  canvas.spark{width:100%;height:46px;display:block;margin-top:3px;border-radius:5px;
+    background:rgba(5,8,13,.6);border:1px solid var(--line)}
+  #bandRows{margin-top:9px;border-top:1px dashed var(--line);padding-top:7px}
+  .rrow{display:grid;grid-template-columns:58px 1fr 58px;gap:6px;align-items:center;padding:2px 0;font-size:10.5px}
+  .rrow .bar{height:5px;border-radius:3px;background:rgba(127,166,206,.12);overflow:hidden}
+  .rrow .bar i{display:block;height:100%;border-radius:3px;transition:width .5s}
+  .rrow small{font:9.5px var(--mono);color:var(--dim);text-align:right}
+  #legend{margin-top:8px;font-size:9.8px;color:var(--dim);line-height:1.7}
+
+  /* —— 底部通宽：时间线 —— */
+  #timeline{position:fixed;left:0;right:0;bottom:0;height:var(--tlH);z-index:25;
+    background:rgba(8,12,18,.96);border-top:1px solid var(--line);display:flex;align-items:center;gap:3px;padding:0 12px}
+  #tlLabel{font-size:9.5px;letter-spacing:.18em;color:var(--dim);margin-right:8px;white-space:nowrap}
+  .tcell{flex:1;height:16px;border-radius:3px;background:rgba(127,166,206,.08);border:1px solid rgba(127,166,206,.12);
+    cursor:default;position:relative;transition:background .2s}
+  .tcell.played{background:rgba(127,214,194,.18);border-color:rgba(127,214,194,.3);cursor:pointer}
+  .tcell.played:hover{background:rgba(127,214,194,.36)}
+  .tcell.cur{background:rgba(232,182,76,.45);border-color:var(--gold);box-shadow:0 0 8px rgba(232,182,76,.4)}
+  .tcell.scrub{background:rgba(185,168,239,.5);border-color:var(--vio)}
+  .tcell .yr{position:absolute;top:-13px;left:0;font:8.5px var(--mono);color:#5a6678}
+  #scrubBanner{position:fixed;left:calc(var(--treeW) + (100vw - var(--treeW) - var(--dockR))/2);
+    bottom:calc(var(--tlH) + var(--deciH) + 10px);transform:translateX(-50%);
+    z-index:40;display:none;padding:8px 14px;background:var(--panel);border:1px solid var(--vio);border-radius:9px;
+    font-size:12px;color:var(--vio);align-items:center;gap:10px}
+  #scrubBanner .btn{padding:3px 10px;font-size:11px}
+
+  /* —— 浮层 —— */
+  #exTip{position:fixed;z-index:60;display:none;padding:6px 10px;font-size:11px;
+    background:var(--panel);border:1px solid var(--line);border-radius:7px;pointer-events:none}
+  #finale{position:fixed;top:calc(var(--topH) + var(--mapH)/2);
+    left:calc(var(--treeW) + (100vw - var(--treeW) - var(--dockR))/2);
+    transform:translate(-50%,-50%);z-index:50;display:none;width:min(430px,80vw);padding:20px 22px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  #finale h2{font:700 16px var(--serif);letter-spacing:.28em;color:var(--gold);margin-bottom:11px}
+  #finale .row{display:flex;justify-content:space-between;font-size:12px;padding:3.5px 0;border-bottom:1px dashed rgba(127,166,206,.12)}
+  #finale .row b{font:600 12px var(--mono)}
+  #finale .verdict{margin-top:11px;font-size:11.5px;color:var(--dim);line-height:1.7}
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-thumb{background:rgba(127,166,206,.25);border-radius:3px}
+  #quote{position:fixed;right:calc(var(--dockR) + 14px);top:calc(var(--topH) + 14px);z-index:5;pointer-events:none;
+    font:11px/1.9 var(--serif);letter-spacing:.2em;color:rgba(232,182,76,.35);writing-mode:vertical-rl}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+
+<div id="topbar">
+  <div id="brand"><span class="zh">万历</span><span class="en">WANLI</span><span class="sub">政企推演场 · 光伏包</span></div>
+  <div id="clock">2009年上半年</div>
+  <div id="era">金太阳时期</div>
+  <button class="btn primary" id="btnPlay">▶ 播放</button>
+  <button class="btn" id="btnStep">单步</button>
+  <button class="btn" id="btnReset">重置</button>
+  <div id="spacer"></div>
+  <div id="apBox">行动点 <i></i><i></i><i></i></div>
+  <select class="btn" id="speed">
+    <option value="2600">慢速</option><option value="1500" selected>常速</option><option value="750">快速</option>
+  </select>
+</div>
+
+<!-- 左整列：策略树 -->
+<div id="treeDock">
+  <div class="dhead">
+    <h3>政策树 · 你是中央</h3>
+    <div id="autopilotHint"><b>自动驾驶中</b>——史实政策正按时点自动点亮。点击任意节点即接管。</div>
+  </div>
+  <div id="treeBody"></div>
+</div>
+
+<!-- 中下：Agent 与决策链 -->
+<div id="decision">
+  <div id="dpHead">
+    <h3>AGENT 与决策链</h3><span id="dpRound">未开局</span>
+    <span id="dpHint">点击地图上的名角楼或下方决策卡 → 展开五段决策卡</span>
+  </div>
+  <div id="cardFlow"></div>
+  <div id="filmStrip"><i></i><i></i><i></i><i></i>决策链胶片 · 20 格连环画位（待引擎 f.cards 全史 · T-E1）</div>
+  <div id="detail">
+    <div id="dtEmpty">
+      尚未选中主体。<b>决策链</b>回答的是：这一步棋，它<b>看到了什么</b>、<b>想起了什么</b>、<b>依据哪条规则</b>、<b>做了什么</b>、<b>心里怎么想</b>。<br>
+      八名角同处一个供给池：技术长期主义者、激进扩张者、资本故事家、跨界追风者、骗补投机者、观望代工厂、政企绑定型、国资型。
+    </div>
+    <div id="dtBody" style="display:none">
+      <div id="dtHead">
+        <div class="face" id="dtFace">🏭</div>
+        <div><h4 id="dtName">–</h4><small id="dtArch">–</small></div>
+        <div class="pnl" id="dtPnl"></div>
+      </div>
+      <div id="segs">
+        <div class="seg"><h5><i>壹</i>观测</h5><ul id="segObserved"></ul></div>
+        <div class="seg"><h5><i>贰</i>调取记忆</h5><ul id="segRecalled"></ul></div>
+        <div class="seg"><h5><i>叁</i>决策依据</h5><span class="rulePill" id="segRule">–</span>
+          <h5 style="margin-top:9px"><i>肆</i>行动</h5><div class="segAct" id="segAct">–</div></div>
+        <div class="seg"><h5><i>伍</i>内心独白</h5><div class="segMono" id="segMono"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 右二整列：事件流 -->
+<div id="evtDock">
+  <div class="dhead"><h3>事件流 · 世界在发生什么</h3></div>
+  <div id="evtBody"></div>
+</div>
+
+<!-- 最右整列：数据图表 -->
+<div id="chartDock">
+  <h3>数据图表 · 双宇宙对照</h3>
+  <div class="kpi"><em>价格/成本 元·W⁻¹</em><b class="gold" id="kPrice">–</b></div>
+  <div class="kpi"><em>财政累计</em><b class="gold" id="kFiscal">–</b><small id="kFiscalBase"></small></div>
+  <div class="kpi"><em>骗补流失</em><b class="red" id="kWaste">–</b><small id="kWasteBase"></small></div>
+  <div class="kpi"><em>名角 / 长尾</em><b id="kAlive">–</b><small id="kAliveBase"></small></div>
+  <div class="kpi"><em>公众舆情</em><b id="kOpinion">–</b></div>
+  <div class="chartCap">价格 · 成本</div><canvas class="spark" id="ch1" width="210" height="46"></canvas>
+  <div class="chartCap">需求 · 供给</div><canvas class="spark" id="ch2" width="210" height="46"></canvas>
+  <div class="chartCap">长尾存活数</div><canvas class="spark" id="ch3" width="210" height="46"></canvas>
+  <div class="chartCap">财政累计投入</div><canvas class="spark" id="ch4" width="210" height="46"></canvas>
+  <div id="bandRows"></div>
+  <div id="legend">实线=你的宇宙 · 虚线=史实基线<br>省域亮度=当地实际核查 · 红闪=虚报<br>同一种子：两个宇宙唯一差异是政策</div>
+</div>
+
+<!-- 底部通宽：时间线 -->
+<div id="timeline"><span id="tlLabel">时间线 · 点击已推演回合可回看</span></div>
+<div id="scrubBanner">回看模式 · <span id="scrubT"></span>
+  <button class="btn" id="btnBranch">⑂ 从此分叉</button>
+  <button class="btn" id="btnBack">回到最新</button>
+</div>
+
+<div id="nodeTip"></div>
+<div id="exTip"></div>
+<div id="finale"><h2>二十回合复盘</h2><div id="finaleRows"></div>
+  <div class="verdict" id="finaleVerdict"></div>
+  <button class="btn primary" id="btnAgain" style="margin-top:13px">重开一局</button></div>
+<div id="quote">多算胜，少算不胜</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*__GEODECODE__*/
+/*__CHINA_GEO__*/
+/*__ENGINE2__*/
+/* ---------- ENGINE bridge：现役 engine/engine2.js 的浏览器出口 ---------- */
+var ENGINE={Sim:Sim,scriptPolicy:scriptPolicy,CFG:CFG,FIRMS:FIRMS,REGIONS:REGIONS,PROVS:PROVS,
+  ARCH:ARCH,MODE_CN:MODE_CN,mulberry32:mulberry32};
+/*__POLICYTREE__*/
+/* ============================================================
+   万历 · 政企推演场 app v2 —— 按 specs/frontend-layout-spec.md §0 重建
+   左策略树(整列) / 中上 three.js / 中下 Agent与决策链(46%) /
+   右二事件流(整列) / 最右数据图表(整列) / 底部时间线(通宽)
+   ============================================================ */
+(function(){
+'use strict';
+function byId(id){return document.getElementById(id);}
+var NF=ENGINE.FIRMS.length;
+
+/* ---------- 舞台尺寸 ---------- */
+var cvs=byId('c');
+function stageRect(){ return cvs.getBoundingClientRect(); }
+var renderer=new THREE.WebGLRenderer({canvas:cvs,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+var scene=new THREE.Scene();
+renderer.setClearColor(0x080c12);
+scene.fog=new THREE.Fog(0x080c12,42,120);
+var camera=new THREE.PerspectiveCamera(45,1,0.1,300);
+function fitStage(){ var r=stageRect(); if(!r.width||!r.height)return;
+  renderer.setSize(r.width,r.height,false);
+  camera.aspect=r.width/r.height; camera.updateProjectionMatrix(); }
+addEventListener('resize',fitStage);
+
+scene.add(new THREE.HemisphereLight(0x35496a,0x0a0d12,0.95));
+var key=new THREE.DirectionalLight(0xbcd4f0,0.75); key.position.set(14,26,12); scene.add(key);
+var rim=new THREE.DirectionalLight(0x7fd6c2,0.2); rim.position.set(-16,10,-14); scene.add(rim);
+
+/* ---------- 地图：解码 → 投影 → 挤出 ---------- */
+decodeGeo(CHINA_GEO);
+function PROJ(lon,lat){ return [(lon-105)*0.60, -(lat-36)*0.75]; }
+var BANDS=[
+  {name:'沿海带',css:'#4dd0c4',col:new THREE.Color(0x1c4a46),provs:[['江苏',.32],['浙江',.15],['广东',.15],['山东',.12],['上海',.06],['福建',.08],['天津',.05],['海南',.02],['北京',.05]]},
+  {name:'中西部带',css:'#d4b45a',col:new THREE.Color(0x4a3f1e),provs:[['河北',.18],['河南',.13],['江西',.13],['安徽',.11],['湖北',.08],['湖南',.06],['四川',.08],['陕西',.08],['青海',.05],['内蒙古',.05],['宁夏',.05]]},
+  {name:'东北带',css:'#7f96c4',col:new THREE.Color(0x28324e),provs:[['辽宁',.5],['吉林',.28],['黑龙江',.22]]}
+];
+var PROV_BAND={}; BANDS.forEach(function(b,j){b.provs.forEach(function(p){PROV_BAND[p[0]]=j;});});
+var CENTROID={}, provMat={};
+CHINA_GEO.features.forEach(function(f){
+  var xs=[],ys=[];
+  (function walk(c){ if(typeof c[0]==='number'){xs.push(c[0]);ys.push(c[1]);} else c.forEach(walk); })(f.geometry.coordinates);
+  CENTROID[f.properties.name]=[(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2,(Math.min.apply(null,ys)+Math.max.apply(null,ys))/2];
+});
+CENTROID['河北']=[115.5,38.6];CENTROID['内蒙古']=[111.5,41.0];CENTROID['广东']=[113.6,23.2];
+CENTROID['陕西']=[108.9,34.5];CENTROID['辽宁']=[122.6,41.3];CENTROID['甘肃']=[103.5,36.0];
+var NEUTRAL=new THREE.Color(0x10151d), sideMat=new THREE.MeshStandardMaterial({color:0x0a0e15,roughness:.85});
+function ringPts(ring){
+  var step=Math.max(1,Math.ceil(ring.length/220)), pts=[];
+  for(var i=0;i<ring.length;i+=step){ var p=PROJ(ring[i][0],ring[i][1]); pts.push(new THREE.Vector2(p[0],-p[1])); }
+  return pts;
+}
+CHINA_GEO.features.forEach(function(f){
+  var name=f.properties.name, j=PROV_BAND[name];
+  var cap=new THREE.MeshStandardMaterial({color:(j!==undefined?BANDS[j].col.clone():NEUTRAL.clone()),
+    roughness:.72,metalness:.08});
+  provMat[name]=cap;
+  var polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  polys.forEach(function(poly){
+    var outer=ringPts(poly[0]); if(outer.length<3) return;
+    var shape=new THREE.Shape(outer);
+    for(var h=1;h<poly.length;h++){ var hp=ringPts(poly[h]); if(hp.length>2) shape.holes.push(new THREE.Path(hp)); }
+    var g=new THREE.ExtrudeGeometry(shape,{depth:0.45,bevelEnabled:false});
+    var m=new THREE.Mesh(g,[cap,sideMat]); m.rotation.x=-Math.PI/2; scene.add(m);
+    if(outer.length>8){
+      var lg=new THREE.BufferGeometry().setFromPoints(outer.map(function(v){return new THREE.Vector3(v.x,0.47,v.y);}));
+      scene.add(new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:0x24354c,transparent:true,opacity:0.6})));
+    }
+  });
+});
+
+/* ---------- 中央与名角 ---------- */
+var GLOW=(function(){ var cv=document.createElement('canvas');cv.width=cv.height=64;
+  var g=cv.getContext('2d'),gr=g.createRadialGradient(32,32,2,32,32,30);
+  gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,'rgba(255,255,255,.3)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,64,64); return new THREE.CanvasTexture(cv); })();
+function makeGlow(color,s){ var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:color,
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:.85})); sp.scale.set(s,s,1); return sp; }
+/* 八名角原型城市（§1.2：维赛@新余、国晶@天津 为本版新补）*/
+var CITY={tianyang:['无锡',120.31,31.49],hanguang:['上海',121.47,31.23],longsheng:['西安',108.94,34.34],
+  kuajie:['深圳',114.06,22.54],xiaosheng:['沈阳',123.43,41.80],daigong:['东莞',113.75,23.02],
+  weisai:['新余',114.93,27.82],guojing:['天津',117.20,39.08]};
+var BJp=PROJ(116.40,39.90);
+var gov=new THREE.Group(); gov.position.set(BJp[0],0.46,BJp[1]);
+var gv=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.22,1.5,6),
+  new THREE.MeshStandardMaterial({color:0x2a3c5c,emissive:0x0e1522,roughness:.4,metalness:.5}));
+gv.position.y=0.75; gov.add(gv);
+var beacon=new THREE.Mesh(new THREE.SphereGeometry(0.14,12,12),new THREE.MeshBasicMaterial({color:0xe8b64c}));
+beacon.position.y=1.7; gov.add(beacon);
+var beaconGlow=makeGlow(0xe8b64c,2.2); beaconGlow.position.y=1.7; gov.add(beaconGlow);
+scene.add(gov);
+var labels=byId('labels');
+function mkLbl(html){ var el=document.createElement('div'); el.className='lbl'; el.innerHTML=html; labels.appendChild(el); return el; }
+var bjLbl=mkLbl('<b style="color:#e8b64c">★ 中央</b><span></span>');
+var firmVisuals={};
+ENGINE.FIRMS.forEach(function(f){
+  var p=PROJ(CITY[f.id][1],CITY[f.id][2]);
+  var grp=new THREE.Group(); grp.position.set(p[0],0.46,p[1]);
+  var body=new THREE.Mesh(new THREE.BoxGeometry(0.5,1,0.5),
+    new THREE.MeshStandardMaterial({color:f.color,roughness:.42,metalness:.12,emissive:f.color,emissiveIntensity:.28}));
+  body.userData.firmId=f.id; grp.add(body);
+  var ghost=new THREE.Mesh(new THREE.BoxGeometry(0.56,1,0.56),
+    new THREE.MeshBasicMaterial({color:0xef5350,wireframe:true,transparent:true,opacity:.7}));
+  ghost.visible=false; grp.add(ghost);
+  var glow=makeGlow(f.color,1.0); grp.add(glow);
+  scene.add(grp);
+  var el=mkLbl('<b style="color:'+f.css+'">'+f.emoji+' '+f.name+'</b><span></span>');
+  firmVisuals[f.id]={grp:grp,body:body,ghost:ghost,glow:glow,el:el,curH:0.35,tH:0.35,curG:0,tG:0,x:p[0],z:p[1]};
+});
+
+/* ---------- 群演楼海 ---------- */
+var EX_CAP=340;
+var exGeoBox=new THREE.BoxGeometry(0.16,1,0.16); exGeoBox.translate(0,0.5,0);
+var exMesh=new THREE.InstancedMesh(exGeoBox,
+  new THREE.MeshStandardMaterial({roughness:.6,metalness:.05,emissive:0x0e1114,emissiveIntensity:.5}),EX_CAP);
+exMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); exMesh.count=0; scene.add(exMesh);
+var EXC=[new THREE.Color(0x3d7f78),new THREE.Color(0x93803f),new THREE.Color(0x5a6c92)];
+var DEADC=new THREE.Color(0x1a1f26),FLASHC=new THREE.Color(0xff5040);
+function mb32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function wpick(list,u){var s=0;for(var i=0;i<list.length;i++){s+=list[i][1];if(u<=s)return list[i][0];}return list[list.length-1][0];}
+var exInfoCache={};
+function exInfo(i,region){
+  var key=i+'_'+region; if(exInfoCache[key])return exInfoCache[key];
+  var r=mb32((i+7)*2654435761 ^ region*97);
+  var prov=wpick(BANDS[region].provs,r());
+  var c=CENTROID[prov]||[112,33];
+  var p=PROJ(c[0]+(r()-0.5)*2.4, c[1]+(r()-0.5)*1.8);
+  return exInfoCache[key]={prov:prov,x:p[0],z:p[1]};
+}
+var exCurH=[],exTH=[],exFlash=[],exCol=[];
+var dummy=new THREE.Object3D(),tmpCol=new THREE.Color();
+
+/* ---------- 粒子 ---------- */
+var particles=[],pGeo=new THREE.SphereGeometry(0.09,7,7);
+function spawnFlow(from,to,color,n){
+  for(var i=0;i<n;i++){
+    var m=new THREE.Mesh(pGeo,new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:.95,
+      blending:THREE.AdditiveBlending,depthWrite:false}));
+    var mid=from.clone().lerp(to,.5); mid.y+=2.6+Math.random()*1.8;
+    particles.push({m:m,a:from.clone(),b:mid,c:to.clone(),t:-i*.12,sp:.9+Math.random()*.5}); scene.add(m);
+  }
+}
+function bez(a,b,c,t){var ab=a.clone().lerp(b,t),bc=b.clone().lerp(c,t);return ab.lerp(bc,t);}
+function govTop(){return new THREE.Vector3(BJp[0],2.1,BJp[1]);}
+function firmTop(id){var v=firmVisuals[id];return new THREE.Vector3(v.x,0.46+v.curH+0.3,v.z);}
+var BANDCAP=['江苏','河北','辽宁'];
+function bandMid(j){var c=CENTROID[BANDCAP[j]],p=PROJ(c[0],c[1]);return new THREE.Vector3(p[0],0.7,p[1]);}
+
+/* ---------- 相机 ---------- */
+var cam={r:30,phi:.98,theta:0,tr:30,tphi:.98,ttheta:0};
+var intro={on:true,t0:performance.now(),dur:2200};
+var lastPointer=performance.now(),LOOK=new THREE.Vector3(0,0,0.8);
+function applyCam(){
+  camera.position.set(LOOK.x+cam.r*Math.sin(cam.phi)*Math.sin(cam.theta),
+    cam.r*Math.cos(cam.phi), LOOK.z+cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
+  camera.lookAt(LOOK);
+}
+var drag=null;
+cvs.addEventListener('pointerdown',function(e){drag={x:e.clientX,y:e.clientY,th:cam.ttheta,ph:cam.tphi,moved:false};
+  intro.on=false;lastPointer=performance.now();});
+addEventListener('pointermove',function(e){lastPointer=performance.now();if(!drag)return;
+  var dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;
+  cam.ttheta=drag.th-dx*.005;cam.tphi=Math.min(1.35,Math.max(.32,drag.ph-dy*.004));});
+addEventListener('pointerup',function(e){if(drag&&!drag.moved)onTap(e);drag=null;});
+cvs.addEventListener('wheel',function(e){e.preventDefault();lastPointer=performance.now();
+  cam.tr=Math.min(52,Math.max(10,cam.tr+e.deltaY*.02));},{passive:false});
+
+/* ---------- 推演状态 ---------- */
+var userSim,baseSim,activeNodes,apRemaining,pendingOps,roundRecs,takenOver,gameOver,selected,playTimer=null;
+var scrub={on:false,k:-1,u:null,b:null,active:null};
+/* 企业镜头预留通道（§3）：{firmId:{dK,rd,fake,move,note}}；本版不开 UI，接口不封死 */
+var playerCtrl=null;
+function cur(){return scrub.on?scrub.u:userSim;}
+function curBase(){return scrub.on?scrub.b:baseSim;}
+function log(cls,msg,t){var p=document.createElement('p');p.className=cls;
+  var s=cur();
+  p.innerHTML='<b>'+(t!==undefined?s.yearLabel(t):s.yearLabel(Math.max(0,s.t-1)))+'</b>'+msg;
+  byId('evtBody').prepend(p);
+  while(byId('evtBody').children.length>200)byId('evtBody').lastChild.remove();}
+
+/* ---------- 政策树 UI ---------- */
+var treeBody=byId('treeBody'),nodeTip=byId('nodeTip');
+function opName(o){var n=PNODES.find(function(x){return x.id===o[1];});
+  return o[2]>0?(n.name+' Lv'+o[2]):('废止「'+n.name+'」');}
+function userOp(id,lv){
+  if(scrub.on||gameOver)return;
+  var n=PNODES.find(function(x){return x.id===id;});
+  var cost=n.cost||1;
+  if(apRemaining<cost){log('sys','行动点不足——政策注意力是稀缺品（本回合还剩 '+apRemaining+' 点）。');return;}
+  var st=nodeState(n,activeNodes,userSim,apRemaining);
+  if(lv>0&&(st.s==='locked'||st.s==='blocked')){log('sys',n.name+'：'+st.why);return;}
+  apRemaining-=cost;
+  if(lv>0)activeNodes[id]=lv;else delete activeNodes[id];
+  pendingOps.push(['set',id,lv]);
+  if(!takenOver){takenOver=true;
+    byId('autopilotHint').innerHTML='<b>你已接管</b>——史实剧本停用，基线宇宙继续按史实运行供对照。';
+    log('sys','【接管】'+userSim.yearLabel()+'：你从这里改写政策组合。');}
+  log('policy','【拟定】'+opName(['set',id,lv])+'（下一期生效）');
+  renderTree();updateAP();
+}
+function renderTree(){
+  var sim=cur(),act=scrub.on?scrub.active:activeNodes;
+  var html='';
+  BRANCHES.forEach(function(b){
+    html+='<div class="branch"><div class="bhead"><i style="background:'+b.css+'"></i>'+b.name+'</div>';
+    PNODES.filter(function(n){return n.br===b.id;}).forEach(function(n){
+      var lv=act[n.id]||0,st=nodeState(n,act,sim,apRemaining);
+      var pips='';for(var k=0;k<n.lvs.length;k++)pips+='<i class="'+(k<lv?'on':'')+'"></i>';
+      var ops='';
+      if(!scrub.on){
+        if(st.s==='active'){
+          ops='<div class="ops">'+(lv<n.lvs.length?'<b data-op="up" data-id="'+n.id+'">▲</b>':'')+
+              '<b data-op="down" data-id="'+n.id+'">▼</b></div>';
+        } else if(st.s==='avail') ops='<div class="ops"><b data-op="up" data-id="'+n.id+'">启用</b></div>';
+      }
+      html+='<div class="pnode '+st.s+'" data-id="'+n.id+'">'+ops+
+        '<div class="nrow"><span>'+n.icon+'</span><span class="nname">'+n.name+'</span><span class="pips">'+pips+'</span></div>'+
+        (lv?'<div class="lvtag">'+n.lvs[lv-1].tag+(n.cost>1?' · 占'+n.cost+'点':'')+'</div>':'')+'</div>';
+    });
+    html+='</div>';
+  });
+  treeBody.innerHTML=html;
+}
+treeBody.addEventListener('click',function(e){
+  var b=e.target.closest('[data-op]');
+  if(b){var id=b.dataset.id,n=PNODES.find(function(x){return x.id===id;}),lv=activeNodes[id]||0;
+    userOp(id, b.dataset.op==='up'?Math.min(n.lvs.length,lv+1):lv-1); e.stopPropagation(); return;}
+  var nd=e.target.closest('.pnode');
+  if(nd&&(nd.classList.contains('avail')||nd.classList.contains('active'))){
+    var id2=nd.dataset.id,n2=PNODES.find(function(x){return x.id===id2;}),lv2=activeNodes[id2]||0;
+    if(lv2<n2.lvs.length)userOp(id2,lv2+1);
+  }
+});
+treeBody.addEventListener('mouseover',function(e){
+  var nd=e.target.closest('.pnode'); if(!nd){nodeTip.style.display='none';return;}
+  var n=PNODES.find(function(x){return x.id===nd.dataset.id;});
+  var st=nodeState(n,scrub.on?scrub.active:activeNodes,cur(),apRemaining);
+  nodeTip.innerHTML='<h6>'+n.icon+' '+n.name+'</h6>'+n.desc+
+    '<div style="margin-top:4px;color:#7fd6c2;font-size:10px">'+n.lvs.map(function(l,i){return 'Lv'+(i+1)+' '+l.tag;}).join(' · ')+'</div>'+
+    (n.hist?'<div class="hist">'+n.hist+'</div>':'')+
+    (st.why?'<div class="why">'+st.why+'</div>':'');
+  var r=nd.getBoundingClientRect();
+  nodeTip.style.display='block';
+  nodeTip.style.left=(r.right+8)+'px';
+  nodeTip.style.top=Math.min(innerHeight-170,r.top)+'px';
+});
+treeBody.addEventListener('mouseleave',function(){nodeTip.style.display='none';});
+function updateAP(){var pips=byId('apBox').querySelectorAll('i');
+  pips.forEach(function(p,i){p.className=i<apRemaining?'on':'';});}
+
+/* ---------- 时间线（通宽） ---------- */
+var tl=byId('timeline'),cells=[];
+for(var ci=0;ci<20;ci++){
+  var d=document.createElement('div');d.className='tcell';d.dataset.k=ci;
+  if(ci%4===0)d.innerHTML='<span class="yr">'+(2009+ci/2)+'</span>';
+  tl.appendChild(d);cells.push(d);
+}
+tl.addEventListener('click',function(e){
+  var c=e.target.closest('.tcell');if(!c||!c.classList.contains('played'))return;
+  var k=+c.dataset.k; if(k>=userSim.t-0)return;
+  doScrub(k);
+});
+function refreshTimeline(){
+  cells.forEach(function(c,k){
+    c.className='tcell'+(k<userSim.t?' played':'')+(k===userSim.t-1&&!scrub.on?' cur':'')+(scrub.on&&k===scrub.k?' scrub':'');
+    if(k%4===0)c.innerHTML='<span class="yr">'+(2009+k/2)+'</span>';
+  });
+}
+function doScrub(k){
+  stopPlay();
+  var u=new ENGINE.Sim(ENGINE.CFG.seed),b=new ENGINE.Sim(ENGINE.CFG.seed),act={};
+  for(var t=0;t<=k;t++){
+    (roundRecs[t].ops||[]).forEach(function(o){if(o[2]>0)act[o[1]]=o[2];else delete act[o[1]];});
+    u.step(roundRecs[t].policy); b.step(ENGINE.scriptPolicy(t));
+  }
+  scrub={on:true,k:k,u:u,b:b,active:act};
+  byId('scrubT').textContent=u.yearLabel(k);
+  byId('scrubBanner').style.display='flex';
+  byId('btnPlay').disabled=true;byId('btnStep').disabled=true;
+  refreshAll();
+  log('sys','【回看】'+u.yearLabel(k)+' 的世界快照——同种子重演，逐位还原。');
+}
+byId('btnBack').addEventListener('click',function(){
+  scrub.on=false;byId('scrubBanner').style.display='none';
+  byId('btnPlay').disabled=false;byId('btnStep').disabled=false;refreshAll();
+});
+byId('btnBranch').addEventListener('click',function(){
+  userSim=scrub.u;baseSim=scrub.b;activeNodes=scrub.active;
+  roundRecs=roundRecs.slice(0,scrub.k+1);
+  takenOver=true;gameOver=false;pendingOps=[];apRemaining=AP_PER_ROUND;
+  scrub.on=false;byId('scrubBanner').style.display='none';
+  byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
+  byId('autopilotHint').innerHTML='<b>已分叉</b>——你从 '+userSim.yearLabel(userSim.t-1)+' 之后接管历史。';
+  log('sys','【分叉】丢弃 '+userSim.yearLabel(userSim.t)+' 之后的旧未来，从这里重新推演。');
+  updateAP();refreshAll();
+});
+
+/* ---------- 决策卡流（顶带） ---------- */
+var cardFlow=byId('cardFlow');
+function pushFeed(){
+  var g=document.createElement('div');g.className='rgroup';
+  g.innerHTML='<span class="rlab">'+userSim.yearLabel(userSim.t-1)+'</span>';
+  userSim.firms.forEach(function(f){
+    if(!f.lastCard||f.lastCard.t!==userSim.t-1)return;
+    var c=document.createElement('div');c.className='acard'+(selected===f.id?' sel':'');c.dataset.firm=f.id;
+    c.innerHTML='<div class="who">'+f.emoji+' '+f.name+'</div><div class="act">'+f.lastCard.act+'</div>'+
+      '<div class="rule">'+f.lastCard.rule+'</div>';
+    g.appendChild(c);
+  });
+  cardFlow.prepend(g);
+  while(cardFlow.children.length>12)cardFlow.lastChild.remove();
+}
+cardFlow.addEventListener('click',function(e){
+  var c=e.target.closest('.acard');if(c)selectFirm(c.dataset.firm);
+});
+function markSel(){
+  cardFlow.querySelectorAll('.acard').forEach(function(c){
+    c.classList.toggle('sel', c.dataset.firm===selected);
+  });
+}
+
+/* ---------- 五段卡详情（底带） ---------- */
+function selectFirm(id){
+  selected=id||null;
+  byId('dtEmpty').style.display=selected?'none':'block';
+  byId('dtBody').style.display=selected?'block':'none';
+  markSel();
+  if(selected)renderDetail(selected);
+}
+function renderDetail(id){
+  var sim=cur(),f=sim.firms.find(function(x){return x.id===id;});
+  if(!f){selectFirm(null);return;}
+  byId('dtFace').textContent=f.emoji;
+  byId('dtName').textContent=f.name+(f.alive?'':f.dead==='exit'?'（已离场）':'（已破产）');
+  byId('dtArch').textContent=CITY[id][0]+' · '+f.desc;
+  byId('dtPnl').innerHTML='产能 K '+f.K.toFixed(2)+' GW · 现金 '+Math.max(0,f.cash).toFixed(0)+' 亿<br>'+
+    '成本系数 f '+f.f.toFixed(3)+' · 本期损益 '+(f.pnl||0).toFixed(1)+' 亿'+
+    (f.prov?' · 驻地省 '+f.prov:'');
+  var c=f.lastCard;
+  byId('segObserved').innerHTML=c?c.observed.map(function(s){return '<li>'+s+'</li>';}).join(''):'<li>—</li>';
+  byId('segRecalled').innerHTML=(c&&c.recalled&&c.recalled.length)?
+    c.recalled.map(function(m){return '<li>『'+sim.yearLabel(m.t)+'』'+m.text+'</li>';}).join(''):'<li>（尚无相关记忆）</li>';
+  byId('segRule').textContent=c?c.rule:'—';
+  byId('segAct').textContent=c?c.act:'—';
+  byId('segMono').innerHTML=f.monologues.slice(-3).reverse().map(function(m){
+    return '<p><b>'+sim.yearLabel(m.t)+'</b>'+m.note+'</p>';}).join('')||'<p>—</p>';
+}
+function onTap(e){
+  var r=stageRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
+  var mx=((e.clientX-r.left)/r.width)*2-1,my=-((e.clientY-r.top)/r.height)*2+1;
+  var rc=new THREE.Raycaster();rc.setFromCamera({x:mx,y:my},camera);
+  var hits=rc.intersectObjects(Object.keys(firmVisuals).map(function(id){return firmVisuals[id].body;}));
+  if(hits.length){selectFirm(hits[0].object.userData.firmId);return;}
+  var eh=rc.intersectObject(exMesh);
+  if(eh.length&&eh[0].instanceId!==undefined){
+    var i=eh[0].instanceId,ex=cur().ex,gi=exInfo(i,ex.region[i]),tip=byId('exTip');
+    tip.innerHTML='<b style="color:'+BANDS[ex.region[i]].css+'">长尾厂商 #'+(i+1)+'</b> · '+gi.prov+'<br>'+
+      (ex.K[i]*1000).toFixed(0)+'MW · '+(ex.alive[i]?'存活':'已倒闭')+
+      (ex.integ[i]<0.3?'<br><span style="color:#ef5350">投机型</span>':'');
+    tip.style.display='block';tip.style.left=Math.min(innerWidth-180,e.clientX+12)+'px';
+    tip.style.top=Math.max(52,e.clientY-10)+'px';
+    clearTimeout(tip._tm);tip._tm=setTimeout(function(){tip.style.display='none';},2400);
+    return;
+  }
+  selectFirm(null);
+}
+
+/* ---------- 主循环 ---------- */
+function eraName(t){return t<8?'金太阳时期':t<18?'度电补贴时期':'「531」退坡时期';}
+function tick(){
+  if(gameOver||scrub.on)return;
+  if(!takenOver&&AUTOPILOT_OPS[userSim.t]){
+    AUTOPILOT_OPS[userSim.t].forEach(function(o){
+      if(o[2]>0)activeNodes[o[1]]=o[2];else delete activeNodes[o[1]];
+      pendingOps.push(o);
+      log('policy','【史实】'+opName(o));
+    });
+  }
+  var pol=compilePolicy(activeNodes);
+  roundRecs.push({ops:pendingOps.slice(),policy:pol});
+  pendingOps=[];
+  var res=userSim.step(pol,playerCtrl);
+  baseSim.step(ENGINE.scriptPolicy(baseSim.t));
+  res.ev.forEach(function(e){log(e.type,e.msg,e.t);});
+  res.flows.forEach(function(fl){
+    var col=fl.kind==='fine'?0xef5350:fl.kind==='gen'?0x7fd6c2:0xe8b64c;
+    var n=Math.min(6,Math.max(2,Math.round(fl.amt/6)));
+    if(fl.ex!==undefined&&fl.region!==undefined)spawnFlow(govTop(),bandMid(fl.region),col,Math.min(3,n));
+    else if(fl.kind==='fine')spawnFlow(firmTop(fl.id),govTop(),col,n);
+    else spawnFlow(govTop(),firmTop(fl.id),col,n);
+  });
+  apRemaining=AP_PER_ROUND;updateAP();
+  pushFeed();refreshAll();
+  if(userSim.t>=ENGINE.CFG.rounds){gameOver=true;stopPlay();setTimeout(finale,800);}
+}
+function refreshAll(){
+  var sim=cur(),base=curBase();
+  byId('clock').textContent=sim.yearLabel(Math.min(Math.max(sim.t-1,0),19));
+  byId('era').textContent=eraName(Math.min(Math.max(sim.t-1,0),19));
+  byId('dpRound').textContent=sim.t?('本期 '+sim.yearLabel(Math.min(sim.t-1,19))+(scrub.on?' · 回看':'')):'未开局';
+  var h=sim.history[sim.history.length-1],hb=base.history[base.history.length-1];
+  var pol=scrub.on?roundRecs[scrub.k].policy:compilePolicy(activeNodes);
+  if(!h){
+    var sh=[0,0,0];sim.firms.forEach(function(f){sh[f.home]+=f.K;});
+    for(var q=0;q<sim.ex.K.length;q++)sh[sim.ex.region[q]]+=sim.ex.K[q];
+    var tot=sh[0]+sh[1]+sh[2]||1;
+    h=hb={P:0,Cf:sim.frontier,alive:NF,exAlive:sim.ex.K.length,exDeadCum:0,fiscalTotal:0,waste:0,opinion:80,
+      shares:[sh[0]/tot,sh[1]/tot,sh[2]/tot]};
+  }
+  byId('kPrice').textContent=h.P?h.P.toFixed(1)+' / '+h.Cf.toFixed(1):'– / '+h.Cf.toFixed(1);
+  byId('kFiscal').textContent=h.fiscalTotal.toFixed(0)+'亿';
+  byId('kFiscalBase').textContent='基线 '+hb.fiscalTotal.toFixed(0);
+  byId('kWaste').textContent=h.waste.toFixed(0)+'亿';
+  byId('kWasteBase').textContent='基线 '+hb.waste.toFixed(0);
+  byId('kAlive').textContent=h.alive+'/'+NF+' · '+h.exAlive+'家';
+  byId('kAliveBase').textContent='基线 '+hb.alive+'/'+NF+' · '+hb.exAlive;
+  var op=byId('kOpinion');op.textContent=h.opinion.toFixed(0)+'/100';
+  op.className=h.opinion<40?'red':h.opinion<60?'gold':'teal';
+  var rows='';
+  BANDS.forEach(function(b,j){
+    rows+='<div class="rrow"><b style="color:'+b.css+'">'+b.name+'</b>'+
+      '<div class="bar"><i style="width:'+Math.round(h.shares[j]*100)+'%;background:'+b.css+'"></i></div>'+
+      '<small>实核 '+Math.round(sim.effA(j,pol))+'</small></div>';
+  });
+  byId('bandRows').innerHTML=rows;
+  /* 省域亮度=制度带实际核查（省级分化在 T-F2 接 sim.effA(band,pol,provId)） */
+  Object.keys(provMat).forEach(function(name){
+    var j=PROV_BAND[name];if(j===undefined)return;
+    var eff=sim.effA(j,pol),k=Math.min(1,eff/85);
+    provMat[name].color.copy(BANDS[j].col).lerp(new THREE.Color(0xffffff),0.06+k*0.22);
+  });
+  /* 名角 */
+  sim.firms.forEach(function(f){
+    var v=firmVisuals[f.id];
+    v.tH=Math.min(9,0.35+f.K*0.55);
+    v.tG=f.alive?Math.min(4,f.fakeStock*1.1):0;
+    var mat=v.body.material;
+    if(!f.alive){mat.color.set(0x3a414c);mat.emissiveIntensity=0;v.glow.visible=false;
+      v.el.classList.add('dead');v.el.querySelector('span').textContent=f.dead==='exit'?'已离场':'已破产';}
+    else{mat.color.set(f.color);mat.emissiveIntensity=(selected===f.id?.62:.28);v.glow.visible=true;
+      v.el.classList.remove('dead');
+      v.el.querySelector('span').textContent='K '+f.K.toFixed(1)+' · 现金 '+Math.max(0,f.cash).toFixed(0);}
+  });
+  /* 群演 */
+  var ex=sim.ex,n=Math.min(EX_CAP,ex.K.length),now=performance.now();
+  for(var i=0;i<n;i++){
+    if(exCurH[i]===undefined){exCurH[i]=0.02;exFlash[i]=0;exCol[i]=new THREE.Color();exCol[i].copy(EXC[ex.region[i]]);}
+    exTH[i]=ex.alive[i]?0.1+ex.K[i]*11:0.03;
+    if(ex.fakeNow[i]>0)exFlash[i]=now+1400;
+  }
+  exMesh.count=n;
+  drawCharts();refreshTimeline();renderTree();
+  if(selected)renderDetail(selected);
+}
+function series(sim,key){return sim.history.map(function(x){return x[key];});}
+function drawLine(ctx,data,color,dash,mn,mx,w,hh){
+  if(data.length<2)return;
+  ctx.strokeStyle=color;ctx.lineWidth=1.3;ctx.setLineDash(dash?[3,3]:[]);ctx.beginPath();
+  data.forEach(function(v,i){var x=4+(w-8)*i/19,y=hh-4-(hh-9)*(v-mn)/(mx-mn||1);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.stroke();ctx.setLineDash([]);
+}
+function drawCharts(){
+  var u=cur(),b=curBase();
+  [['ch1',[[series(u,'P'),'#e8b64c',0],[series(u,'Cf'),'#7fd6c2',0],[series(b,'P'),'#8b98ab',1]]],
+   ['ch2',[[series(u,'D'),'#7fd6c2',0],[series(u,'S'),'#e8b64c',0],[series(b,'S'),'#8b98ab',1]]],
+   ['ch3',[[series(u,'exAlive'),'#b9a8ef',0],[series(b,'exAlive'),'#8b98ab',1]]],
+   ['ch4',[[series(u,'fiscalTotal'),'#e8b64c',0],[series(b,'fiscalTotal'),'#8b98ab',1]]]
+  ].forEach(function(d){
+    var cv=byId(d[0]),ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+    var all=[];d[1].forEach(function(s){all=all.concat(s[0]);});
+    if(!all.length)return;
+    var mn=Math.min.apply(null,all),mx=Math.max.apply(null,all);
+    d[1].forEach(function(s){drawLine(ctx,s[0],s[1],s[2],mn,mx,cv.width,cv.height);});
+  });
+}
+function finale(){
+  var u=userSim.history[19],b=baseSim.history[19];
+  function row(nm,uv,bv,un){return '<div class="row"><span>'+nm+'</span><b>'+uv+un+
+    ' <span style="color:#8b98ab;font-weight:400">/ 基线 '+bv+un+'</span></b></div>';}
+  byId('finaleRows').innerHTML=
+    row('财政累计',u.fiscalTotal.toFixed(0),b.fiscalTotal.toFixed(0),'亿')+
+    row('骗补流失',u.waste.toFixed(0),b.waste.toFixed(0),'亿')+
+    row('名角存活',u.alive,b.alive,'/'+NF)+
+    row('长尾存活',u.exAlive,b.exAlive,'家')+
+    row('终局成本',u.Cf.toFixed(2),b.Cf.toFixed(2),'元/W')+
+    row('公众舆情',u.opinion.toFixed(0),b.opinion.toFixed(0),'');
+  var v;
+  if(!takenOver)v='你全程未接管——这就是历史本身。重开一局，试试用政策树打出不同的组合拳：单一旋钮解决不了的问题，组合可以。';
+  else{var s=(u.waste<b.waste-5)+(u.fiscalTotal<b.fiscalTotal-20)+(u.Cf<b.Cf+0.1)+(u.opinion>b.opinion+5);
+    v=s>=3?'你的政策组合全面优于史实。风洞的结论：同样的产业结局，本可以少交学费。'
+     :s>=2?'互有胜负——注意组合的副作用：政策没有免费午餐。'
+     :'这个宇宙比史实更糟。风洞存在的意义，就是让糟糕的组合死在推演里。';}
+  byId('finaleVerdict').textContent=v;
+  byId('finale').style.display='block';
+}
+byId('btnAgain').addEventListener('click',function(){byId('finale').style.display='none';init();});
+
+/* ---------- 播放控制 ---------- */
+var btnPlay=byId('btnPlay');
+function startPlay(){if(gameOver||scrub.on)return;stopPlay();
+  playTimer=setInterval(tick,+byId('speed').value);btnPlay.textContent='⏸ 暂停';btnPlay.classList.remove('primary');}
+function stopPlay(){if(playTimer){clearInterval(playTimer);playTimer=null;}
+  btnPlay.textContent='▶ 播放';btnPlay.classList.add('primary');}
+btnPlay.addEventListener('click',function(){playTimer?stopPlay():startPlay();});
+byId('btnStep').addEventListener('click',function(){stopPlay();tick();});
+byId('btnReset').addEventListener('click',function(){stopPlay();init();});
+byId('speed').addEventListener('change',function(){if(playTimer)startPlay();});
+
+function init(){
+  userSim=new ENGINE.Sim(ENGINE.CFG.seed);baseSim=new ENGINE.Sim(ENGINE.CFG.seed);
+  activeNodes={};apRemaining=AP_PER_ROUND;pendingOps=[];roundRecs=[];
+  takenOver=false;gameOver=false;playerCtrl=null;
+  scrub={on:false,k:-1,u:null,b:null,active:null};
+  byId('scrubBanner').style.display='none';
+  byId('finale').style.display='none';byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
+  byId('evtBody').innerHTML='';cardFlow.innerHTML='';
+  exCurH.length=0;exTH.length=0;exFlash.length=0;exCol.length=0;
+  particles.forEach(function(p){scene.remove(p.m);});particles.length=0;
+  byId('autopilotHint').innerHTML='<b>自动驾驶中</b>——史实政策正按时点自动点亮。点击任意节点即接管。';
+  selectFirm(null);
+  log('sys','万历引擎就绪 · 光伏包已加载（8 名角 · 4 省内阁 · 21 节点政策树）。左列是政策树，每回合 3 点行动力；中下是 Agent 决策链；底部时间线可回看任意回合并从那里分叉。');
+  updateAP();refreshAll();
+}
+
+/* ---------- RAF ---------- */
+var prevT=performance.now();
+function animate(){
+  requestAnimationFrame(animate);
+  var now=performance.now(),dt=Math.min(.05,(now-prevT)/1000);prevT=now;
+  if(intro.on){
+    var k=Math.min(1,(now-intro.t0)/intro.dur),e=1-Math.pow(1-k,3);
+    cam.r=46+(30-46)*e;cam.phi=.6+(0.98-.6)*e;cam.theta=-.5+(0-(-.5))*e;
+    cam.tr=cam.r;cam.tphi=cam.phi;cam.ttheta=cam.theta;
+    if(k>=1)intro.on=false;
+  }else{
+    if(now-lastPointer>8000)cam.ttheta=Math.sin(now*0.00012)*0.1;
+    cam.r+=(cam.tr-cam.r)*.12;cam.phi+=(cam.tphi-cam.phi)*.18;cam.theta+=(cam.ttheta-cam.theta)*.18;
+  }
+  applyCam();
+  Object.keys(firmVisuals).forEach(function(id){
+    var v=firmVisuals[id];
+    v.curH+=(v.tH-v.curH)*Math.min(1,dt*3.2);
+    v.body.scale.y=v.curH;v.body.position.y=v.curH/2;
+    v.glow.position.y=v.curH+.3;
+    v.curG+=(v.tG-v.curG)*Math.min(1,dt*3.2);
+    if(v.curG>.04){v.ghost.visible=true;v.ghost.scale.y=v.curG;v.ghost.position.y=v.curH+v.curG/2;}
+    else v.ghost.visible=false;
+  });
+  var sim=cur();
+  if(sim){
+    var ex=sim.ex;
+    for(var i=0;i<exMesh.count;i++){
+      exCurH[i]+=(exTH[i]-exCurH[i])*Math.min(1,dt*3.4);
+      var gi=exInfo(i,ex.region[i]);
+      dummy.position.set(gi.x,0.46,gi.z);dummy.scale.set(1,Math.max(.02,exCurH[i]),1);
+      dummy.rotation.y=0;dummy.updateMatrix();exMesh.setMatrixAt(i,dummy.matrix);
+      if(exMesh.setColorAt){
+        var base=ex.alive[i]?EXC[ex.region[i]]:DEADC;
+        if(now<exFlash[i])tmpCol.copy(base).lerp(FLASHC,.5+.5*Math.sin(now*.02));
+        else tmpCol.copy(base);
+        if(!exCol[i]||!exCol[i].equals(tmpCol)){
+          if(!exCol[i])exCol[i]=new THREE.Color();
+          exCol[i].copy(tmpCol);exMesh.setColorAt(i,tmpCol);exMesh.instanceColor.needsUpdate=true;}
+      }
+    }
+    exMesh.instanceMatrix.needsUpdate=true;
+  }
+  for(var pi=particles.length-1;pi>=0;pi--){
+    var p=particles[pi];p.t+=dt*p.sp;
+    if(p.t<0)continue;
+    if(p.t>=1){scene.remove(p.m);particles.splice(pi,1);continue;}
+    p.m.position.copy(bez(p.a,p.b,p.c,p.t));
+    p.m.material.opacity=.95*(1-Math.abs(p.t-.5)*.7);
+  }
+  var pulse=1+Math.sin(now*.003)*.12;beaconGlow.scale.set(2.2*pulse,2.2*pulse,1);
+  var r=stageRect();
+  function proj2(x,y,z,el,dy){
+    var wp=new THREE.Vector3(x,y,z).project(camera),vis=wp.z<1;
+    el.style.opacity=vis?1:0;
+    if(vis){el.style.left=(wp.x*.5+.5)*r.width+'px';el.style.top=(-wp.y*.5+.5)*r.height+'px';}
+  }
+  Object.keys(firmVisuals).forEach(function(id){
+    var v=firmVisuals[id];proj2(v.x,0.46+v.curH+.55,v.z,v.el);
+  });
+  proj2(BJp[0],2.6,BJp[1],bjLbl);
+  renderer.render(scene,camera);
+}
+fitStage();init();applyCam();animate();
+})();
+</script>
+</body>
+</html>

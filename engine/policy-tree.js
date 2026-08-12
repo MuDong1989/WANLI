@@ -94,7 +94,13 @@ var PNODES=[
 
 var AP_PER_ROUND=3; /* 政策注意力预算（Sims 理性疏忽的政府侧版本）*/
 
-/* ---------- 编译器：活跃节点 → 引擎政策对象 ---------- */
+/* ---------- 编译器：活跃节点 → 引擎政策对象 ----------
+   同键多节点合成语义（A25，全部 17 键强制分类，未分类键编译期报错）：
+   加法类=求和；乘法类=连乘；pick 类=按"从严"取 min/max（此前为数组序后写覆盖，
+   现役唯一冲突对 subEligF{技术门槛1.1,领跑者1.05} 旧序恰得从严值，逐位等价）。 */
+var XK_ADD={demandBonus:1,opinionDrip:1,fiscalDrip:1,entryBonus:1,forceExit:1};
+var XK_MUL={shockMul:1,capexMul:1,rdCostMul:1,discountMul:1,dKCapMul:1};
+var XK_PICK={fineMult:'max',mediaProb:'max',subEligF:'min',entryGateF:'min',entryGateK0:'max',lowIntegCut:'max',opexRelief:'max'};
 function compilePolicy(active){
   var pol={mode:'none',intensity:0,audit:5,x:{}};
   PNODES.forEach(function(n){
@@ -105,11 +111,10 @@ function compilePolicy(active){
       if(eff.core.audit!==undefined) pol.audit=eff.core.audit;
     }
     if(eff.x) Object.keys(eff.x).forEach(function(k){
-      if(k==='demandBonus'||k==='opinionDrip'||k==='fiscalDrip'||k==='entryBonus'||k==='forceExit')
-        pol.x[k]=(pol.x[k]||0)+eff.x[k];
-      else if(k==='shockMul'||k==='capexMul'||k==='rdCostMul'||k==='discountMul'||k==='dKCapMul')
-        pol.x[k]=(pol.x[k]||1)*eff.x[k];
-      else pol.x[k]=eff.x[k];
+      if(XK_ADD[k]) pol.x[k]=(pol.x[k]||0)+eff.x[k];
+      else if(XK_MUL[k]) pol.x[k]=(pol.x[k]||1)*eff.x[k];
+      else if(XK_PICK[k]) pol.x[k]=(pol.x[k]===undefined)? eff.x[k] : Math[XK_PICK[k]](pol.x[k],eff.x[k]);
+      else throw new Error('compilePolicy: 未分类效果键 "'+k+'"（节点 '+n.id+'）——新键须先入 XK_* 分类表并登记 assumption-registry A25');
     });
   });
   return pol;

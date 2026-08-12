@@ -321,6 +321,7 @@ Sim.prototype.step=function(policy,ctrl){
           var mc=CFG.moveCostK*f.K*capex;
           if(f.cash>mc*1.05){
             f.cash-=mc; var oldH=f.home; f.home=pd0.move; f.moveCd=CFG.moveCoolRounds; f.movedNow=true;
+            if(f.prov!==undefined) delete f.prov; /* 省级绑定不随厂迁移:迁出即解除,effA 回退制度带折扣,救助脐带断(A22/Q4) */
             self.writeMem(f,'move','从'+self.regions[oldH].name+'迁往'+self.regions[pd0.move].name+',一次性成本'+mc.toFixed(1)+'亿',0.9);
             ev.push({t:t,type:'firm',msg:f.name+'整体迁址：'+self.regions[oldH].name+'→'+self.regions[pd0.move].name+'（迁址费'+mc.toFixed(1)+'亿，本期出货受损）'});
           } else ev.push({t:t,type:'firm',msg:f.name+'：现金不足以支付迁址费'+mc.toFixed(1)+'亿，迁址取消'});
@@ -472,11 +473,11 @@ Sim.prototype.step=function(policy,ctrl){
         return;
       }
     }
-    if(f.cash<0){ f.alive=false; f.dead='bankrupt'; deadK+=f.K;
+    if(f.cash<0){ f.alive=false; f.dead='bankrupt'; f.deadT=t; deadK+=f.K;
       ev.push({t:t,type:'firm',msg:f.name+'资金链断裂，破产退出'});
       self.alive().forEach(function(g){ self.writeMem(g,'peer_bankrupt','同行'+f.name+'倒下了',0.9); });
     } else if(f.arch==='chaser' && f.entered && f.lossStreak>=2){
-      f.alive=false; f.dead='exit'; deadK+=f.K;
+      f.alive=false; f.dead='exit'; f.deadT=t; deadK+=f.K;
       ev.push({t:t,type:'firm',msg:f.name+'连亏两期，割肉离场："这波风口，是别人的。"'});
     }
   });
@@ -546,7 +547,7 @@ Sim.prototype.step=function(policy,ctrl){
   this.history.push({t:t,P:P,Cf:this.frontier,D:D,S:S,alive:left.length,
     exAlive:exAlive, exDeaths:exDeaths, exDeadCum:this.exDeadCum, exK:exK, castK:castK,
     fiscalTotal:this.fiscal.cap+this.fiscal.gen-this.fiscal.fines,
-    waste:this.fiscal.waste, opinion:this.opinion,
+    waste:this.fiscal.waste, opinion:this.opinion, local:this.fiscal.local||0,
     shares:[shares[0]/totS,shares[1]/totS,shares[2]/totS], fraudRegion:fraudRegion});
   this.t++;
   return {ev:ev, flows:flows, exDeaths:exDeaths};
