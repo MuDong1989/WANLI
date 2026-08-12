@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>万历 · 政企推演场 v2 — 政策树 × 真实地图 × 决策链（光伏包）</title>
+<style>
+  :root{
+    --night:#080c12; --panel:rgba(13,18,26,0.92); --line:rgba(127,166,206,0.15);
+    --gold:#e8b64c; --ink:#cfd8e6; --dim:#8fa1b8; --teal:#7fd6c2; --red:#ef5350; --vio:#b9a8ef;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --serif:'Songti SC','Noto Serif SC','SimSun',serif;
+    /* —— 分区尺寸（比例可调，拓扑不可调，见 frontend-layout-spec §0）—— */
+    --treeW:272px; --evtW:236px; --chartW:236px; --tlH:38px; --topH:48px;
+    --dockR:calc(var(--evtW) + var(--chartW));
+    --centerH:calc(100vh - var(--topH) - var(--tlH));
+    --mapH:calc(var(--centerH) * 0.54);   /* 中列上切：three.js 主视口 */
+    --deciH:calc(var(--centerH) * 0.46);  /* 中列下切：Agent 与决策链（本版主角）*/
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--night);color:var(--ink);
+    font:13px/1.5 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
+
+  /* —— 中上：three.js 主视口 —— */
+  #c{position:fixed;left:var(--treeW);right:var(--dockR);top:var(--topH);height:var(--mapH);touch-action:none}
+  #labels{position:fixed;left:var(--treeW);right:var(--dockR);top:var(--topH);height:var(--mapH);
+    pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-100%);text-align:center;white-space:nowrap;
+    text-shadow:0 1px 5px #000;transition:opacity .3s}
+  .lbl b{font-size:11.5px;letter-spacing:.05em}
+  .lbl span{display:block;font:9.5px var(--mono);color:var(--dim)}
+  .lbl.dead b{color:#525d6b;text-decoration:line-through}
+
+  /* —— 顶栏 —— */
+  #topbar{position:fixed;top:0;left:0;right:0;height:var(--topH);z-index:30;display:flex;align-items:center;gap:10px;
+    padding:0 14px;background:linear-gradient(180deg,rgba(8,12,18,.97),rgba(8,12,18,.85));border-bottom:1px solid var(--line)}
+  #brand{display:flex;align-items:baseline;gap:8px}
+  #brand .zh{font:700 20px/1 var(--serif);letter-spacing:.16em;color:#f1e6cf;text-shadow:0 0 16px rgba(232,182,76,.35)}
+  #brand .en{font:600 8.5px var(--mono);letter-spacing:.4em;color:var(--gold)}
+  #brand .sub{font-size:11px;color:var(--dim);letter-spacing:.14em;border-left:1px solid var(--line);padding-left:9px}
+  #clock{font:600 13px var(--mono);color:var(--teal);min-width:92px}
+  #era{font-size:10.5px;color:var(--gold);letter-spacing:.1em;border:1px solid rgba(232,182,76,.3);border-radius:20px;padding:2px 10px}
+  .btn{border:1px solid var(--line);background:rgba(127,214,194,.05);color:var(--ink);
+    border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .btn:hover{border-color:var(--teal);color:var(--teal)}
+  .btn.primary{border-color:rgba(232,182,76,.55);color:var(--gold);background:rgba(232,182,76,.08)}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  #spacer{flex:1}
+  #apBox{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--dim);letter-spacing:.1em}
+  #apBox i{width:9px;height:9px;border-radius:50%;background:rgba(232,182,76,.15);border:1px solid rgba(232,182,76,.5)}
+  #apBox i.on{background:var(--gold);box-shadow:0 0 7px rgba(232,182,76,.7)}
+
+  /* —— 左整列：政策树 —— */
+  #treeDock{position:fixed;left:0;top:var(--topH);bottom:var(--tlH);width:var(--treeW);z-index:20;
+    background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .dhead{padding:9px 13px;border-bottom:1px solid var(--line);flex-shrink:0}
+  .dhead h3{font-size:11px;letter-spacing:.26em;color:var(--dim);font-weight:500}
+  #autopilotHint{margin-top:6px;padding:6px 8px;border-left:2px solid var(--gold);
+    background:rgba(232,182,76,.06);font-size:10.5px;color:var(--dim);line-height:1.5}
+  #autopilotHint b{color:var(--gold)}
+  #treeBody{flex:1;overflow-y:auto;padding:4px 0 14px}
+  .branch{margin-top:7px}
+  .bhead{padding:4px 13px;font-size:10px;letter-spacing:.2em;color:var(--dim);display:flex;align-items:center;gap:6px}
+  .bhead i{width:7px;height:7px;border-radius:2px}
+  .pnode{margin:3px 9px;padding:6px 8px 6px 10px;border:1px solid var(--line);border-radius:7px;
+    cursor:pointer;position:relative;transition:border-color .15s,background .15s}
+  .pnode .nrow{display:flex;align-items:center;gap:7px}
+  .pnode .nname{flex:1;font-size:11.5px;letter-spacing:.02em}
+  .pnode .pips{display:flex;gap:3px}
+  .pnode .pips i{width:6px;height:6px;border-radius:50%;background:rgba(127,166,206,.18)}
+  .pnode .lvtag{font:9.5px var(--mono);color:var(--dim);margin-top:2px;padding-left:23px}
+  .pnode.avail:hover{border-color:var(--teal);background:rgba(127,214,194,.05)}
+  .pnode.active{border-color:rgba(232,182,76,.55);background:rgba(232,182,76,.06)}
+  .pnode.active .pips i.on{background:var(--gold);box-shadow:0 0 6px rgba(232,182,76,.6)}
+  .pnode.locked,.pnode.blocked{opacity:.42;cursor:default}
+  .pnode.locked .nname::after{content:' 🔒';font-size:9px}
+  .pnode .ops{position:absolute;right:6px;top:5px;display:none;gap:3px}
+  .pnode.active:hover .ops,.pnode.avail:hover .ops{display:flex}
+  .pnode .ops b{font-size:10px;border:1px solid var(--line);border-radius:4px;padding:0 5px;
+    background:rgba(8,12,18,.8);cursor:pointer;color:var(--ink)}
+  .pnode .ops b:hover{border-color:var(--gold);color:var(--gold)}
+  #nodeTip{position:fixed;z-index:60;display:none;width:238px;padding:9px 11px;font-size:11px;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;pointer-events:none;line-height:1.55}
+  #nodeTip h6{font-size:11.5px;color:var(--gold);margin-bottom:3px}
+  #nodeTip .hist{margin-top:5px;padding-top:5px;border-top:1px dashed var(--line);color:var(--dim);font-size:10px}
+  #nodeTip .why{color:var(--red);font-size:10px;margin-top:4px}
+
+  /* —— 中下：Agent 与决策链（本版主角，占中列 46%）—— */
+  #decision{position:fixed;left:var(--treeW);right:var(--dockR);top:calc(var(--topH) + var(--mapH));
+    bottom:var(--tlH);z-index:20;background:var(--panel);border-top:1px solid var(--line);
+    display:flex;flex-direction:column;overflow:hidden}
+  #dpHead{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid var(--line);flex-shrink:0}
+  #dpHead h3{font-size:11px;letter-spacing:.26em;color:var(--dim);font-weight:500}
+  #dpRound{font:9.5px var(--mono);color:var(--gold);letter-spacing:.08em}
+  #dpHint{margin-left:auto;font-size:10px;color:var(--dim)}
+  /* 决策卡流（顶带）*/
+  #cardFlow{flex:0 0 auto;height:84px;display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;
+    padding:7px 10px;align-items:stretch;border-bottom:1px solid var(--line)}
+  .rgroup{display:flex;gap:5px;align-items:stretch;padding-right:8px;border-right:1px dashed rgba(127,166,206,.14)}
+  .rgroup .rlab{writing-mode:vertical-rl;font:9.5px var(--mono);color:var(--dim);letter-spacing:.1em}
+  .acard{min-width:124px;max-width:146px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;
+    cursor:pointer;font-size:10.5px;line-height:1.45;background:rgba(8,12,18,.5)}
+  .acard:hover{border-color:var(--teal)}
+  .acard.sel{border-color:var(--gold);background:rgba(232,182,76,.07)}
+  .acard .who{font-size:11px;letter-spacing:.03em}
+  .acard .act{font:600 10px var(--mono);color:var(--teal);margin-top:1px}
+  .acard .rule{color:var(--dim);font-size:9.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  /* 决策链胶片（中带）——占位，待 T-E1 f.cards 全史 */
+  #filmStrip{flex:0 0 auto;height:26px;display:flex;align-items:center;gap:8px;padding:0 12px;
+    border-bottom:1px dashed var(--line);font:9.5px var(--mono);color:#5f6d80;letter-spacing:.08em}
+  #filmStrip i{display:inline-block;width:10px;height:10px;border:1px dashed rgba(127,166,206,.22);border-radius:2px}
+  /* 五段卡详情（底带）*/
+  #detail{flex:1;overflow-y:auto;padding:8px 12px 10px}
+  #dtHead{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  #dtHead .face{font-size:22px}
+  #dtHead h4{font-size:13.5px}
+  #dtHead small{display:block;font-size:10px;color:var(--dim)}
+  #dtHead .pnl{margin-left:auto;font:9.5px var(--mono);color:var(--dim);text-align:right;line-height:1.6}
+  #segs{display:grid;grid-template-columns:1.1fr 1.1fr 1fr 1.2fr;gap:10px}
+  .seg{border-left:1px solid var(--line);padding-left:9px;min-width:0}
+  .seg h5{font-size:9.5px;letter-spacing:.28em;color:var(--dim);font-weight:500;margin-bottom:4px}
+  .seg h5 i{font-style:normal;color:var(--gold);margin-right:4px}
+  .seg ul{list-style:none;font-size:11px}
+  .seg ul li{padding:1px 0 1px 10px;position:relative;line-height:1.5}
+  .seg ul li::before{content:'·';position:absolute;left:0;color:var(--dim)}
+  .rulePill{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:4px;line-height:1.5;
+    background:rgba(232,182,76,.09);border:1px solid rgba(232,182,76,.3);color:var(--gold)}
+  .segAct{font:600 12px var(--mono);color:var(--teal);margin-top:7px}
+  .segMono p{font-size:11px;margin:0 0 6px;padding-left:9px;border-left:2px solid var(--line)}
+  .segMono p b{display:block;font:9.5px var(--mono);color:var(--dim)}
+  #dtEmpty{color:var(--dim);font-size:11.5px;line-height:1.9;padding:6px 2px}
+  #dtEmpty b{color:var(--teal)}
+
+  /* —— 右二整列：事件流 —— */
+  #evtDock{position:fixed;right:var(--chartW);top:var(--topH);bottom:var(--tlH);width:var(--evtW);z-index:20;
+    background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column}
+  #evtBody{flex:1;overflow-y:auto;padding:6px 11px;font-size:11.5px;line-height:1.6}
+  #evtBody p{margin:2px 0;color:var(--dim);border-left:2px solid transparent;padding-left:6px}
+  #evtBody p b{display:block;font:9.5px var(--mono);color:#74839a;letter-spacing:.06em}
+  #evtBody p.market{color:#bcd0e8;border-color:#8b98ab}
+  #evtBody p.policy{color:var(--gold);border-color:var(--gold)}
+  #evtBody p.media{color:#f0a5a3;border-color:#f0a5a3}
+  #evtBody p.fraud{color:var(--red);border-color:var(--red)}
+  #evtBody p.firm{color:#a8e6d5;border-color:#a8e6d5}
+  #evtBody p.sys{color:var(--teal);border-color:var(--teal)}
+  #evtBody p.wave{color:#e8b0d0;border-color:#e8b0d0}
+  #evtBody p.region{color:var(--vio);border-color:var(--vio)}
+
+  /* —— 最右整列：数据图表 —— */
+  #chartDock{position:fixed;right:0;top:var(--topH);bottom:var(--tlH);width:var(--chartW);z-index:20;
+    background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:10px 13px}
+  #chartDock h3{font-size:11px;letter-spacing:.26em;color:var(--dim);font-weight:500;margin-bottom:6px}
+  .kpi{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;font-size:11.5px}
+  .kpi em{font-style:normal;color:var(--dim)}
+  .kpi b{font:600 12px var(--mono)}
+  .kpi b.gold{color:var(--gold)}.kpi b.teal{color:var(--teal)}.kpi b.red{color:var(--red)}
+  .kpi small{font:9.5px var(--mono);color:var(--dim)}
+  .chartCap{margin-top:8px;font-size:9.5px;letter-spacing:.16em;color:var(--dim)}
+  canvas.spark{width:100%;height:46px;display:block;margin-top:3px;border-radius:5px;
+    background:rgba(5,8,13,.6);border:1px solid var(--line)}
+  #bandRows{margin-top:9px;border-top:1px dashed var(--line);padding-top:7px}
+  .rrow{display:grid;grid-template-columns:58px 1fr 58px;gap:6px;align-items:center;padding:2px 0;font-size:10.5px}
+  .rrow .bar{height:5px;border-radius:3px;background:rgba(127,166,206,.12);overflow:hidden}
+  .rrow .bar i{display:block;height:100%;border-radius:3px;transition:width .5s}
+  .rrow small{font:9.5px var(--mono);color:var(--dim);text-align:right}
+  #legend{margin-top:8px;font-size:9.8px;color:var(--dim);line-height:1.7}
+
+  /* —— 底部通宽：时间线 —— */
+  #timeline{position:fixed;left:0;right:0;bottom:0;height:var(--tlH);z-index:25;
+    background:rgba(8,12,18,.96);border-top:1px solid var(--line);display:flex;align-items:center;gap:3px;padding:0 12px}
+  #tlLabel{font-size:9.5px;letter-spacing:.18em;color:var(--dim);margin-right:8px;white-space:nowrap}
+  .tcell{flex:1;height:16px;border-radius:3px;background:rgba(127,166,206,.08);border:1px solid rgba(127,166,206,.12);
+    cursor:default;position:relative;transition:background .2s}
+  .tcell.played{background:rgba(127,214,194,.18);border-color:rgba(127,214,194,.3);cursor:pointer}
+  .tcell.played:hover{background:rgba(127,214,194,.36)}
+  .tcell.cur{background:rgba(232,182,76,.45);border-color:var(--gold);box-shadow:0 0 8px rgba(232,182,76,.4)}
+  .tcell.scrub{background:rgba(185,168,239,.5);border-color:var(--vio)}
+  .tcell .yr{position:absolute;top:-13px;left:0;font:8.5px var(--mono);color:#5a6678}
+  #scrubBanner{position:fixed;left:calc(var(--treeW) + (100vw - var(--treeW) - var(--dockR))/2);
+    bottom:calc(var(--tlH) + var(--deciH) + 10px);transform:translateX(-50%);
+    z-index:40;display:none;padding:8px 14px;background:var(--panel);border:1px solid var(--vio);border-radius:9px;
+    font-size:12px;color:var(--vio);align-items:center;gap:10px}
+  #scrubBanner .btn{padding:3px 10px;font-size:11px}
+
+  /* —— 浮层 —— */
+  #exTip{position:fixed;z-index:60;display:none;padding:6px 10px;font-size:11px;
+    background:var(--panel);border:1px solid var(--line);border-radius:7px;pointer-events:none}
+  #finale{position:fixed;top:calc(var(--topH) + var(--mapH)/2);
+    left:calc(var(--treeW) + (100vw - var(--treeW) - var(--dockR))/2);
+    transform:translate(-50%,-50%);z-index:50;display:none;width:min(430px,80vw);padding:20px 22px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  #finale h2{font:700 16px var(--serif);letter-spacing:.28em;color:var(--gold);margin-bottom:11px}
+  #finale .row{display:flex;justify-content:space-between;font-size:12px;padding:3.5px 0;border-bottom:1px dashed rgba(127,166,206,.12)}
+  #finale .row b{font:600 12px var(--mono)}
+  #finale .verdict{margin-top:11px;font-size:11.5px;color:var(--dim);line-height:1.7}
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-thumb{background:rgba(127,166,206,.25);border-radius:3px}
+  #quote{position:fixed;right:calc(var(--dockR) + 14px);top:calc(var(--topH) + 14px);z-index:5;pointer-events:none;
+    font:11px/1.9 var(--serif);letter-spacing:.2em;color:rgba(232,182,76,.35);writing-mode:vertical-rl}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+
+<div id="topbar">
+  <div id="brand"><span class="zh">万历</span><span class="en">WANLI</span><span class="sub">政企推演场 · 光伏包</span></div>
+  <div id="clock">2009年上半年</div>
+  <div id="era">金太阳时期</div>
+  <button class="btn primary" id="btnPlay">▶ 播放</button>
+  <button class="btn" id="btnStep">单步</button>
+  <button class="btn" id="btnReset">重置</button>
+  <div id="spacer"></div>
+  <div id="apBox">行动点 <i></i><i></i><i></i></div>
+  <select class="btn" id="speed">
+    <option value="2600">慢速</option><option value="1500" selected>常速</option><option value="750">快速</option>
+  </select>
+</div>
+
+<!-- 左整列：策略树 -->
+<div id="treeDock">
+  <div class="dhead">
+    <h3>政策树 · 你是中央</h3>
+    <div id="autopilotHint"><b>自动驾驶中</b>——史实政策正按时点自动点亮。点击任意节点即接管。</div>
+  </div>
+  <div id="treeBody"></div>
+</div>
+
+<!-- 中下：Agent 与决策链 -->
+<div id="decision">
+  <div id="dpHead">
+    <h3>AGENT 与决策链</h3><span id="dpRound">未开局</span>
+    <span id="dpHint">点击地图上的名角楼或下方决策卡 → 展开五段决策卡</span>
+  </div>
+  <div id="cardFlow"></div>
+  <div id="filmStrip"><i></i><i></i><i></i><i></i>决策链胶片 · 20 格连环画位（待引擎 f.cards 全史 · T-E1）</div>
+  <div id="detail">
+    <div id="dtEmpty">
+      尚未选中主体。<b>决策链</b>回答的是：这一步棋，它<b>看到了什么</b>、<b>想起了什么</b>、<b>依据哪条规则</b>、<b>做了什么</b>、<b>心里怎么想</b>。<br>
+      八名角同处一个供给池：技术长期主义者、激进扩张者、资本故事家、跨界追风者、骗补投机者、观望代工厂、政企绑定型、国资型。
+    </div>
+    <div id="dtBody" style="display:none">
+      <div id="dtHead">
+        <div class="face" id="dtFace">🏭</div>
+        <div><h4 id="dtName">–</h4><small id="dtArch">–</small></div>
+        <div class="pnl" id="dtPnl"></div>
+      </div>
+      <div id="segs">
+        <div class="seg"><h5><i>壹</i>观测</h5><ul id="segObserved"></ul></div>
+        <div class="seg"><h5><i>贰</i>调取记忆</h5><ul id="segRecalled"></ul></div>
+        <div class="seg"><h5><i>叁</i>决策依据</h5><span class="rulePill" id="segRule">–</span>
+          <h5 style="margin-top:9px"><i>肆</i>行动</h5><div class="segAct" id="segAct">–</div></div>
+        <div class="seg"><h5><i>伍</i>内心独白</h5><div class="segMono" id="segMono"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 右二整列：事件流 -->
+<div id="evtDock">
+  <div class="dhead"><h3>事件流 · 世界在发生什么</h3></div>
+  <div id="evtBody"></div>
+</div>
+
+<!-- 最右整列：数据图表 -->
+<div id="chartDock">
+  <h3>数据图表 · 双宇宙对照</h3>
+  <div class="kpi"><em>价格/成本 元·W⁻¹</em><b class="gold" id="kPrice">–</b></div>
+  <div class="kpi"><em>财政累计</em><b class="gold" id="kFiscal">–</b><small id="kFiscalBase"></small></div>
+  <div class="kpi"><em>骗补流失</em><b class="red" id="kWaste">–</b><small id="kWasteBase"></small></div>
+  <div class="kpi"><em>名角 / 长尾</em><b id="kAlive">–</b><small id="kAliveBase"></small></div>
+  <div class="kpi"><em>公众舆情</em><b id="kOpinion">–</b></div>
+  <div class="chartCap">价格 · 成本</div><canvas class="spark" id="ch1" width="210" height="46"></canvas>
+  <div class="chartCap">需求 · 供给</div><canvas class="spark" id="ch2" width="210" height="46"></canvas>
+  <div class="chartCap">长尾存活数</div><canvas class="spark" id="ch3" width="210" height="46"></canvas>
+  <div class="chartCap">财政累计投入</div><canvas class="spark" id="ch4" width="210" height="46"></canvas>
+  <div id="bandRows"></div>
+  <div id="legend">实线=你的宇宙 · 虚线=史实基线<br>省域亮度=当地实际核查 · 红闪=虚报<br>同一种子：两个宇宙唯一差异是政策</div>
+</div>
+
+<!-- 底部通宽：时间线 -->
+<div id="timeline"><span id="tlLabel">时间线 · 点击已推演回合可回看</span></div>
+<div id="scrubBanner">回看模式 · <span id="scrubT"></span>
+  <button class="btn" id="btnBranch">⑂ 从此分叉</button>
+  <button class="btn" id="btnBack">回到最新</button>
+</div>
+
+<div id="nodeTip"></div>
+<div id="exTip"></div>
+<div id="finale"><h2>二十回合复盘</h2><div id="finaleRows"></div>
+  <div class="verdict" id="finaleVerdict"></div>
+  <button class="btn primary" id="btnAgain" style="margin-top:13px">重开一局</button></div>
+<div id="quote">多算胜，少算不胜</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* echarts 地图压缩坐标解码器（zigzag+delta，UTF8Scale 默认1024）——三维地图用 */
+function decodeRing(str, offsets, scale){
+  var out=[], px=offsets[0], py=offsets[1];
+  for(var i=0;i<str.length;i+=2){
+    var x=str.charCodeAt(i)-64, y=str.charCodeAt(i+1)-64;
+    x=(x>>1)^(-(x&1)); y=(y>>1)^(-(y&1));
+    px=x+=px; py=y+=py;
+    out.push([x/scale, y/scale]);
+  }
+  return out;
+}
+function decodeGeo(json){
+  if(!json.UTF8Encoding) return json;
+  var scale=json.UTF8Scale||1024;
+  json.features.forEach(function(f){
+    var g=f.geometry, c=g.coordinates, off=g.encodeOffsets;
+    if(g.type==='Polygon') c.forEach(function(r,i){ c[i]=decodeRing(r,off[i],scale); });
+    else if(g.type==='MultiPolygon') c.forEach(function(poly,i){ poly.forEach(function(r,j){ poly[j]=decodeRing(r,off[i][j],scale); }); });
+  });
+  json.UTF8Encoding=false;
+  return json;
+}
+if(typeof module!=='undefined') module.exports={decodeGeo:decodeGeo};
+
+var CHINA_GEO={"type":"FeatureCollection","features":[{"type":"Feature","id":"710000","properties":{"id":"710000","cp":[121.509062,24.044332],"name":"台湾","childNum":6},"geometry":{"type":"MultiPolygon","coordinates":[["@@°Ü¯Û"],["@@ƛĴÕƊÉɼģºðʀ\\ƎsÆNŌÔĚänÜƤɊĂǀĆĴĤǊŨxĚĮǂƺòƌâÔ®ĮXŦţƸZûÐƕƑGđ¨ĭMó·ęcëƝɉlÝƯֹÅŃ^Ó·śŃǋƏďíåɛGɉ¿@ăƑ¥ĘWǬÏĶŁâ"],["@@\\p|WoYG¿¥Ij@¢"],["@@¡@V^RqBbAnTXeRz¤L«³I"],["@@ÆEEkWqë @"],["@@fced"],["@@¯ɜÄèaì¯ØǓIġĽ"],["@@çûĖëĄhòř "]],"encodeOffsets":[[[122886,24033]],[[123335,22980]],[[122375,24193]],[[122518,24117]],[[124427,22618]],[[124862,26043]],[[126259,26318]],[[127671,26683]]]}},{"type":"Feature","id":"130000","properties":{"id":"130000","cp":[114.502461,38.045474],"name":"河北","childNum":3},"geometry":{"type":"MultiPolygon","coordinates":[["@@o~Z]ªrºc_ħ²G¼s`jÎŸnüsÂłNX_M`Ç½ÓnUKĜēs¤­©yrý§uģcJe"],["@@U`Ts¿mÂ"],["@@oºƋÄdeVDJj£J|ÅdzÂFt~KŨ¸IÆv|¢r}èonb}`RÎÄn°ÒdÞ²^®lnÐèĄlðÓ×]ªÆ}LiĂ±Ö`^°Ç¶p®đDcŋ`ZÔ¶êqvFÆN®ĆTH®¦O¾IbÐã´BĐɢŴÆíȦpĐÞXR·nndO¤OÀĈƒ­QgµFo|gȒęSWb©osx|hYhgŃfmÖĩnºTÌSp¢dYĤ¶UĈjlǐpäìë|³kÛfw²Xjz~ÂqbTÑěŨ@|oMzv¢ZrÃVw¬ŧĖ¸f°ÐTªqs{S¯r æÝlNd®²Ğ ǆiGĘJ¼lr}~K¨ŸƐÌWöÆzR¤lêmĞLÎ@¡|q]SvKÑcwpÏÏĿćènĪWlĄkT}J¤~ÈTdpddʾĬBVtEÀ¢ôPĎƗè@~kü\\rÊĔÖæW_§¼F´©òDòjYÈrbĞāøŀG{ƀ|¦ðrb|ÀH`pʞkvGpuARhÞÆǶgĘTǼƹS£¨¡ù³ŘÍ]¿ÂyôEP xX¶¹ÜO¡gÚ¡IwÃé¦ÅBÏ|Ç°N«úmH¯âDùyŜŲIÄuĐ¨D¸dɂFOhđ©OiÃ`ww^ÌkÑH«ƇǤŗĺtFu{Z}Ö@U´ʚLg®¯Oı°Ãw ^VbÉsmAê]]w§RRl£ȭµu¯b{ÍDěïÿȧuT£ġěŗƃĝQ¨fVƋƅn­a@³@ďyÃ½IĹÊKŭfċŰóxV@tƯJ]eR¾fe|rHA|h~Ėƍl§ÏlTíb ØoÅbbx³^zÃĶ¶Sj®AyÂhðk`«PËµEFÛ¬Y¨Ļrõqi¼Wi°§Ð±´°^[À|ĠO@ÆxO\\ta\\tĕtû{ġȧXýĪÓjùÎRb^ÎfK[ÝděYfíÙTyuUSyŌŏů@Oi½éŅ­aVcř§ax¹XŻácWU£ôãºQ¨÷Ñws¥qEHÙ|šYQoŕÇyáĂ£MÃ°oťÊP¡mWO¡v{ôvîēÜISpÌhp¨ jdeŔQÖjX³àĈ[n`Yp@UcM`RKhEbpŞlNut®EtqnsÁgAiúoHqCXhfgu~ÏWP½¢G^}¯ÅīGCÑ^ãziMáļMTÃƘrMc|O_¯Ŏ´|morDkO\\mĆJfl@cĢ¬¢aĦtRıÒ¾ùƀ^juųœK­UFyƝīÛ÷ąV×qƥV¿aȉd³BqPBmaËđŻģmÅ®V¹d^KKonYg¯XhqaLdu¥Ípǅ¡KąÅkĝęěhq}HyÃ]¹ǧ£Í÷¿qáµ§g¤o^á¾ZE¤i`ĳ{nOl»WÝĔįhgF[¿¡ßkOüš_ūiǱàUtėGyl}ÓM}jpEC~¡FtoQiHkk{Ãmï"]],"encodeOffsets":[[[119712,40641]],[[121616,39981]],[[116462,37237]]]}},{"type":"Feature","id":"140000","properties":{"id":"140000","cp":[111.849248,36.857014],"name":"山西","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@ÞĩÒSra}ÁyWix±Üe´lèßÓǏokćiµVZģ¡coTSË¹ĪmnÕńehZg{gtwªpXaĚThȑp{¶Eh®RćƑP¿£Pmc¸mQÝWďȥoÅîɡųAďä³aÏJ½¥PG­ąSM­EÅruµéYÓŌ_dĒCo­Èµ]¯_²ÕjāK~©ÅØ^ÔkïçămÏk]­±cÝ¯ÑÃmQÍ~_apm~ç¡qu{JÅŧ·Ls}EyÁÆcI{¤IiCfUcƌÃp§]ě«vD@¡SÀµMÅwuYY¡DbÑc¡h×]nkoQdaMç~eDÛtT©±@¥ù@É¡ZcW|WqOJmĩl«ħşvOÓ«IqăV¥D[mI~Ó¢cehiÍ]Ɠ~ĥqX·eƷn±}v[ěďŕ]_œ`¹§ÕōIo©b­s^}Ét±ū«³p£ÿ·Wµ|¡¥ăFÏs×¥ŅxÊdÒ{ºvĴÎêÌɊ²¶ü¨|ÞƸµȲLLúÉƎ¤ϊęĔV`_bªS^|dzY|dz¥pZbÆ£¶ÒK}tĦÔņƠPYznÍvX¶Ěn ĠÔzý¦ª÷ÑĸÙUȌ¸dòÜJð´ìúNM¬XZ´¤ŊǸ_tldI{¦ƀðĠȤ¥NehXnYGR° ƬDj¬¸|CĞKqºfƐiĺ©ª~ĆOQª ¤@ìǦɌ²æBÊTŸʂōĖĴŞȀÆÿȄlŤĒötÎ½î¼ĨXh|ªM¤Ðz"],"encodeOffsets":[[116874,41716]]}},{"type":"Feature","id":"150000","properties":{"id":"150000","cp":[111.670801,41.818311],"name":"内蒙古","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@¯PqFB|S³C|kñHdiÄ¥sŉÅPóÑÑE^ÅPpy_YtShQ·aHwsOnŉÃs©iqjUSiº]ïW«gW¡ARë¥_sgÁnUI«m]jvV¼euhwqAaW_µj»çjioQR¹ēÃßt@r³[ÛlćË^ÍÉáGOUÛOB±XkÅ¹£k|e]olkVÍ¼ÕqtaÏõjgÁ£§U^RLËnX°ÇBz^~wfvypV ¯ƫĉ˭ȫƗŷɿÿĿƑ˃ĝÿÃǃßËőó©ǐȍŒĖM×ÍEyxþp]ÉvïèvƀnÂĴÖ@V~Ĉv¦wĖtējyÄDXÄxGQuv_i¦aBçw˛wD©{tāmQ{EJ§KPśƘƿ¥@sCTÉ}ɃwƇy±gÑ}T[÷kÐç¦«SÒ¥¸ëBX½HáÅµÀğtSÝÂa[ƣ°¯¦Pï¡]£ġÒk®G²èQ°óMq}EóƐÇ\\@áügQÍu¥FTÕ¿Jû]|mvāÎYua^WoÀa·­ząÒot×¶CLƗi¯¤mƎHǊ¤îìɾŊìTdåwsRÖgĒųúÍġäÕ}Q¶¿A[¡{d×uQAMxVvMOmăl«ct[wº_ÇÊjbÂ£ĦS_éQZ_lwgOiýe`YYLq§IÁǳ£ÙË[ÕªuƏ³ÍTs·bÁĽäė[b[ŗfãcn¥îC¿÷µ[ŏÀQ­ōĉm¿Á^£mJVmL[{Ï_£F¥Ö{ŹA}×Wu©ÅaųĳƳhB{·TQqÙIķËZđ©Yc|M¡LeVUóK_QWk_ĥ¿ãZ»X\\ĴuUèlG®ěłTĠğDŃOrÍdÆÍz]±ŭ©Å]ÅÐ}UË¥©TċïxgckfWgi\\ÏĒ¥HkµEë{»ÏetcG±ahUiñiWsɁ·cCÕk]wȑ|ća}wVaĚá G°ùnM¬¯{ÈÐÆA¥ÄêJxÙ¢hP¢ÛºµwWOóFÁz^ÀŗÎú´§¢T¤ǻƺSėǵhÝÅQgvBHouʝl_o¿Ga{ïq{¥|ſĿHĂ÷aĝÇqZñiñC³ª»E`¨åXēÕqÉû[l}ç@čƘóO¿¡FUsAʽīccocÇS}£IS~ălkĩXçmĈŀÐoÐdxÒuL^T{r@¢ÍĝKén£kQyÅõËXŷƏL§~}kq»IHėǅjĝ»ÑÞoå°qTt|r©ÏS¯·eŨĕx«È[eM¿yupN~¹ÏyN£{©għWí»Í¾səšǅ_ÃĀɗ±ąĳĉʍŌŷSÉA±åǥɋ@ë£R©ąP©}ĹªƏj¹erLDĝ·{i«ƫC£µsKCGS|úþXgp{ÁX¿ć{ƱȏñZáĔyoÁhA}ŅĆfdŉ_¹Y°ėǩÑ¡H¯¶oMQqð¡Ë|Ñ`ƭŁX½·óÛxğįÅcQs«tȋǅFù^it«Č¯[hAi©á¥ÇĚ×l|¹y¯YȵƓñǙµïċĻ|Düȭ¶¡oŽäÕG\\ÄT¿Òõr¯LguÏYęRƩɷŌO\\İÐ¢æ^Ŋ ĲȶȆbÜGĝ¬¿ĚVĎgª^íu½jÿĕęjık@Ľ]ėl¥ËĭûÁėéV©±ćn©­ȇÍq¯½YÃÔŉÉNÑÅÝy¹NqáʅDǡËñ­ƁYÅy̱os§ȋµʽǘǏƬɱàưN¢ƔÊuľýľώȪƺɂļxZĈ}ÌŉŪĺœĭFЛĽ̅ȣͽÒŵìƩÇϋÿȮǡŏçƑůĕ~Ç¼ȳÐUfdIxÿ\\G zâɏÙOº·pqy£@qþ@Ǟ˽IBäƣzsÂZÁàĻdñ°ŕzéØűzșCìDȐĴĺf®Àľưø@ɜÖÞKĊŇƄ§͑těï͡VAġÑÑ»d³öǍÝXĉĕÖ{þĉu¸ËʅğU̎éhɹƆ̗̮ȘǊ֥ड़ࡰţાíϲäʮW¬®ҌeרūȠkɬɻ̼ãüfƠSצɩςåȈHϚÎKǳͲOðÏȆƘ¼CϚǚ࢚˼ФÔ¤ƌĞ̪Qʤ´¼mȠJˀƲÀɠmǐnǔĎȆÞǠN~ʢĜ¶ƌĆĘźʆȬ˪ĚĒ¸ĞGȖƴƀj`ĢçĶāàŃºēĢĖćYÀŎüôQÐÂŎŞǆŞêƖoˆDĤÕºÑǘÛˤ³̀gńƘĔÀ^ªƂ`ªt¾äƚêĦĀ¼ÐĔǎ¨Ȕ»͠^ˮÊȦƤøxRrŜH¤¸ÂxDÄ|ø˂˜ƮÐ¬ɚwɲFjĔ²Äw°ǆdÀÉ_ĸdîàŎjÊêTĞªŌŜWÈ|tqĢUB~´°ÎFCU¼pĀēƄN¦¾O¶łKĊOjĚj´ĜYp{¦SĚÍ\\T×ªV÷Ší¨ÅDK°ßtŇĔK¨ǵÂcḷ̌ĚǣȄĽFlġUĵŇȣFʉɁMğįʏƶɷØŭOǽ«ƽū¹Ʊő̝Ȩ§ȞʘĖiɜɶʦ}¨֪ࠜ̀ƇǬ¹ǨE˦ĥªÔêFxúQEr´Wrh¤Ɛ \\talĈDJÜ|[Pll̚¸ƎGú´P¬W¦^¦H]prRn|or¾wLVnÇIujkmon£cX^Bh`¥V¦U¤¸}xRj[^xN[~ªxQ[`ªHÆÂExx^wN¶Ê|¨ìMrdYpoRzNyÀDs~bcfÌ`L¾n|¾T°c¨È¢ar¤`[|òDŞĔöxElÖdHÀI`Ď\\Àì~ÆR¼tf¦^¢ķ¶eÐÚMptgjɡČÅyġLûŇV®ÄÈƀĎ°P|ªVVªj¬ĚÒêp¬E|ŬÂc|ÀtƐK f{ĘFĒƌXƲąo½Ę\\¥o}Ûu£ç­kX{uĩ«āíÓUŅßŢqŤ¥lyň[oi{¦LńðFȪȖĒL¿Ìf£K£ʺoqNwğc`uetOj×°KJ±qÆġmĚŗos¬qehqsuH{¸kH¡ÊRǪÇƌbȆ¢´äÜ¢NìÉʖ¦â©Ġu¦öČ^â£ĂhĖMÈÄw\\fŦ°W ¢¾luŸDw\\̀ʉÌÛMĀ[bÓEn}¶Vcês"]],"encodeOffsets":[[[129102,52189]]]}},{"type":"Feature","id":"210000","properties":{"id":"210000","cp":[123.429096,41.796767],"name":"辽宁","childNum":16},"geometry":{"type":"MultiPolygon","coordinates":[["@@L@@sa"],["@@MnNm"],["@@dc"],["@@eÀC@b"],["@@fXwkbrÄ`qg"],["@@^jtWQ"],["@@~ Y]c"],["@@G`ĔN^_¿ZÃM"],["@@iX¶BY"],["@@YZ"],["@@L_{Epf"],["@@^WqCT\\"],["@@\\[§t|¤_"],["@@m`n_"],["@@Ïxǌ{q_×^Giip"],["@@@é^BntaÊU]x ¯ÄPĲ­°hʙK³VÕ@Y~|EvĹsÇ¦­L^pÃ²ŸÒG Ël]xxÄ_fT¤Ď¤cPC¨¸TVjbgH²sdÎdHt`B²¬GJję¶[ÐhjeXdlwhðSČ¦ªVÊÏÆZÆŶ®²^ÎyÅÎcPqńĚDMħĜŁH­kçvV[ĳ¼WYÀäĦ`XlR`ôLUVfK¢{NZdĒªYĸÌÚJRr¸SA|ƴgŴĴÆbvªØX~źB|¦ÕE¤Ð`\\|KUnnI]¤ÀÂĊnŎR®Ő¿¶\\ÀøíDm¦ÎbŨabaĘ\\ľãÂ¸atÎSƐ´©v\\ÖÚÌǴ¤Â¨JKrZ_ZfjþhPkx`YRIjJcVf~sCN¤ EhæmsHy¨SðÑÌ\\\\ĐRZk°IS§fqŒßýáĞÙÉÖ[^¯ǤŲê´\\¦¬ĆPM¯£»uïpùzExanµyoluqe¦W^£ÊL}ñrkqWňûPUP¡ôJoo·U}£[·¨@XĸDXm­ÛÝºGUCÁª½{íĂ^cjk¶Ã[q¤LÉö³cux«zZf²BWÇ®Yß½ve±ÃCý£W{Ú^q^sÑ·¨ÍOt¹·C¥GDrí@wÕKţÃ«V·i}xËÍ÷i©ĝɝǡ]{c±OW³Ya±_ç©HĕoƫŇqr³Lys[ñ³¯OSďOMisZ±ÅFC¥Pq{Ã[Pg}\\¿ghćOk^ģÁFıĉĥM­oEqqZûěŉ³F¦oĵhÕP{¯~TÍlªNßYÐ{Ps{ÃVUeĎwk±ŉVÓ½ŽJãÇÇ»Jm°dhcÀffdF~ĀeĖd`sx² ®EżĀdQÂd^~ăÔH¦\\LKpĄVez¤NP ǹÓRÆąJSh­a[¦´ÂghwmBÐ¨źhI|VV|p] Â¼èNä¶ÜBÖ¼L`¼bØæKVpoúNZÞÒKxpw|ÊEMnzEQIZZNBčÚFÜçmĩWĪñtÞĵÇñZ«uD±|Əlĳ¥ãn·±PmÍada CLǑkùó¡³Ï«QaċÏOÃ¥ÕđQȥċƭy³ÃA"]],"encodeOffsets":[[[123686,41445]],[[126019,40435]],[[124393,40128]],[[126117,39963]],[[125322,40140]],[[126686,40700]],[[126041,40374]],[[125584,40168]],[[125453,40165]],[[125362,40214]],[[125280,40291]],[[125774,39997]],[[125976,40496]],[[125822,39993]],[[125509,40217]],[[122731,40949]]]}},{"type":"Feature","id":"220000","properties":{"id":"220000","cp":[125.3245,43.886841],"name":"吉林","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@pä³PClFbbÍzwBGĭZÅi»lY­ċ²SgkÇ£^Sqd¯R©é£¯S\\cZ¹iűƏCuƍÓXoR}M^o£R}oªU­FuuXHlEÅÏ©¤ÛmTþ¤D²ÄufàÀ­XXÈ±AeyYw¬dvõ´KÊ£\\rµÄlidā]|î©¾DÂVH¹Þ®ÜWnCķ W§@\\¸~¤Vp¸póIO¢VOŇürXql~òÉK]¤¥Xrfkvzpm¶bwyFoúvð¼¤ N°ąO¥«³[éǡű_°Õ\\ÚÊĝþâőàerR¨­JYlďQ[ ÏYëÐ§TGztnß¡gFkMāGÁ¤ia ÉÈ¹`\\xs¬dĆkNnuNUuP@vRY¾\\¢GªóĄ~RãÖÎĢùđŴÕhQxtcæëSɽŉíëǉ£ƍG£nj°KƘµDsØÑpyĆ¸®¿bXp]vbÍZuĂ{n^IüÀSÖ¦EvRÎûh@â[ƏÈô~FNr¯ôçR±­HÑlĢ^¤¢OðævxsŒ]ÞÁTĠs¶¿âÆGW¾ìA¦·TÑ¬è¥ÏÐJ¨¼ÒÖ¼ƦɄxÊ~StD@Ă¼Ŵ¡jlºWvÐzƦZÐ²CH AxiukdGgetqmcÛ£Ozy¥cE}|¾cZk¿uŐã[oxGikfeäT@SUwpiÚFM©£è^Ú`@v¶eňf heP¶täOlÃUgÞzŸU`l}ÔÆUvØ_Ō¬Öi^ĉi§²ÃB~¡ĈÚEgc|DC_Ȧm²rBx¼MÔ¦ŮdĨÃâYxƘDVÇĺĿg¿cwÅ\\¹¥Yĭl¤OvLjM_a W`zļMž·\\swqÝSAqŚĳ¯°kRē°wx^ĐkǂÒ\\]nrĂ}²ĊŲÒøãh·M{yMzysěnĒġV·°G³¼XÀ¤¹i´o¤ŃÈ`ÌǲÄUĞd\\iÖmÈBĤÜɲDEh LG¾ƀÄ¾{WaYÍÈĢĘÔRîĐj}ÇccjoUb½{h§Ǿ{KƖµÎ÷GĀÖŠåưÎs­lyiē«`å§H¥Ae^§GK}iã\\c]v©ģZmÃ|[M}ģTɟĵÂÂ`ÀçmFK¥ÚíÁbX³ÌQÒHof{]ept·GŋĜYünĎųVY^ydõkÅZW«WUa~U·SbwGçǑiW^qFuNĝ·EwUtW·Ýďæ©PuqEzwAVXRãQ`­©GMehccďÏd©ÑW_ÏYƅ»é\\ɹ~ǙG³mØ©BšuT§Ĥ½¢Ã_Ã½L¡ýqT^rme\\PpZZbyuybQefµ]UhĿDCmûvaÙNSkCwncćfv~YÇG"],"encodeOffsets":[[130196,42528]]}},{"type":"Feature","id":"230000","properties":{"id":"230000","cp":[128.642464,46.756967],"name":"黑龙江","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@UµNÿ¥īèçHÍøƕ¶Lǽ|g¨|a¾pVidd~ÈiíďÓQġėÇZÎXb½|ſÃH½KFgɱCģÛÇAnjÕc[VĝǱÃËÇ_ £ń³pj£º¿»WH´¯U¸đĢmtĜyzzNN|g¸÷äűÑ±ĉā~mq^[ǁÑďlw]¯xQĔ¯l°řĴrBÞTxr[tŽ¸ĻN_yX`biNKuP£kZĮ¦[ºxÆÀdhĹŀUÈƗCwáZħÄŭcÓ¥»NAw±qȥnD`{ChdÙFć}¢A±Äj¨]ĊÕjŋ«×`VuÓÅ~_kŷVÝyhVkÄãPsOµfgeŇµf@u_Ù ÙcªNªÙEojVxT@ãSefjlwH\\pŏäÀvlY½d{F~¦dyz¤PÜndsrhfHcvlwjF£G±DÏƥYyÏu¹XikĿ¦ÏqƗǀOŜ¨LI|FRĂn sª|C˜zxAè¥bfudTrFWÁ¹Am|ĔĕsķÆF´N}ćUÕ@Áĳſmuçuð^ÊýowFzØÎĕNőǏȎôªÌŒǄàĀÄ˄ĞŀƒʀĀƘŸˮȬƬĊ°Uzouxe]}AyÈW¯ÌmKQ]Īºif¸ÄX|sZt|½ÚUÎ lk^p{f¤lºlÆW A²PVÜPHÊâ]ÎĈÌÜk´\\@qàsĔÄQºpRij¼èi`¶bXrBgxfv»uUi^v~J¬mVp´£´VWrnP½ì¢BX¬hðX¹^TjVriªjtŊÄmtPGx¸bgRsT`ZozÆO]ÒFôÒOÆŊvÅpcGêsx´DR{AEOr°x|íb³Wm~DVjºéNNËÜ˛ɶ­GxŷCSt}]ûōSmtuÇÃĕNāg»íT«u}ç½BĵÞʣ¥ëÊ¡MÛ³ãȅ¡ƋaǩÈÉQG¢·lG|tvgrrf«ptęŘnÅĢrI²¯LiØsPf_vĠdxM prʹL¤¤eËÀđKïÙVY§]Ióáĥ]ķK¥j|pŇ\\kzţ¦šnņäÔVĂîĪ¬|vW®l¤èØrxm¶ă~lÄƯĄ̈́öȄEÔ¤ØQĄĄ»ƢjȦOǺ¨ìSŖÆƬyQv`cwZSÌ®ü±Ǆ]ŀç¬B¬©ńzƺŷɄeeOĨSfm ĊƀP̎ēz©ĊÄÕÊmgÇsJ¥ƔŊśæÎÑqv¿íUOµªÂnĦÁ_½ä@êí£P}Ġ[@gġ}gɊ×ûÏWXá¢užƻÌsNÍ½ƎÁ§čŐAēeL³àydl¦ĘVçŁpśǆĽĺſÊQíÜçÛġÔsĕ¬Ǹ¯YßċġHµ ¡eå`ļrĉŘóƢFìĎWøxÊkƈdƬv|I|·©NqńRŀ¤éeŊŀàŀU²ŕƀBQ£Ď}L¹Îk@©ĈuǰųǨÚ§ƈnTËÇéƟÊcfčŤ^XmHĊĕË«W·ċëx³ǔķÐċJāwİ_ĸȀ^ôWr­°oú¬ĦŨK~ȰCĐ´Ƕ£fNÎèâw¢XnŮeÂÆĶ¾¾xäLĴĘlļO¤ÒĨA¢Êɚ¨®ØCÔ ŬGƠƦYĜĘÜƬDJg_ͥœ@čŅĻA¶¯@wÎqC½Ĉ»NăëKďÍQÙƫ[«ÃígßÔÇOÝáWñuZ¯ĥŕā¡ÑķJu¤E å¯°WKÉ±_d_}}vyõu¬ï¹ÓU±½@gÏ¿rÃ½DgCdµ°MFYxw¿CG£Rƛ½Õ{]L§{qqą¿BÇƻğëܭǊË|c²}Fµ}ÙRsÓpg±QNqǫŋRwŕnéÑÉK«SeYRŋ@{¤SJ}D Ûǖ֍]gr¡µŷjqWÛham³~S«Þ]"]],"encodeOffsets":[[[134456,44547]]]}},{"type":"Feature","id":"320000","properties":{"id":"320000","cp":[119.767413,33.041544],"name":"江苏","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@cþÅPi`ZRu¥É\\]~°Y`µÓ^phÁbnÀşúòaĬºTÖŒbe¦¦{¸ZâćNp©Hr|^mjhSEb\\afv`sz^lkljÄtg¤D­¾X¿À|ĐiZȀåB·î}GL¢õcßjayBFµÏC^ĭcÙt¿sğH]j{s©HM¢QnDÀ©DaÜÞ·jgàiDbPufjDk`dPOîhw¡ĥ¥GP²ĐobºrYî¶aHŢ´ ]´rılw³r_{£DB_Ûdåuk|Ũ¯F Cºyr{XFye³Þċ¿ÂkĭB¿MvÛpm`rÚã@Ę¹hågËÖƿxnlč¶Åì½Ot¾dJlVJĂǀŞqvnO^JZż·Q}êÍÅmµÒ]ƍ¦Dq}¬R^èĂ´ŀĻĊIÔtĲyQŐĠMNtR®òLhĚs©»}OÓGZz¶A\\jĨFäOĤHYJvÞHNiÜaĎÉnFQlNM¤B´ĄNöɂtpŬdfåqm¿QûùŞÚb¤uŃJŴu»¹ĄlȖħŴw̌ŵ²ǹǠ͛hĭłƕrçü±Yxcitğ®jű¢KOķCoy`å®VTa­_Ā]ŐÝɞï²ʯÊ^]afYǸÃĆēĪȣJđ͍ôƋÄÄÍīçÛɈǥ£­ÛmY`ó£Z«§°Ó³QafusNıǅ_k}¢m[ÝóDµ¡RLčiXyÅNïă¡¸iĔÏNÌŕoēdōîåŤûHcs}~Ûwbù¹£¦ÓCtOPrE^ÒogĉIµÛÅʹK¤½phMü`oæŀ"],"encodeOffsets":[[121740,32276]]}},{"type":"Feature","id":"330000","properties":{"id":"330000","cp":[120.153576,29.287459],"name":"浙江","childNum":45},"geometry":{"type":"MultiPolygon","coordinates":[["@@E^dQ]K"],["@@jX^j"],["@@sfbU"],["@@qP\\xz[ck"],["@@R¢FX}°[s_"],["@@Cb\\}"],["@@e|v\\la{u"],["@@v~u}"],["@@QxÂF¯}"],["@@¹nvÞs¯o"],["@@rSkUEj"],["@@bi­ZP"],["@@p[}INf"],["@@À¿"],["@@¹dnb"],["@@rSBnR"],["@@g~h}"],["@@FlEk"],["@@OdPc"],["@@v[u\\"],["@@FjâL~wyoo~sµL\\"],["@@¬e¹aN"],["@@\\nÔ¡q]L³ë\\ÿ®QÖ"],["@@ÊA­©[¬"],["@@Kxv­"],["@@@hlIk]"],["@@pW{o||j"],["@@Md|_mC"],["@@¢X£ÏylD¼XtH"],["@@hlÜ[LykAvyfw^E¤"],["@@fp¤MusR"],["@@®_ma~LÁ¬Z"],["@@iMxZ"],["@@ZcYd"],["@@Z~dOSo|A¿qZv"],["@@@`EN¡v"],["@@|TY{"],["@@@n@m"],["@@XWkCT\\"],["@@ºwZRkĕWO¢"],["@@X®±GrÆª\\ÔáXq{"],["@@ůTG°ĄLHm°UC"],["@@¤aÜx~}dtüGæţŎíĔcŖpMËÐjē¢·ðĄÆMzjWKĎ¢Q¶À_ê_Bıi«pZgf¤Nrq]§ĂN®«H±yƳí¾×ŸīàLłčŴǝĂíÀBŖÕªÁŖHŗŉåqûõi¨hÜ·ñt»¹ýv_[«¸mYL¯QªmĉÅdMgÇjcº«ę¬­K­´B«Âącoċ\\xKd¡gěŧ«®á[~ıxu·ÅKsËÉc¢Ù\\ĭƛëbf¹­ģSĜkáƉÔ­ĈZB{aMµfzŉfåÂŧįƋǝÊĕġć£g³ne­ą»@­¦S®\\ßðChiqªĭiAuA­µ_W¥ƣO\\lċĢttC¨£t`PZäuXßBsĻyekOđġĵHuXBµ]×­­\\°®¬F¢¾pµ¼kŘó¬Wät¸|@L¨¸µrºù³Ù~§WIZW®±Ð¨ÒÉx`²pĜrOògtÁZ}þÙ]¡FKwsPlU[}¦Rvn`hq¬\\nQ´ĘRWb_ rtČFIÖkĦPJ¶ÖÀÖJĈĄTĚòC ²@PúØz©Pî¢£CÈÚĒ±hŖl¬â~nm¨f©iļ«mntuÖZÜÄjL®EÌFª²iÊxØ¨IÈhhst"],["@@o\\VzRZ}y"],["@@@°¡mÛGĕ¨§Ianá[ýƤjfæØLäGr"]],"encodeOffsets":[[[125592,31553]],[[125785,31436]],[[125729,31431]],[[125513,31380]],[[125223,30438]],[[125115,30114]],[[124815,29155]],[[124419,28746]],[[124095,28635]],[[124005,28609]],[[125000,30713]],[[125111,30698]],[[125078,30682]],[[125150,30684]],[[124014,28103]],[[125008,31331]],[[125411,31468]],[[125329,31479]],[[125626,30916]],[[125417,30956]],[[125254,30976]],[[125199,30997]],[[125095,31058]],[[125083,30915]],[[124885,31015]],[[125218,30798]],[[124867,30838]],[[124755,30788]],[[124802,30809]],[[125267,30657]],[[125218,30578]],[[125200,30562]],[[124968,30474]],[[125167,30396]],[[124955,29879]],[[124714,29781]],[[124762,29462]],[[124325,28754]],[[123990,28459]],[[125366,31477]],[[125115,30363]],[[125369,31139]],[[122495,31878]],[[125329,30690]],[[125192,30787]]]}},{"type":"Feature","id":"340000","properties":{"id":"340000","cp":[117.283042,31.26119],"name":"安徽","childNum":3},"geometry":{"type":"MultiPolygon","coordinates":[["@@^iuLX^"],["@@e©Ehl"],["@@°ZÆëĎµmkǀwÌÕæhºgBĝâqÙĊzÖgņtÀÁĂÆáhEz|WzqD¹°Eŧl{ævÜcA`¤C`|´qxĲkq^³³GšµbíZ¹qpa±ď OH¦Ħx¢gPícOl_iCveaOjChß¸iÝbÛªCC¿mRV§¢A|t^iĠGÀtÚsd]ĮÐDE¶zAb àiödK¡~H¸íæAǿYj{ď¿À½W®£ChÃsikkly]_teu[bFaTign{]GqªoĈMYá|·¥f¥őaSÕėNµñĞ«Im_m¿Âa]uĜp Z_§{Cäg¤°r[_YjÆOdý[I[á·¥Q_nùgL¾mvˊBÜÆ¶ĊJhpc¹O]iŠ]¥ jtsggJÇ§w×jÉ©±EFË­KiÛÃÕYvsm¬njĻª§emná}k«ŕgđ²ÙDÇ¤í¡ªOy×Où±@DñSęćăÕIÕ¿IµĥOjNÕËT¡¿tNæŇàåyķrĕq§ÄĩsWÆßF¶X®¿mwRIÞfßoG³¾©uyHį{Ɓħ¯AFnuPÍÔzVdàôº^Ðæd´oG¤{S¬ćxã}ŧ×Kǥĩ«ÕOEÐ·ÖdÖsƘÑ¨[Û^Xr¢¼§xvÄÆµ`K§ tÒ´Cvlo¸fzŨð¾NY´ı~ÉĔēßúLÃÃ_ÈÏ|]ÂÏFlg`ben¾¢pUh~ƴĖ¶_r sĄ~cƈ]|r c~`¼{À{ȒiJjz`îÀT¥Û³]u}fïQl{skloNdjäËzDvčoQďHI¦rbtHĔ~BmlRV_ħTLnñH±DL¼Lªl§Ťa¸ĚlK²\\RòvDcÎJbt[¤D@®hh~kt°ǾzÖ@¾ªdbYhüóZ ň¶vHrľ\\ÊJuxAT|dmÀO[ÃÔG·ĚąĐlŪÚpSJ¨ĸLvÞcPæķŨ®mÐálwKhïgA¢ųÆ©Þ¤OÈm°K´"]],"encodeOffsets":[[[121722,32278]],[[119475,30423]],[[119168,35472]]]}},{"type":"Feature","id":"350000","properties":{"id":"350000","cp":[118.306239,26.075302],"name":"福建","childNum":18},"geometry":{"type":"MultiPolygon","coordinates":[["@@zht´]"],["@@aj^~ĆG©O"],["@@ed¨C}}i"],["@@@vPGsQ"],["@@sBzddW]Q"],["@@S¨Q{"],["@@NVucW"],["@@qptBAq"],["@@¸[mu"],["@@Q\\pD]_"],["@@jSwUadpF"],["@@eXª~"],["@@AjvFso"],["@@fT_Çí\\v|ba¦jZÆy°"],["@@IjJi"],["@@wJIx«¼AoNe{M­"],["@@K±¡ÓČäeZ"],["@@k¡¹Eh~c®wBkUplÀ¡I~Māe£bN¨gZý¡a±Öcp©PhI¢QqÇGj|¥U g[Ky¬ŏv@OptÉEF\\@ åA¬V{XģĐBycpě¼³Ăp·¤¥ohqqÚ¡ŅLs^Ã¡§qlÀhH¨MCe»åÇGD¥zPO£čÙkJA¼ßėuĕeûÒiÁŧSW¥Qûŗ½ùěcÝ§SùĩąSWó«íęACµeRåǃRCÒÇZÍ¢ź±^dlstjD¸ZpuÔâÃH¾oLUêÃÔjjēò´ĄWƛ^Ñ¥Ħ@ÇòmOw¡õyJyD}¢ďÑÈġfZda©º²z£NjD°Ötj¶¬ZSÎ~¾c°¶ÐmxO¸¢Pl´SL|¥AȪĖMņĲg®áIJČĒü` QF¬h|ĂJ@zµ |ê³È ¸UÖŬŬÀEttĸr]ðM¤ĶĲHtÏ AĬkvsq^aÎbvdfÊòSD´Z^xPsĂrvƞŀjJd×ŘÉ ®AÎ¦ĤdxĆqAZRÀMźnĊ»İÐZ YXæJyĊ²·¶q§·K@·{sXãô«lŗ¶»o½E¡­«¢±¨Y®Ø¶^AvWĶGĒĢPlzfļtàAvWYãO_¤sD§ssČġ[kƤPX¦`¶®BBvĪjv©jx[L¥àï[F¼ÍË»ğV`«Ip}ccÅĥZEãoP´B@D¸m±z«Ƴ¿å³BRØ¶Wlâþäą`]Z£Tc ĹGµ¶Hm@_©k¾xĨôȉðX«½đCIbćqK³ÁÄš¬OAwã»aLŉËĥW[ÂGIÂNxĳ¤D¢îĎÎB§°_JGs¥E@¤ućPåcuMuw¢BI¿]zG¹guĮck\\_"]],"encodeOffsets":[[[123250,27563]],[[122541,27268]],[[123020,27189]],[[122916,27125]],[[122887,26845]],[[122808,26762]],[[122568,25912]],[[122778,26197]],[[122515,26757]],[[122816,26587]],[[123388,27005]],[[122450,26243]],[[122578,25962]],[[121255,25103]],[[120987,24903]],[[122339,25802]],[[121042,25093]],[[122439,26024]]]}},{"type":"Feature","id":"360000","properties":{"id":"360000","cp":[115.592151,27.676493],"name":"江西","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@ĢĨƐgļ¼ÂMD~ņªe^\\^§ý©j×cZØ¨zdÒa¶lÒJìõ`oz÷@¤uŞ¸´ôęöY¼HČƶajlÞƩ¥éZ[|h}^U  ¥pĄžƦO lt¸Æ Q\\aÆ|CnÂOjt­ĚĤdÈF`¶@Ðë ¦ōÒ¨SêvHĢûXD®QgÄWiØPÞìºr¤ǆNĠ¢lĄtZoCƞÔºCxrpĠV®Ê{f_Y`_eq®Aot`@oDXfkp¨|s¬\\DÄSfè©Hn¬^DhÆyøJhØxĢĀLÊƠPżċĄwȠĚ¦G®ǒĤäTŠÆ~Ħw«|TF¡nc³Ïå¹]ĉđxe{ÎÓvOEm°BƂĨİ|Gvz½ª´HàpeJÝQxnÀW­EµàXÅĪt¨ÃĖrÄwÀFÎ|ňÓMå¼ibµ¯»åDT±m[r«_gmQu~¥V\\OkxtL E¢Ú^~ýêPóqoě±_Êw§ÑªåƗā¼mĉŹ¿NQYBąrwģcÍ¥B­ŗÊcØiIƝĿuqtāwO]³YCñTeÉcaubÍ]trluīBÐGsĵıN£ï^ķqss¿FūūVÕ·´Ç{éĈýÿOER_đûIċâJh­ŅıNȩĕB¦K{Tk³¡OP·wnµÏd¯}½TÍ«YiµÕsC¯iM¤­¦¯P|ÿUHvhe¥oFTuõ\\OSsMòđƇiaºćXĊĵà·çhƃ÷Ç{ígu^đgm[×zkKN¶Õ»lčÓ{XSÆv©_ÈëJbVkĔVÀ¤P¾ºÈMÖxlò~ªÚàGĂ¢B±ÌKyáV¼Ã~­`gsÙfIƋlę¹e|~udjuTlXµf`¿Jd[\\L²"],"encodeOffsets":[[116689,26234]]}},{"type":"Feature","id":"370000","properties":{"id":"370000","cp":[118.000923,36.275807],"name":"山东","childNum":13},"geometry":{"type":"MultiPolygon","coordinates":[["@@Xjd]{K"],["@@itbFHy"],["@@HlGk"],["@@TGy"],["@@K¬U"],["@@WdXc"],["@@PtOs"],["@@LnXhc"],["@@ppVu]Or"],["@@cdzAUa"],["@@udRhnCI"],["@@oIpR"],["@@Ľč{fzƤîKÎMĮ]ZF½Y]â£ph¶¨râøÀÎǨ¤^ºÄGz~grĚĜlĞÆLĆǆ¢Îo¦cvKbgr°WhmZp L]LºcUÆ­nżĤÌĒbAnrOA´ȊcÀbƦUØrĆUÜøĬƞEzVL®öØBkŖÝĐĖ¹ŧ̄±ÀbÎÉnb²ĦhņBĖįĦåXćì@L¯´ywƕCéÃµė ƿ¸lµ¾Z|ZWyFY¨Mf~C¿`à_RÇzwƌfQnny´INoƬèôº|sTJULîVjǎ¾ĒØDz²XPn±ŴPè¸ŔLƔÜƺ_TüÃĤBBċÈöA´faM¨{«M`¶d¡ôÖ°mȰBÔjj´PM|c^d¤u¤Û´ä«ƢfPk¶Môl]Lb}su^ke{lCMrDÇ­]NÑFsmoõľHyGă{{çrnÓEƕZGª¹Fj¢ïWuøCǷë¡ąuhÛ¡^KxC`C\\bÅxì²ĝÝ¿_NīCȽĿåB¥¢·IŖÕy\\¹kxÃ£Č×GDyÃ¤ÁçFQ¡KtŵƋ]CgÏAùSedcÚźuYfyMmhUWpSyGwMPqŀÁ¼zK¶G­Y§Ë@´śÇµƕBm@IogZ¯uTMx}CVKï{éƵP_K«pÛÙqċtkkù]gTğwoɁsMõ³ăAN£MRkmEÊčÛbMjÝGuIZGPģãħE[iµBEuDPÔ~ª¼ęt]ûG§¡QMsğNPŏįzs£Ug{đJĿļā³]ç«Qr~¥CƎÑ^n¶ÆéÎR~Ż¸YI] PumŝrƿIā[xeÇ³L¯v¯s¬ÁY~}ťuŁgƋpÝĄ_ņī¶ÏSR´ÁP~¿Cyċßdwk´SsX|t`Ä ÈðAªìÎT°¦Dda^lĎDĶÚY°`ĪŴǒàŠv\\ebZHŖR¬ŢƱùęOÑM­³FÛWp["]],"encodeOffsets":[[[123806,39303]],[[123821,39266]],[[123742,39256]],[[123702,39203]],[[123649,39066]],[[123847,38933]],[[123580,38839]],[[123894,37288]],[[123043,36624]],[[123344,38676]],[[123522,38857]],[[123628,38858]],[[118260,36742]]]}},{"type":"Feature","id":"410000","properties":{"id":"410000","cp":[113.665412,33.757975],"name":"河南","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@ýLùµP³swIÓxcŢĞð´E®ÚPtĴXØxÂ¶@«ŕŕQGYfa[şußǩđš_X³ĳÕčC]kbc¥CS¯ëÍB©÷³­Si_}mYTt³xlàcČzÀD}ÂOQ³ÐTĨ¯ƗòËŖ[hłŦv~}ÂZ«¤lPÇ£ªÝŴÅR§ØnhctâknÏ­ľŹUÓÝdKuķI§oTũÙďkęĆH¸Ó\\Ä¿PcnS{wBIvÉĽ[GqµuŇôYgûZca©@½Õǽys¯}lgg@­C\\£asIdÍuCQñ[L±ęk·ţb¨©kK»KC²òGKmĨS`UQnk}AGēsqaJ¥ĐGRĎpCuÌy ã iMcplk|tRkðev~^´¦ÜSí¿_iyjI|ȑ|¿_»d}q^{Ƈdă}tqµ`Ƴĕg}V¡om½faÇo³TTj¥tĠRyK{ùÓjuµ{t}uËRivGçJFjµÍyqÎàQÂFewixGw½Yŷpµú³XU½ġyłåkÚwZX·l¢Á¢KzOÎÎjc¼htoDHr|­J½}JZ_¯iPq{tę½ĕ¦Zpĵø«kQĹ¤]MÛfaQpě±ǽ¾]u­Fu÷nčÄ¯ADp}AjmcEÇaª³o³ÆÍSƇĈÙDIzËčľ^KLiÞñ[aA²zzÌ÷D|[íÄ³gfÕÞd®|`Ć~oĠƑô³ŊD×°¯CsøÀ«ìUMhTº¨¸ǡîSÔDruÂÇZÖEvPZW~ØÐtĄE¢¦Ðy¸bô´oŬ¬²Ês~]®tªapŎJ¨Öº_Ŕ`Ŗ^Đ\\Ĝu~m²Ƹ¸fWĦrƔ}Î^gjdfÔ¡J}\\n C¦þWxªJRÔŠu¬ĨĨmFdM{\\d\\YÊ¢ú@@¦ª²SÜsC}fNècbpRmlØ^gd¢aÒ¢CZZxvÆ¶N¿¢T@uC¬^ĊðÄn|lGlRjsp¢ED}Fio~ÔN~zkĘHVsǲßjŬŢ`Pûàl¢\\ÀEhİgÞē X¼Pk|m"],"encodeOffsets":[[118256,37017]]}},{"type":"Feature","id":"420000","properties":{"id":"420000","cp":[113.298572,30.684355],"name":"湖北","childNum":3},"geometry":{"type":"MultiPolygon","coordinates":[["@@AB"],["@@lskt"],["@@¾«}{ra®pîÃ\\{øCËyyB±b\\òÝjKL ]ĎĽÌJyÚCƈćÎT´Å´pb©ÈdFin~BCo°BĎÃømv®E^vǾ½Ĝ²RobÜeN^ĺ£R¬lĶ÷YoĖ¥Ě¾|sOr°jY`~I¾®I{GqpCgyl{£ÍÍyPLÂ¡¡¸kWxYlÙæŁĢz¾V´W¶ùŸo¾ZHxjwfxGNÁ³Xéæl¶EièIH ujÌQ~v|sv¶Ôi|ú¢FhQsğ¦SiŠBgÐE^ÁÐ{čnOÂÈUÎóĔÊēĲ}Z³½Mŧïeyp·uk³DsÑ¨L¶_ÅuÃ¨w»¡WqÜ]\\Ò§tƗcÕ¸ÕFÏǝĉăxŻČƟOKÉġÿ×wg÷IÅzCg]m«ªGeçÃTC«[t§{loWeC@ps_Bp­rf_``Z|ei¡oċMqow¹DƝÓDYpûsYkıǃ}s¥ç³[§cY§HK«Qy]¢wwö¸ïx¼ņ¾Xv®ÇÀµRĠÐHM±cÏdƒǍũȅȷ±DSyúĝ£ŤĀàtÖÿï[îb\\}pĭÉI±Ñy¿³x¯No|¹HÏÛmjúË~TuęjCöAwě¬Rđl¯ Ñb­ŇTĿ_[IčĄʿnM¦ğ\\É[T·k¹©oĕ@A¾wya¥Y\\¥Âaz¯ãÁ¡k¥ne£ÛwE©Êō¶˓uoj_U¡cF¹­[WvP©whuÕyBF`RqJUw\\i¡{jEPïÿ½fćQÑÀQ{°fLÔ~wXgītêÝ¾ĺHd³fJd]HJ²EoU¥HhwQsƐ»Xmg±çve]DmÍPoCc¾_hhøYrŊU¶eD°Č_N~øĹĚ·`z]Äþp¼äÌQv\\rCé¾TnkžŐÚÜa¼ÝƆĢ¶ÛodĔňÐ¢JqPb ¾|J¾fXƐîĨ_Z¯À}úƲN_ĒÄ^ĈaŐyp»CÇÄKñL³ġM²wrIÒŭxjb[n«øæà ^²­h¯ÚŐªÞ¸Y²ĒVø}Ā^İ´LÚm¥ÀJÞ{JVųÞŃx×sxxƈē ģMřÚðòIfĊŒ\\Ʈ±ŒdÊ§ĘDvČ_Àæ~Dċ´A®µ¨ØLV¦êHÒ¤"]],"encodeOffsets":[[[113712,34000]],[[115612,30507]],[[113649,34054]]]}},{"type":"Feature","id":"430000","properties":{"id":"430000","cp":[111.782279,28.09409],"name":"湖南","childNum":3},"geometry":{"type":"MultiPolygon","coordinates":[["@@nFTs"],["@@ßÅÆá½ÔXrCOËRïÿĩ­TooQyÓ[ŅBE¬ÎÓXaį§Ã¸G °ITxpúxÚĳ¥ÏĢ¾edÄ©ĸGàGhM¤Â_U}Ċ}¢pczfþg¤ÇòAVM"],["@@©KA·³CQ±Á«³BUƑ¹AtćOwD]JiØSm¯b£ylXHËÑ±H«C^õľAÅ§¤É¥ïyuǙuA¢^{ÌC´­¦ŷJ£^[ª¿ĕ~ƇN skóā¹¿ï]ă~÷O§­@Vm¡Qđ¦¢Ĥ{ºjÔª¥nf´~Õo×ÛąMąıuZmZcÒ ĲĪ²SÊǄŶ¨ƚCÖŎªQØ¼rŭ­«}NÏürÊ¬mjr@ĘrTW ­SsdHzƓ^ÇÂyUi¯DÅYlŹu{hT}mĉ¹¥ěDÿë©ıÓ[Oº£¥ótł¹MÕƪ`PDiÛU¾ÅâìUñBÈ£ýhedy¡oċ`pfmjP~kZaZsÐd°wj§@Ĵ®w~^kÀÅKvNmX\\¨aŃqvíó¿F¤¡@ũÑVw}S@j}¾«pĂrªg àÀ²NJ¶¶DôK|^ª°LX¾ŴäPĪ±£EXd^¶ĲÞÜ~u¸ǔMRhsRe`ÄofIÔ\\Ø  ićymnú¨cj ¢»GČìƊÿÐ¨XeĈĀ¾Oð Fi ¢|[jVxrIQ_EzAN¦zLU`cªxOTu RLÄ¢dVi`p˔vŎµªÉF~Ød¢ºgİàw¸Áb[¦Zb¦z½xBĖ@ªpºlS¸Ö\\Ĕ[N¥ˀmĎăJ\\ŀ`ňSÚĖÁĐiOĜ«BxDõĚivSÌ}iùÜnÐºG{p°M´wÀÒzJ²ò¨ oTçüöoÛÿñőĞ¤ùTz²CȆȸǎŪƑÐc°dPÎğË¶[È½u¯½WM¡­ÉB·rínZÒ `¨GA¾\\pēXhÃRC­üWGġuTé§ŎÑ©ò³I±³}_EÃħg®ęisÁPDmÅ{b[RÅs·kPŽƥóRoOV~]{g\\êYƪ¦kÝbiċƵGZ»Ěõó·³vŝ£ø@pyö_ëIkÑµbcÑ§y×dYØªiþ¨[]f]Ņ©C}ÁN»hĻħƏĩ"]],"encodeOffsets":[[[115640,30489]],[[112543,27312]],[[116690,26230]]]}},{"type":"Feature","id":"440000","properties":{"id":"440000","cp":[113.280637,23.125178],"name":"广东","childNum":24},"geometry":{"type":"MultiPolygon","coordinates":[["@@QdAua"],["@@lxDLo"],["@@sbhNLo"],["@@Ă ā"],["@@WltO[["],["@@Kr]S"],["@@eI]y"],["@@I|Mym"],["@@Û³LS¼Y"],["@@nvºBëui©`¾"],["@@zdÛJw®"],["@@°¯"],["@@a yAª¸ËJIxØ@ĀHAmÃV¡ofuo"],["@@sŗÃÔėAƁZÄ ~°ČPäh"],["@@¶ÝÌvmĞh­ıQ"],["@@HdSjĒ¢D}waru«ZqadYM"],["@@el\\LqqU"],["@@~rMo\\"],["@@f^C"],["@@øPªoj÷ÍÝħXČx°Q¨ıXNv"],["@@gÇƳo[~tly"],["@@EÆC¿"],["@@OP"],["@@wđógĝ[³¡VÙæÅöMÌ³¹pÁaËýý©D©ÜJŹƕģGą¤{ÙūÇO²«BƱéAÒĥ¡«BhlmtÃPµyU¯ucd·w_bŝcīímGO|KPȏŹãŝIŕŭŕ@Óoo¿ē±ß}ŭĲWÈCőâUâǙIğŉ©IĳE×Á³AówXJþ±ÌÜÓĨ£L]ĈÙƺZǾĆĖMĸĤfÎĵlŨnÈĐtFFĤêk¶^k°f¶g}®Faf`vXŲxl¦ÔÁ²¬Ð¦pqÊÌ²iXØRDÎ}Ä@ZĠsx®AR~®ETtĄZƈfŠŠHâÒÐAµ\\S¸^wĖkRzalŜ|E¨ÈNĀňZTpBh£\\ĎƀuXĖtKL¶G|»ĺEļĞ~ÜĢÛĊrOÙîvd]n¬VÊĜ°RÖpMƂªFbwEÀ©\\¤]ŸI®¥D³|Ë]CöAŤ¦æ´¥¸Lv¼¢ĽBaôF~®²GÌÒEYzk¤°ahlVÕI^CxĈPsBƒºV¸@¾ªR²ĨN]´_eavSivc}p}Đ¼ƌkJÚe th_¸ ºx±ò_xNË²@ă¡ßH©Ùñ}wkNÕ¹ÇO½¿£ĕ]ly_WìIÇª`uTÅxYĒÖ¼kÖµMjJÚwn\\hĒv]îh|ÈƄøèg¸Ķß ĉĈWb¹ƀdéĘNTtP[öSvrCZaGubo´ŖÒÇĐ~¡zCIözx¢PnÈñ @ĥÒ¦]ƞV}³ăĔñiiÄÓVépKG½ÄÓávYoC·sitiaÀyŧÎ¡ÈYDÑům}ý|m[węõĉZÅxUO}÷N¹³ĉo_qtăqwµŁYÙǝŕ¹tïÛUÃ¯mRCºĭ|µÕÊK½Rē ó]GªęAx»HO£|ām¡diď×YïYWªŉOeÚtĐ«zđ¹TāúEá²\\ķÍ}jYàÙÆſ¿Çdğ·ùTßÇţʄ¡XgWÀǇğ·¿ÃOj YÇ÷Qěi"]],"encodeOffsets":[[[117381,22988]],[[116552,22934]],[[116790,22617]],[[116973,22545]],[[116444,22536]],[[116931,22515]],[[116496,22490]],[[116453,22449]],[[113301,21439]],[[118726,21604]],[[118709,21486]],[[113210,20816]],[[115482,22082]],[[113171,21585]],[[113199,21590]],[[115232,22102]],[[115739,22373]],[[115134,22184]],[[113056,21175]],[[119573,21271]],[[119957,24020]],[[115859,22356]],[[116561,22649]],[[116285,22746]]]}},{"type":"Feature","id":"450000","properties":{"id":"450000","cp":[108.320004,22.82402],"name":"广西","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@H TQ§A"],["@@ĨÊªLƊDÎĹĐCǦė¸zÚGn£¾rªŀÜt¬@ÖÚSx~øOŒŶÐÂæȠ\\ÈÜObĖw^oÞLf¬°bI lTØBÌF£Ć¹gñĤaYt¿¤VSñK¸¤nM¼JE±½¸ñoÜCƆæĪ^ĚQÖ¦^f´QüÜÊz¯lzUĺš@ìp¶n]sxtx¶@~ÒĂJb©gk{°~c°`Ô¬rV\\la¼¤ôá`¯¹LCÆbxEræOv[H­[~|aB£ÖsºdAĐzNÂðsÞÆĤªbab`ho¡³F«èVlo¤ÔRzpp®SĪº¨ÖºNĳd`a¦¤F³ºDÎńĀìCĜº¦Ċ~nS|gźvZkCÆj°zVÈÁƔ]LÊFZgčP­kini«qÇczÍY®¬Ů»qR×ō©DÕ§ƙǃŵTÉĩ±ıdÑnYYĲvNĆĆØÜ Öp}e³¦m©iÓ|¹ħņ|ª¦QF¢Â¬ʖovg¿em^ucà÷gÕuíÙćĝ}FĻ¼Ĺ{µHKsLSđƃrč¤[AgoSŇYMÿ§Ç{FśbkylQxĕ]T·¶[BÑÏGáşşƇeăYSs­FQ}­BwtYğÃ@~CÍQ ×WjË±rÉ¥oÏ ±«ÓÂ¥kwWűmcih³K~µh¯e]lµélEģEďsmÇŧē`ãògK_ÛsUʝćğ¶höO¤Ǜn³c`¡y¦CezYwa[ďĵűMę§]XÎ_íÛ]éÛUćİÕBƣ±dy¹T^dûÅÑŦ·PĻþÙ`K¦¢ÍeĥR¿³£[~äu¼dltW¸oRM¢ď\\z}Æzdvň{ÎXF¶°Â_ÒÂÏL©ÖTmu¼ãlīkiqéfA·Êµ\\őDc¥ÝFyÔćcűH_hLÜêĺĐ¨c}rn`½Ì@¸¶ªVLhŒ\\Ţĺk~Ġið°|gtTĭĸ^xvKVGréAébUuMJVÃO¡qĂXËSģãlýà_juYÛÒBG^éÖ¶§EGÅzěƯ¤EkN[kdåucé¬dnYpAyČ{`]þ¯TbÜÈk¡ĠvàhÂƄ¢Jî¶²"]],"encodeOffsets":[[[111707,21520]],[[107619,25527]]]}},{"type":"Feature","id":"460000","properties":{"id":"460000","cp":[109.83119,19.031971],"name":"海南","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@¦Ŝil¢XƦƞòïè§ŞCêɕrŧůÇąĻõ·ĉ³œ̅kÇm@ċȧŧĥĽʉ­ƅſȓÒË¦ŝE}ºƑ[ÍĜȋ gÎfǐÏĤ¨êƺ\\Ɔ¸ĠĎvʄȀÐ¾jNðĀÒRZǆzÐŘÎ°H¨Ƣb²_Ġ "],"encodeOffsets":[[112750,20508]]}},{"type":"Feature","id":"510000","properties":{"id":"510000","cp":[104.065735,30.659462],"name":"四川","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@LqKr"],["@@[ĻéV£_ţġñpG réÏ·~ąSfy×Í·ºſƽiÍıƣıĻmHH}siaX@iÇ°ÁÃ×t«­T¤JJJyJÈ`Ohß¦¡uËhIyCjmÿwZGTiSsOB²fNmsPa{M{õE^Hj}gYpaeu¯oáwHjÁ½M¡pMuåmni{fk\\oÎqCwEZ¼KĝAy{m÷LwO×SimRI¯rKõBS«sFe]fµ¢óY_ÆPRcue°Cbo×bd£ŌIHgtrnyPt¦foaXďxlBowz_{ÊéWiêEGhÜ¸ºuFĈIxf®Y½ĀǙ]¤EyF²ċw¸¿@g¢§RGv»áW`ÃĵJwi]t¥wO­½a[×]`Ãi­üL¦LabbTÀåc}ÍhÆh®BHî|îºÉk­¤Sy£ia©taį·Ɖ`ō¥UhOĝLk}©Fos´JmµlŁuønÑJWÎªYÀïAetTŅÓGË«bo{ıwodƟ½OġÜÂµxàNÖ¾P²§HKv¾]|BÆåoZ`¡Ø`ÀmºĠ~ÌÐ§nÇ¿¤]wğ@srğu~Io[é±¹ ¿ſđÓ@qg¹zƱřaí°KtÇ¤V»Ã[ĩǭƑ^ÇÓ@áťsZÏÅĭƋěpwDóÖáŻneQËq·GCœýS]x·ýq³OÕ¶Qzßti{řáÍÇWŝŭñzÇWpç¿JXĩè½cFÂLiVjx}\\NŇĖ¥GeJA¼ÄHfÈu~¸Æ«dE³ÉMA|bÒćhG¬CMõƤąAvüVéŀ_VÌ³ĐwQj´·ZeÈÁ¨X´Æ¡Qu·»ÕZ³ġqDoy`L¬gdp°şp¦ėìÅĮZ°Iähzĵf²å ĚÑKpIN|Ñz]ń·FU×é»R³MÉ»GM«kiér}Ã`¹ăÞmÈnÁîRǀ³ĜoİzŔwǶVÚ£À]ɜ»ĆlƂ²ĠþTº·àUȞÏʦ¶I«dĽĢdĬ¿»Ĕ×h\\c¬ä²GêëĤł¥ÀǿżÃÆMº}BÕĢyFVvwxBèĻĒ©ĈtCĢɽŠȣ¦āæ·HĽîôNÔ~^¤Ɗu^s¼{TA¼ø°¢İªDè¾Ň¶ÝJ®Z´ğ~Sn|ªWÚ©òzPOȸbð¢|øĞŒQìÛÐ@ĞǎRS¤Á§di´ezÝúØã]HqkIþËQÇ¦ÃsÇ¤[E¬ÉŪÍxXƒ·ÖƁİlƞ¹ª¹|XÊwnÆƄmÀêErĒtD®ċæcQE®³^ĭ¥©l}äQtoŖÜqÆkµªÔĻĴ¡@Ċ°B²Èw^^RsºTĀ£ŚæQPJvÄz^Đ¹Æ¯fLà´GC²dt­ĀRt¼¤ĦOðğfÔðDŨŁĞƘïPÈ®âbMüÀXZ ¸£@Å»»QÉ­]dsÖ×_Í_ÌêŮPrĔĐÕGĂeZÜîĘqBhtO ¤tE[h|YÔZśÎs´xº±Uñt|OĩĠºNbgþJy^dÂY Į]Řz¦gC³R`Āz¢Aj¸CL¤RÆ»@­Ŏk\\Ç´£YW}z@Z}Ã¶oû¶]´^NÒ}èNªPÍy¹`S°´ATeVamdUĐwʄvĮÕ\\uÆŗ¨Yp¹àZÂmWh{á}WØǍÉüwga§áCNęÎ[ĀÕĪgÖÉªXøx¬½Ů¦¦[NÎLÜUÖ´òrÙŠxR^JkĳnDX{U~ET{ļº¦PZcjF²Ė@pg¨B{u¨ŦyhoÚD®¯¢ WòàFÎ¤¨GDäz¦kŮPġqË¥À]eâÚ´ªKxīPÖ|æ[xÃ¤JÞĥsNÖ½I¬nĨY´®ÐƐmDŝuäđđEbee_v¡}ìęǊē}qÉåT¯µRs¡M@}ůaa­¯wvƉåZw\\Z{åû^"]],"encodeOffsets":[[[108815,30935]],[[110617,31811]]]}},{"type":"Feature","id":"520000","properties":{"id":"520000","cp":[106.713478,26.578343],"name":"贵州","childNum":3},"geometry":{"type":"MultiPolygon","coordinates":[["@@G\\lY£in"],["@@q|mc¯tÏVSÎ"],["@@hÑ£IsNgßHHªķÃh_¹¡ĝÄ§ń¦uÙùgS¯JH|sÝÅtÁïyMDč»eÕtA¤{b\\}G®u\\åPFqwÅaDK°ºâ_£ùbµmÁÛĹM[q|hlaªāI}Ñµ@swtwm^oµDéĽŠyVky°ÉûÛR³e¥]RÕěħ[ƅåÛDpJiVÂF²I»mN·£LbÒYbWsÀbpkiTZĄă¶Hq`ĥ_J¯ae«KpÝx]aĕÛPÇȟ[ÁåŵÏő÷Pw}TÙ@Õs«ĿÛq©½m¤ÙH·yǥĘĉBµĨÕnđ]K©œáGçş§ÕßgǗĦTèƤƺ{¶ÉHÎd¾ŚÊ·OÐjXWrãLyzÉAL¾ę¢bĶėy_qMĔąro¼hĊw¶øV¤w²Ĉ]ÊKx|`ź¦ÂÈdrcÈbe¸`I¼čTF´¼Óýȃr¹ÍJ©k_șl³´_pĐ`oÒh¶pa^ÓĔ}D»^Xy`d[KvJPhèhCrĂĚÂ^Êƌ wZL­Ġ£ÁbrzOIlMMĪŐžËr×ÎeŦtw|¢mKjSǘňĂStÎŦEtqFT¾Eì¬¬ôxÌO¢ K³ŀºäYPVgŎ¦ŊmŞ¼VZwVlz¤£Tl®ctĽÚó{G­AÇge~Îd¿æaSba¥KKûj®_Ä^\\Ø¾bP®¦x^sxjĶI_Ä Xâ¼Hu¨Qh¡À@Ëô}±GNìĎlT¸`V~R°tbÕĊ`¸úÛtÏFDu[MfqGH·¥yAztMFe|R_GkChZeÚ°tov`xbDnÐ{E}ZèxNEÞREn[Pv@{~rĆAB§EO¿|UZ~ìUf¨J²ĂÝÆsªB`s¶fvö¦Õ~dÔq¨¸º»uù[[§´sb¤¢zþF¢ÆÀhÂW\\ıËIÝo±ĭŠ£þÊs}¡R]ěDg´VG¢j±®èºÃmpU[Áëº°rÜbNu¸}º¼`niºÔXĄ¤¼ÔdaµÁ_ÃftQQgR·Ǔv}Ý×ĵ]µWc¤F²OĩųãW½¯K©]{LóµCIµ±Mß¿h©āq¬o½~@i~TUxŪÒ¢@£ÀEîôruńb[§nWuMÆLl¿]x}ĳ­½"]],"encodeOffsets":[[[112158,27383]],[[112105,27474]],[[112095,27476]]]}},{"type":"Feature","id":"530000","properties":{"id":"530000","cp":[101.512251,24.740609],"name":"云南","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@[ùx½}ÑRHYīĺûsÍniEoã½Ya²ė{c¬ĝgĂsAØÅwďõzFjw}«Dx¿}Uũlê@HÅ­F¨ÇoJ´Ónũuą¡Ã¢pÒÅØ TF²xa²ËXcÊlHîAßËŁkŻƑŷÉ©hW­æßUËs¡¦}teèÆ¶StÇÇ}Fd£jĈZĆÆ¤Tč\\D}O÷£U§~ŃGåŃDĝ¸Tsd¶¶Bª¤u¢ŌĎo~t¾ÍŶÒtD¦ÚiôözØX²ghįh½Û±¯ÿm·zR¦Ɵ`ªŊÃh¢rOÔ´£Ym¼èêf¯ŪĽncÚbw\\zlvWªâ ¦gmĿBĹ£¢ƹřbĥkǫßeeZkÙIKueT»sVesbaĕ  ¶®dNĄÄpªy¼³BE®lGŭCǶwêżĔÂepÍÀQƞpC¼ŲÈ­AÎô¶RäQ^Øu¬°_Èôc´¹ò¨PÎ¢hlĎ¦´ĦÆ´sâÇŲPnÊD^¯°Upv}®BPÌªjǬxSöwlfòªvqĸ|`H­viļndĜ­Ćhňem·FyÞqóSį¯³X_ĞçêtryvL¤§z¦c¦¥jnŞklD¤øz½ĜàĂŧMÅ|áƆàÊcðÂFÜáŢ¥\\\\ºİøÒÐJĴîD¦zK²ǏÎEh~CD­hMn^ÌöÄ©ČZÀaüfɭyœpį´ěFűk]Ôě¢qlÅĆÙa¶~ÄqêljN¬¼HÊNQ´ê¼VØ¸E^ŃÒyM{JLoÒęæe±Ķygã¯JYÆĭĘëo¥Šo¯hcK«z_prC´ĢÖY¼ v¸¢RÅW³Â§fÇ¸Yi³xR´ďUË`êĿUûuĆBƣöNDH«ĈgÑaB{ÊNF´¬c·Åv}eÇÃGB»If¦HňĕM~[iwjUÁKE¾dĪçWIèÀoÈXòyŞŮÈXâÎŚj|àsRyµÖPr´þ ¸^wþTDŔHr¸RÌmfżÕâCôoxĜƌÆĮÐYtâŦÔ@]ÈǮƒ\\Ī¼Ä£UsÈ¯LbîƲŚºyhr@ĒÔƀÀ²º\\êpJ}ĠvqtĠ@^xÀ£È¨mËÏğ}n¹_¿¢×Y_æpÅA^{½Lu¨GO±Õ½ßM¶wÁĢÛPƢ¼pcĲx|apÌ¬HÐŊSfsðBZ¿©XÏÒKk÷Eû¿SrEFsÕūkóVǥŉiTL¡n{uxţÏhôŝ¬ğōNNJkyPaqÂğ¤K®YxÉƋÁ]āęDqçgOgILu\\_gz]W¼~CÔē]bµogpÑ_oď`´³Țkl`IªºÎȄqÔþ»E³ĎSJ»_f·adÇqÇc¥Á_Źw{L^É±ćxU£µ÷xgĉp»ĆqNē`rĘzaĵĚ¡K½ÊBzyäKXqiWPÏÉ¸½řÍcÊG|µƕƣGË÷k°_^ý|_zċBZocmø¯hhcæ\\lMFlư£ĜÆyHF¨µêÕ]HAàÓ^it `þßäkĤÎT~Wlÿ¨ÔPzUCNVv [jâôDôď[}z¿msSh¯{jïğl}šĹ[őgK©U·µË@¾m_~q¡f¹ÅË^»f³ø}Q¡ÖË³gÍ±^Ç\\ëÃA_¿bWÏ[¶ƛé£F{īZgm@|kHǭƁć¦UĔť×ë}ǝeďºȡȘÏíBÉ£āĘPªĳ¶ŉÿy©nď£G¹¡I±LÉĺÑdĉÜW¥}gÁ{aqÃ¥aıęÏZï`"],"encodeOffsets":[[104636,22969]]}},{"type":"Feature","id":"540000","properties":{"id":"540000","cp":[89.132212,30.860361],"name":"西藏","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@ÂhľxŖxÒVºÅâAĪÝȆµę¯Ňa±r_w~uSÕňqOj]ɄQ£ZUDûoY»©M[L¼qãË{VÍçWVi]ë©Ä÷àyƛhÚU°adcQ~Mx¥cc¡ÙaSyFÖk­uRýq¿ÔµQĽ³aG{¿FµëªéĜÿª@¬·K·àariĕĀ«V»ŶĴūgèLǴŇƶaftèBŚ£^âǐÝ®M¦ÁǞÿ¬LhJ¾óƾÆºcxwf]Y´¦|QLn°adĊ\\¨oǀÍŎ´ĩĀd`tÊQŞŕ|¨C^©Ĉ¦¦ÎJĊ{ëĎjª²rÐl`¼Ą[t|¦Stè¾PÜK¸dƄı]s¤î_v¹ÎVòŦj£Əsc¬_Ğ´|Ł¦Av¦w`ăaÝaa­¢e¤ı²©ªSªÈMĄwÉØŔì@T¤Ę\\õª@þo´­xA sÂtŎKzó´ÇĊµ¢r^nĊ­Æ¬×üG¢³ {âĊ]G~bÀgVjzlhǶfOfdªB]pjTOtĊn¤}®¦Č¥d¢¼»ddY¼t¢eȤJ¤}Ǿ¡°§¤AÐlc@ĝsªćļđAçwxUuzEÖġ~AN¹ÄÅȀŻ¦¿ģŁéì±Hãd«g[Ø¼ēÀcīľġ¬cJµÐʥVȝ¸ßS¹ý±ğkƁ¼ą^ɛ¤Ûÿb[}¬ōõÃ]ËNm®g@Bg}ÍF±ǐyL¥íCIĳÏ÷Ñį[¹¦[âšEÛïÁÉdƅß{âNÆāŨß¾ě÷yC£k­´ÓH@Â¹TZ¥¢į·ÌAÐ§®Zcv½Z­¹|ÅWZqgW|ieZÅYVÓqdqbc²R@c¥Rã»GeeƃīQ}J[ÒK¬Ə|oėjġĠÑN¡ð¯EBčnwôɍėª²CλŹġǝʅįĭạ̃ūȹ]ΓͧgšsgȽóϧµǛęgſ¶ҍć`ĘąŌJÞä¤rÅň¥ÖÁUětęuůÞiĊÄÀ\\Æs¦ÓRb|Â^řÌkÄŷ¶½÷f±iMÝ@ĥ°G¬ÃM¥n£Øąğ¯ß§aëbéüÑOčk£{\\eµª×MÉfm«Ƒ{Å×Gŏǩãy³©WÑăû··Qòı}¯ãIéÕÂZ¨īès¶ZÈsæĔTŘvgÌsN@îá¾ó@ÙwU±ÉTå»£TđWxq¹Zobs[×¯cĩvėŧ³BM|¹kªħ¥TzNYnÝßpęrñĠĉRS~½ěVVµõ«M££µBĉ¥áºae~³AuĐh`Ü³ç@BÛïĿa©|z²Ý¼D£àč²ŸIûI āóK¥}rÝ_Á´éMaň¨~ªSĈ½½KÙóĿeƃÆB·¬ën×W|Uº}LJrƳlŒµ`bÔ`QÐÓ@s¬ñIÍ@ûws¡åQÑßÁ`ŋĴ{ĪTÚÅTSÄ³Yo|Ç[Ç¾µMW¢ĭiÕØ¿@MhpÕ]jéò¿OƇĆƇpêĉâlØwěsǩĵ¸cbU¹ř¨WavquSMzeo_^gsÏ·¥Ó@~¯¿RiīB\\qTGªÇĜçPoÿfñòą¦óQīÈáPābß{ZŗĸIæÅhnszÁCËìñÏ·ąĚÝUm®ó­L·ăUÈíoù´Êj°ŁŤ_uµ^°ìÇ@tĶĒ¡ÆM³Ģ«İĨÅ®ğRāðggheÆ¢zÊ©Ô\\°ÝĎz~ź¤PnMĪÖB£kné§żćĆKĒ°¼L¶èâz¨u¦¥LDĘz¬ýÎmĘd¾ßFzhg²Fy¦ĝ¤ċņbÎ@yĄæm°NĮZRÖíJ²öLĸÒ¨Y®ƌÐVàtt_ÚÂyĠz]ŢhzĎ{ÂĢXc|ÐqfO¢¤ögÌHNPKŖUú´xx[xvĐCûĀìÖT¬¸^}Ìsòd´_KgžLĴÀBon|H@Êx¦BpŰŌ¿fµƌA¾zǈRx¶FkĄźRzŀ~¶[´HnªVƞuĒ­È¨ƎcƽÌm¸ÁÈM¦x͊ëÀxǆBú^´W£dkɾĬpw˂ØɦļĬIŚÊnŔa¸~J°îlɌxĤÊÈðhÌ®gT´øàCÀ^ªerrƘd¢İP|Ė ŸWªĦ^¶´ÂLaT±üWƜǀRÂŶUńĖ[QhlLüAÜ\\qRĄ©"],"encodeOffsets":[[90849,37210]]}},{"type":"Feature","id":"610000","properties":{"id":"610000","cp":[108.948024,34.263161],"name":"陕西","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@p¢ȮµûGĦ}Ħðǚ¶òƄjɂz°{ºØkÈęâ¦jªBg\\ċ°s¬]jú EȌǆ¬stRÆdĠİwÜ¸ôW¾ƮłÒ_{Ìû¼jº¹¢GǪÒ¯ĘZ`ºŊecņą~BÂgzpâēòYǠȰÌTÎ¨ÂW|fcă§uF@N¢XLRMº[ğȣſï|¥Jkc`sŉǷY¹W@µ÷Kãï³ÛIcñ·VȋÚÒķø©þ¥yÓğęmWµÎumZyOŅƟĥÓ~sÑL¤µaÅY¦ocyZ{y c]{Ta©`U_Ěē£ωÊƍKùK¶ȱÝƷ§{û»ÅÁȹÍéuĳ|¹cÑdìUYOuFÕÈYvÁCqÓTǢí§·S¹NgV¬ë÷Át°DØ¯C´ŉƒópģ}ċcEËFéGU¥×K§­¶³BČ}C¿åċ`wġB·¤őcƭ²ő[Å^axwQOÿEËßŚĤNĔwƇÄńwĪ­o[_KÓª³ÙnKÇěÿ]ďă_d©·©Ýŏ°Ù®g]±ßå¬÷m\\iaǑkěX{¢|ZKlçhLtŇîŵœè[É@ƉĄEtƇÏ³­ħZ«mJ×¾MtÝĦ£IwÄå\\Õ{OwĬ©LÙ³ÙgBƕŀrÌĢŭO¥lãyC§HÍ£ßEñX¡­°ÙCgpťzb`wIvA|§hoĕ@E±iYd¥OĻ¹S|}F@¾oAO²{tfÜ¢FǂÒW²°BĤh^Wx{@¬­F¸¡ķn£P|ªĴ@^ĠĈæbÔc¶lYi^MicĎ°Â[ävï¶gv@ÀĬ·lJ¸sn|¼u~a]ÆÈtŌºJpþ£KKf~¦UbyäIĺãnÔ¿^­ŵMThĠÜ¤ko¼Ŏìąǜh`[tRd²Ĳ_XPrɲlXiL§à¹H°Ȧqº®QCbAŌJ¸ĕÚ³ĺ§ `d¨YjiZvRĺ±öVKkjGȊÄePĞZmļKÀ[`ösìhïÎoĬdtKÞ{¬èÒÒBÔpĲÇĬJŊ¦±J«Y§@·pHµàåVKepWftsAÅqC·¬ko«pHÆuK@oHĆÛķhxenS³àǍrqƶRbzy¸ËÐl¼EºpĤ¼x¼½~Ğà@ÚüdK^mÌSj"],"encodeOffsets":[[110234,38774]]}},{"type":"Feature","id":"620000","properties":{"id":"620000","cp":[103.823557,36.058039],"name":"甘肃","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@VuUv"],["@@ũEĠtt~nkh`Q¦ÅÄÜdwAb×ĠąJ¤DüègĺqBqj°lI¡ĨÒ¤úSHbjÎB°aZ¢KJO[|A£Dx}NĂ¬HUnrk kp¼Y kMJn[aGáÚÏ[½rc}aQxOgsPMnUsncZsKúvAtÞġ£®ĀYKdnFw¢JE°Latf`¼h¬we|Æbj}GA·~W`¢MC¤tL©Ĳ°qdfObÞĬ¹ttu`^ZúE`[@Æsîz®¡CƳƜG²R¢RmfwĸgÜą G@pzJM½mhVy¸uÈÔO±¨{LfæU¶ßGĂq\\ª¬²I¥IŉÈīoıÓÑAçÑ|«LÝcspīðÍgtë_õ\\ĉñLYnĝgRǡÁiHLlõUĹ²uQjYi§Z_c¨´ĹĖÙ·ŋIaBD­R¹ȥr¯GºßK¨jWkɱOqWĳ\\a­Q\\sg_ĆǛōëp»£lğÛgSŶN®À]ÓämĹãJaz¥V}Le¤Lýo¹IsŋÅÇ^bz³tmEÁ´a¹cčecÇNĊãÁ\\č¯dNj]jZµkÓdaćå]ğĳ@ ©O{¤ĸm¢E·®«|@Xwg]Aģ±¯XǁÑǳªcwQÚŝñsÕ³ÛV_ý¥\\ů¥©¾÷w©WÕÊĩhÿÖÁRo¸V¬âDb¨hûxÊ×ǌ~Zâg|XÁnßYoº§ZÅŘv[ĭÖʃuďxcVbnUSfB¯³_TzºÎO©çMÑ~M³]µ^püµÄY~y@X~¤Z³[Èōl@®Å¼£QK·Di¡ByÿQ_´D¥hŗy^ĭÁZ]cIzýah¹MĪğPs{ò²Vw¹t³ŜË[Ñ}X\\gsF£sPAgěp×ëfYHāďÖqēŭOÏëdLü\\it^c®RÊº¶¢H°mrY£B¹čIoľu¶uI]vģSQ{UŻÅ}QÂ|Ì°ƅ¤ĩŪU ęĄÌZÒ\\v²PĔ»ƢNHĂyAmƂwVm`]ÈbH`Ì¢²ILvĜH®¤Dlt_¢JJÄämèÔDëþgºƫaʎÌrêYi~ Îİ¤NpÀA¾Ĕ¼bð÷®üszMzÖĖQdȨýv§Tè|ªHÃ¾a¸|Ð ƒwKĢx¦ivr^ÿ ¸l öæfƟĴ·PJv}n\\h¹¶v·À|\\ƁĚN´ĜçèÁz]ġ¤²¨QÒŨTIlªťØ}¼˗ƦvÄùØEÂ«FïËIqōTvāÜŏíÛßÛVj³âwGăÂíNOPìyV³ŉĖýZso§HÑiYw[ß\\X¦¥c]ÔƩÜ·«jÐqvÁ¦m^ċ±R¦΋ƈťĚgÀ»IïĨʗƮ°ƝĻþÍAƉſ±tÍEÕÞāNUÍ¡\\ſčåÒʻĘm ƭÌŹöʥëQ¤µ­ÇcƕªoIýIÉ_mkl³ăƓ¦j¡YzŇi}Msßõīʋ }ÁVm_[n}eı­Uĥ¼ªI{Î§DÓƻėojqYhĹT©oūĶ£]ďxĩǑMĝq`B´ƃ˺Чç~²ņj@¥@đ´ί}ĥtPńÇ¾V¬ufÓÉCtÓ̻¹£G³]ƖƾŎĪŪĘ̖¨ʈĢƂlɘ۪üºňUðǜȢƢż̌ȦǼĤŊɲĖÂ­Kq´ï¦ºĒǲņɾªǀÞĈĂD½ĄĎÌŗĞrôñnN¼â¾ʄľԆ|Ǆ֦ज़ȗǉ̘̭ɺƅêgV̍ʆĠ·ÌĊv|ýĖÕWĊǎÞ´õ¼cÒÒBĢ͢UĜð͒s¨ňƃLĉÕÝ@ɛƯ÷¿Ľ­ĹeȏĳëCȚDŲyê×Ŗyò¯ļcÂßYtÁƤyAã˾J@ǝrý@¤rz¸oP¹ɐÚyáHĀ[JwcVeȴÏ»ÈĖ}ƒŰŐèȭǢόĀƪÈŶë;Ñ̆ȤМľĮEŔĹŊũ~ËUă{ĻƹɁύȩþĽvĽƓÉ@ēĽɲßǐƫʾǗĒpäWÐxnsÀ^ƆwW©¦cÅ¡Ji§vúF¶¨c~c¼īeXǚ\\đ¾JwÀďksãAfÕ¦L}waoZD½Ml«]eÒÅaÉ²áo½FõÛ]ĻÒ¡wYR£¢rvÓ®y®LFLzĈôe]gx}|KK}xklL]c¦£fRtív¦PĤoH{tK"]],"encodeOffsets":[[[108619,36299]],[[108589,36341]]]}},{"type":"Feature","id":"630000","properties":{"id":"630000","cp":[96.778916,35.623178],"name":"青海","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@InJm"],["@@CÆ½OŃĦsΰ~Ē³¦@@Ņi±è}ШƄ˹A³r_ĞǒNĪĐw¤^ŬĵªpĺSZgrpiƼĘÔ¨C|ÍJ©Ħ»®VĲ~f\\m `UnÂ~ʌĬàöNt~ňjy¢ZiƔ¥Ąk´nl`JÊJþ©pdƖ®È£¶ìRʦźõƮËnʼėæÑƀĎ[¢VÎĂMÖÝÎF²sƊƀÎBļýƞ¯ʘƭðħ¼Jh¿ŦęΌƇ¥²Q]Č¥nuÂÏri¸¬ƪÛ^Ó¦d¥[Wàx\\ZjÒ¨GtpþYŊĕ´zUOëPîMĄÁxH´áiÜUàîÜŐĂÛSuŎrJðÌ¬EFÁú×uÃÎkrĒ{V}İ«O_ÌËĬ©ÓŧSRÑ±§Ģ£^ÂyèçěM³Ƃę{[¸¿uºµ[gt£¸OƤĿéYõ·kĀq]juw¥DĩƍõÇPéÄ½G©ã¤GuȧþRcÕĕNyyût­øï»a½ē¿BMoį£Íj}éZËqbʍƬh¹ìÿÓAçãnIÃ¡I`ks£CG­ěUy×Cy@¶ʡÊBnāzGơMē¼±O÷õJËĚăVĪũƆ£¯{ËL½ÌzżVR|ĠTbuvJvµhĻĖHAëáa­OÇðñęNwœľ·LmI±íĠĩPÉ×®ÿscB³±JKßĊ«`ađ»·QAmOVţéÿ¤¹SQt]]Çx±¯A@ĉĳ¢Óļ©l¶ÅÛrŕspãRk~¦ª]Į­´FRåd­ČsCqđéFn¿ÅƃmÉx{W©ºƝºįkÕƂƑ¸wWūÐ©ÈF£\\tÈ¥ÄRÈýÌJ lGr^×äùyÞ³fjc¨£ÂZ|ǓMĝÏ@ëÜőRĝ÷¡{aïȷPu°ËXÙ{©TmĠ}Y³­ÞIňµç½©C¡į÷¯B»|St»]vųs»}MÓ ÿʪƟǭA¡fs»PY¼c¡»¦cċ­¥£~msĉPSi^o©AecPeǵkgyUi¿h}aHĉ^|á´¡HØûÅ«ĉ®]m¡qĉ¶³ÈyôōLÁstB®wn±ă¥HSòė£Së@×œÊăxÇN©©T±ª£Ĳ¡fb®Þbb_Ą¥xu¥B{łĝ³«`dƐt¤ťiñÍUuºí`£^tƃĲc·ÛLO½sç¥Ts{ă\\_»kÏ±q©čiìĉ|ÍI¥ć¥]ª§D{ŝŖÉR_sÿc³ĪōƿÎ§p[ĉc¯bKmR¥{³Ze^wx¹dƽÅ½ôIg §Mĕ ƹĴ¿ǣÜÍ]Ý]snåA{eƭ`ǻŊĿ\\ĳŬűYÂÿ¬jĖqßb¸L«¸©@ěĀ©ê¶ìÀEH|´bRľÓ¶rÀQþvl®ÕETzÜdb hw¤{LRdcb¯ÙVgƜßzÃôì®^jUèXÎ|UäÌ»rK\\ªN¼pZCüVY¤ɃRi^rPŇTÖ}|br°qňbĚ°ªiƶGQ¾²x¦PmlŜ[Ĥ¡ΞsĦÔÏâ\\ªÚŒU\\f¢N²§x|¤§xĔsZPòʛ²SÐqF`ªVÞŜĶƨVZÌL`¢dŐIqr\\oäõFÎ·¤»Ŷ×h¹]ClÙ\\¦ďÌį¬řtTӺƙgQÇÓHţĒ´ÃbEÄlbʔC|CŮkƮ[ʼ¬ň´KŮÈΰÌĪ¶ƶlðļATUvdTGº̼ÔsÊDÔveOg"]],"encodeOffsets":[[[105308,37219]],[[95370,40081]]]}},{"type":"Feature","id":"640000","properties":{"id":"640000","cp":[106.278179,37.26637],"name":"宁夏","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@KëÀęĞ«Oęȿȕı]ŉ¡åįÕÔ«ǴõƪĚQÐZhv K°öqÀÑS[ÃÖHƖčËnL]ûcÙß@ĝ¾}w»»oģF¹»kÌÏ·{zP§B­¢íyÅt@@á]Yv_ssģ¼ißĻL¾ġsKD£¡N_X¸}B~HaiÅf{«x»ge_bsKF¯¡IxmELcÿZ¤­ĢÝsuBLùtYdmVtNmtOPhRw~bd¾qÐ\\âÙH\\bImlNZ»loqlVmGā§~QCw¤{A\\PKNY¯bFkC¥sks_Ã\\ă«¢ħkJi¯rrAhĹûç£CUĕĊ_ÔBixÅÙĄnªÑaM~ħpOu¥sîeQ¥¤^dkKwlL~{L~hw^ófćKyE­K­zuÔ¡qQ¤xZÑ¢^ļöÜ¾Ep±âbÊÑÆ^fk¬NC¾YpxbK~¥eÖäBlt¿Đx½I[ĒǙWf»Ĭ}d§dµùEuj¨IÆ¢¥dXªƅx¿]mtÏwßRĶX¢͎vÆzƂZò®ǢÌʆCrâºMÞzÆMÒÊÓŊZÄ¾r°Î®Ȉmª²ĈUªĚîøºĮ¦ÌĘk^FłĬhĚiĀĖ¾iİbjÕ"],["@@mfwěwMrŢªv@G"]],"encodeOffsets":[[[109366,40242]],[[108600,36303]]]}},{"type":"Feature","id":"650000","properties":{"id":"650000","cp":[85.617733,40.792818],"name":"新疆","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@QØĔ²X¨~ǘBºjʐßØvKƔX¨vĊOÃ·¢i@~cĝe_«E}QxgɪëÏÃ@sÅyXoŖ{ô«ŸuXêÎf`C¹ÂÿÐGĮÕĞXŪōŸMźÈƺQèĽôe|¿ƸJR¤ĘEjcUóº¯Ĩ_ŘÁMª÷Ð¥OéÈ¿ÖğǤǷÂFÒzÉx[]­Ĥĝœ¦EP}ûƥé¿İƷTėƫœŕƅƱB»Đ±ēO¦E}`cȺrĦáŖuÒª«ĲπdƺÏØZƴwʄ¤ĖGĐǂZĶèH¶}ÚZצʥĪï|ÇĦMŔ»İĝǈì¥Βba­¯¥ǕǚkĆŵĦɑĺƯxūД̵nơʃĽá½M»òmqóŘĝčË¾ăCćāƿÝɽ©ǱŅ¹đ¥³ðLrÁ®ɱĕģŉǻ̋ȥơŻǛȡVï¹Ň۩ûkɗġƁ§ʇė̕ĩũƽō^ƕUv£ƁQïƵkŏ½ΉÃŭÇ³LŇʻ«ƭ\\lŭD{ʓDkaFÃÄa³ŤđÔGRÈƚhSӹŚsİ«ĐË[¥ÚDkº^Øg¼ŵ¸£EÍöůŉT¡c_ËKYƧUśĵÝU_©rETÏʜ±OñtYwē¨{£¨uM³x½şL©Ùá[ÓÐĥ Νtģ¢\\śnkOw¥±T»ƷFɯàĩÞáB¹ÆÑUwŕĽw[mG½Èå~Æ÷QyěCFmĭZīŵVÁƿQƛûXS²b½KÏ½ĉS©ŷXĕ{ĕK·¥Ɨcqq©f¿]ßDõU³h­gËÇïģÉɋwk¯í}I·œbmÉřīJɥĻˁ×xoɹīlc¤³Xù]ǅA¿w͉ì¥wÇN·ÂËnƾƍdÇ§đ®ƝvUm©³G\\}µĿQyŹlăµEwǇQ½yƋBe¶ŋÀůo¥AÉw@{Gpm¿AĳŽKLh³`ñcËtW±»ÕSëüÿďDu\\wwwù³VLŕOMËGh£õP¡erÏd{ġWÁč|yšg^ğyÁzÙs`s|ÉåªÇ}m¢Ń¨`x¥ù^}Ì¥H«YªƅAÐ¹n~ź¯f¤áÀzgÇDIÔ´AňĀÒ¶ûEYospõD[{ù°]uJqU|Soċxţ[õÔĥkŋÞŭZËºóYËüċrw ÞkrťË¿XGÉbřaDü·Ē÷AÃª[ÄäIÂ®BÕĐÞ_¢āĠpÛÄȉĖġDKwbmÄNôfƫVÉviǳHQµâFù­Âœ³¦{YGd¢ĚÜO {Ö¦ÞÍÀP^bƾl[vt×ĈÍEË¨¡Đ~´î¸ùÎhuè`¸HÕŔVºwĠââWò@{ÙNÝ´ə²ȕn{¿¥{l÷eé^eďXj©î\\ªÑòÜìc\\üqÕ[Č¡xoÂċªbØ­ø|¶ȴZdÆÂońéG\\¼C°ÌÆn´nxÊOĨŪƴĸ¢¸òTxÊǪMīĞÖŲÃɎOvʦƢ~FRěò¿ġ~åŊúN¸qĘ[Ĕ¶ÂćnÒPĒÜvúĀÊbÖ{Äî¸~Ŕünp¤ÂH¾ĄYÒ©ÊfºmÔĘcDoĬMŬS¤s²ʘÚžȂVŦ èW°ªB|ĲXŔþÈJĦÆæFĚêYĂªĂ]øªŖNÞüAfɨJ¯ÎrDDĤ`mz\\§~D¬{vJÂ«lµĂb¤pŌŰNĄ¨ĊXW|ų ¿¾ɄĦƐMTòP÷fØĶK¢ȝ˔Sô¹òEð­`Ɩ½ǒÂň×äı§ĤƝ§C~¡hlåǺŦŞkâ~}FøàĲaĞfƠ¥Ŕd®U¸źXv¢aƆúŪtŠųƠjdƺƺÅìnrh\\ĺ¯äɝĦ]èpĄ¦´LƞĬ´ƤǬ˼Ēɸ¤rºǼ²¨zÌPðŀbþ¹ļD¢¹\\ĜÑŚ¶ZƄ³àjĨoâȴLÊȮĐ­ĚăÀêZǚŐ¤qȂ\\L¢ŌİfÆs|zºeªÙæ§΢{Ā´ƐÚ¬¨Ĵà²łhʺKÞºÖTiƢ¾ªì°`öøu®Ê¾ãØ"],"encodeOffsets":[[88824,50096]]}},{"type":"Feature","id":"110000","properties":{"id":"110000","cp":[116.405285,39.904989],"name":"北京","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@ĽOÁûtŷmiÍt_H»Ĩ±d`¹­{bwYr³S]§§o¹qGtm_SŧoaFLgQN_dV@Zom_ć\\ßcÂ±x¯oœRcfe£o§ËgToÛJíĔóu|wP¤XnO¢ÉŦ¯rNÄā¤zâŖÈRpŢZÚ{GrFt¦Òx§ø¹RóäV¤XdżâºWbwŚ¨Ud®bêņ¾jnŎGŃŶnzÚSeîĜZczî¾i]ÍQaúÍÔiþĩȨWĢü|Ėu[qb[swP@ÅğP¿{\\¥A¨ÏÑ¨j¯X\\¯MKpA³[Hīu}}"],"encodeOffsets":[[120023,41045]]}},{"type":"Feature","id":"120000","properties":{"id":"120000","cp":[117.190182,39.125596],"name":"天津","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@ŬgX§Ü«E¶FÌ¬O_ïlÁgz±AXeµÄĵ{¶]gitgIj·¥îakS¨ÐƎk}ĕ{gBqGf{¿aU^fIư³õ{YıëNĿk©ïËZŏR§òoY×Ógcĥs¡bġ«@dekąI[nlPqCnp{ō³°`{PNdƗqSÄĻNNâyj]äÒD ĬH°Æ]~¡HO¾X}ÐxgpgWrDGpù^LrzWxZ^¨´T\\|~@IzbĤjeĊªz£®ĔvěLmV¾Ô_ÈNW~zbĬvG²ZmDM~~"],"encodeOffsets":[[120237,41215]]}},{"type":"Feature","id":"310000","properties":{"id":"310000","cp":[121.472644,31.231706],"name":"上海","childNum":6},"geometry":{"type":"MultiPolygon","coordinates":[["@@ɧư¬EpƸÁxc"],["@@©ª"],["@@MA"],["@@QpİE§ÉC¾"],["@@bŝÕÕEȣÚƥêImɇǦèÜĠÚÃƌÃ͎ó"],["@@ǜûȬɋŭ×^sYɍDŋŽąñCG²«ªč@h_p¯A{oloY¬j@Ĳ`gQÚhr|ǀ^MĲvtbe´R¯Ô¬¨Yô¤r]ìƬį"]],"encodeOffsets":[[[124702,32062]],[[124547,32200]],[[124808,31991]],[[124726,32110]],[[124903,32376]],[[124438,32149]]]}},{"type":"Feature","id":"500000","properties":{"id":"500000","cp":[107.304962,29.533155],"name":"重庆","childNum":2},"geometry":{"type":"MultiPolygon","coordinates":[["@@vjG~nGŘŬĶȂƀƾ¹¸ØÎezĆT¸}êÐqHðqĖä¥^CÆIj²p\\_ æüY|[YxƊæu°xb®Űb@~¢NQt°¶Sæ Ê~rǉĔëĚ¢~uf`faĔJåĊnÖ]jƎćÊ@£¾a®£Ű{ŶĕFègLk{Y|¡ĜWƔtƬJÑxq±ĢN´òKLÈÃ¼D|s`ŋć]Ã`đMûƱ½~Y°ħ`ƏíW½eI½{aOIrÏ¡ĕŇapµÜƅġ^ÖÛbÙŽŏml½SêqDu[RãË»ÿw`»y¸_ĺę}÷`M¯ċfCVµqŉ÷Zgg`d½pDOÎCn^uf²ènh¼WtƏxRGg¦pVFI±G^Ic´ecGĹÞ½sëĬhxW}KÓe­XsbkF¦LØgTkïƵNï¶}Gyw\\oñ¡nmĈzj@Óc£»Wă¹Ój_m»¹·~MvÛaq»­ê\\ÂoVnÓØÍ²«bq¿efE Ĝ^Q~ Évýş¤²ĮpEİ}zcĺL½¿gÅ¡ýE¡ya£³t\\¨\\vú»¼§·Ñr_oÒý¥u_n»_At©ÞÅ±ā§IVeëY}{VPÀFA¨ąB}q@|Ou\\FmQFÝMwå}]|FmÏCawu_p¯sfÙgYDHl`{QEfNysB¦zG¸rHeN\\CvEsÐùÜ_·ÖĉsaQ¯}_UxÃđqNH¬Äd^ÝŰR¬ã°wećJE·vÝ·HgéFXjÉê`|ypxkAwWĐpb¥eOsmzwqChóUQl¥F^lafanòsrEvfQdÁUVfÎvÜ^eftET¬ôA\\¢sJnQTjPØxøK|nBzĞ»LYFDxÓvr[ehľvN¢o¾NiÂxGpâ¬zbfZo~hGi]öF||NbtOMn eA±tPTLjpYQ|SHYĀxinzDJÌg¢và¥Pg_ÇzIIII£®S¬ØsÎ¼£N"],["@@ifjN@s"]],"encodeOffsets":[[[109628,30765]],[[111725,31320]]]}},{"type":"Feature","id":"810000","properties":{"id":"810000","cp":[114.173355,22.320048],"name":"香港","childNum":5},"geometry":{"type":"MultiPolygon","coordinates":[["@@AlBk"],["@@mn"],["@@EpFo"],["@@ea¢pl¸Eõ¹hj[]ÔCÎ@lj¡uBX´AI¹[yDU]W`çwZkmcMpÅv}IoJlcafŃK°ä¬XJmÐ đhI®æÔtSHnEÒrÈc"],["@@rMUwAS®e"]],"encodeOffsets":[[[117111,23002]],[[117072,22876]],[[117045,22887]],[[116975,23082]],[[116882,22747]]]}},{"type":"Feature","id":"820000","properties":{"id":"820000","cp":[113.54909,22.198951],"name":"澳门","childNum":1},"geometry":{"type":"Polygon","coordinates":["@@kÊd°å§s"],"encodeOffsets":[[116279,22639]]}}],"UTF8Encoding":true};
+/* ============================================================
+   万历 · Ceteris 引擎 v2.1-lite —— 光伏 2009-2018
+   纯逻辑层，零渲染依赖。v1 三轮校准内核 + 三大新层：
+   ① 区域制度层：有效核查 = 中央核查×(1-地方执行折扣)，换届事件，选址函数
+   ② 群演长尾：~200家规则驱动小厂（幂律规模、政策塑形的进入、破产潮）
+   ③ 名角记忆流 + 五段决策卡 basis + 激进者粘性计划（组织惯性）
+   完整版：ARCH 决策函数换 LLM，输入 obs/mems、输出 JSON 契约不变。
+   ============================================================ */
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+var CFG = {
+  seed: 42,
+  rounds: 20,
+  D0: 6.10,               // 初始需求(GW/半年)。含群演供给后重校准
+  demandGrowth: 0.14, growthDecay: 0.976,
+  shockRound: 7, shockFactor: 0.58,
+  C0: 12.0,
+  frontierDrift: 0.022, frontierRnD: 0.10,
+  priceA: 0.50, priceB: 0.72, priceExp: 1.25, rMax: 1.6,
+  capexK: 2.5,
+  capSubShare: 0.6, genSubK: 8,
+  demandBoostGen: 0.5, demandBoostCap: 0.15,
+  fakeCostShare: 0.15, fineMult: 1.5, catchK: 0.85, mediaProb: 0.30,
+  rdCost: 4, rdGain: 0.94, fMin: 0.72,
+  opexBase: 1.5, opexPerGW: 1.2,
+  dKMax: 0.9, cashUse: 0.6, weightExp: 1.3,
+  divThresh: 120, divRate: 0.24,
+  scale: 10,
+  // —— 群演长尾 ——
+  exN0: 200, exKmin: 0.0018, exAlpha: 1.15, exKcap: 0.04,
+  exOpexBase: 0.08, exOpexPerGW: 1.2,
+  entryCap: 6, entryPerMargin: 3, entryMarginFloor: 0.8,
+  // —— 换届 ——
+  turnoverRound: 5, turnoverRegion: 2, turnoverCred: 0.22
+};
+
+/* 三个风格化区域：沿海 / 中部 / 东北 */
+CFG.localMatchK=0; CFG.moveCostK=0.35; CFG.moveCoolRounds=4; CFG.moveDownMul=0.5;
+var REGIONS = [
+  {id:'A', name:'沿海', incentive:0.12, cred:0.85, disc:0.10, cost:0.15, css:'#4dd0c4'},
+  {id:'B', name:'中部', incentive:0.20, cred:0.70, disc:0.25, cost:0.08, css:'#d4b45a'},
+  {id:'C', name:'东北', incentive:0.30, cred:0.45, disc:0.45, cost:0.05, css:'#7f96c4'}
+];
+var PROVS=[
+  {id:'JS',name:'江苏',band:0,selfFin:0.90},
+  {id:'JX',name:'江西',band:1,selfFin:0.45},
+  {id:'HB',name:'河北',band:1,selfFin:0.50},
+  {id:'LN',name:'辽宁',band:2,selfFin:0.40}
+];
+var CABW={JS:{zs:0.6,cz:0.5,jg:1.0}, JX:{zs:1.2,cz:0.6,jg:0.6}, HB:{zs:1.0,cz:0.6,jg:0.7}, LN:{zs:1.3,cz:0.8,jg:0.8}};
+
+var FIRMS = [
+  {id:'longsheng', name:'隆盛科技', emoji:'🔬', arch:'tech',   K:1.1,  cash:70, f:0.93, lev:0.9, home:1, css:'#2dd4a7', color:0x2dd4a7, desc:'技术长期主义者。不追产能排名，只追每瓦成本。（原型：隆基）'},
+  {id:'tianyang',  name:'天阳能源', emoji:'🏗️', arch:'aggr',   K:1.4,  cash:60, f:1.00, lev:2.2, home:0, prov:'JS', css:'#f59e0b', color:0xf59e0b, desc:'激进扩张者。产能就是话语权，敢加杠杆。（原型：尚德）'},
+  {id:'hanguang',  name:'汉光集团', emoji:'🎤', arch:'story',  K:0.8,  cash:62, f:1.10, lev:1.6, home:0, css:'#60a5fa', color:0x60a5fa, desc:'资本故事家。产能规划即市值管理。'},
+  {id:'kuajie',    name:'跨界新能', emoji:'🪂', arch:'chaser', K:0.0,  cash:35, f:1.08, lev:1.2, home:1, css:'#e879a0', color:0xe879a0, desc:'跨界追风口者。别人赚钱它眼红，行情一冷跑最快。'},
+  {id:'xiaosheng', name:'小盛作坊', emoji:'🎭', arch:'fraud',  K:0.25, cash:15, f:1.20, lev:1.0, home:2, prov:'LN', css:'#ef5350', color:0xef5350, desc:'骗补投机者。选址在监管最松的地方，研究政策文件比研究技术上心。'},
+  {id:'daigong',   name:'稳达代工', emoji:'📦', arch:'oem',    K:0.6,  cash:45, f:1.02, lev:0.8, home:1, css:'#94a3b8', color:0x94a3b8, desc:'观望代工厂。现金为王，永远慢半拍，也因此摔得轻。'},
+  {id:'weisai',    name:'维赛新能', emoji:'🧲', arch:'bound',  K:0.22, cash:9,  f:1.06, lev:1.9, home:1, prov:'JX', css:'#b45309', color:0xb45309, desc:'政企绑定的地方明星。省里的名片工程，大到不能倒——至少省里这么认为。（原型：赛维）'},
+  {id:'guojing',   name:'国晶新能', emoji:'🏢', arch:'soe',    K:0.20, cash:24, f:1.03, lev:0.9, home:0, css:'#7c8ee8', color:0x7c8ee8, desc:'国资背景稳健派。融资便宜、使命在肩，行业越冷越要顶上。（原型：中环）'}
+];
+
+function pick(rng, arr){ return arr[Math.floor(rng()*arr.length)]; }
+var MODE_CN={capacity:'装机补贴',generation:'度电补贴',none:'停止补贴'};
+
+/* ---------- skill 卡：六种决策逻辑（完整版换 LLM，契约不变） ----------
+   输出 {dK, rd, fake, note 独白, rule 依据}。fraud 的核查观测用本地有效核查 effA。 */
+var ARCH = {
+  tech: function(f,o,rng){
+    var d={rd:f.cash>15, dK:0, fake:0};
+    if(o.margin>0.3 && o.r>0.8 && f.cash>o.capex*0.3) d.dK=0.18*Math.max(f.K,0.6);
+    if(d.dK>0){ d.rule='人设:研发优先,顺周期小步扩产'; d.note=pick(rng,['补贴会退坡，成本不会说谎——扩一点，研发不停。','单晶降本曲线还在陡峭段，加码研发。']); }
+    else if(o.margin<0){ d.rule='性格招式:margin<0 仍研发不停(rnd=0.9)'; d.note=pick(rng,['价格已击穿同行成本线。我们的任务是活到黎明。','行业出清正是拉开身位的时候，研发照旧。']); }
+    else { d.rule='人设:不追排名,守成本曲线'; d.note='不追产能排名，只追每瓦成本。'; }
+    return d;
+  },
+  aggr: function(f,o,rng){
+    var d={rd:false,dK:0,fake:0};
+    if(f.lossStreak>=4 || f.cash<o.capex*0.4){ d.rule='紧急刹车:弹尽粮绝(现金<0.4×capex)'; d.note=pick(rng,['弹尽粮绝，停止一切扩张……银行开始抽贷了。','当初是不是冲得太快了。']); return d; }
+    if(f.lossStreak>=2){ d.dK=0.15*f.K; d.rule='性格招式:逆势加码(risk=0.9,连亏≥2)'; d.note=pick(rng,['行业越冷越要扩，把对手熬死，剩者为王！','现在收缩就前功尽弃，逆势抄底加码！']); return d; }
+    var juiced = o.policy.mode==='capacity' && o.policy.intensity>30;
+    d.dK = (juiced?0.42 : o.margin>0.5?0.28 : 0.12) * Math.max(f.K,0.8);
+    var grief=f.mems&&f.mems.some(function(m){return m.type==='peer_bankrupt'&&o.t-m.t<=1;});
+    if(grief){ d.dK*=0.65; }
+    if(juiced){ d.rule='人设:补贴返现→扩产ROI跳升(expand=0.95)'; d.note=pick(rng,['补贴覆盖三成资本开支，此时不上产能更待何时？贷款，扩！','各地政府排着队送地送厂房，产能干到全球第一再说。']); }
+    else { d.rule='人设:顺周期扩张'; d.note=o.margin>0.5?'需求还在涨，继续加码。':'市况一般，小步扩张占个位。'; }
+    if(grief){ d.rule+=' ×记忆:同行刚倒下→减速(兔死狐悲)'; d.note='刚看着同行倒下，这一单，缓一缓。'; }
+    return d;
+  },
+  story: function(f,o,rng){
+    var d={rd:false,dK:0,fake:0};
+    if(o.policy.mode!=='none' && f.cash>o.capex*0.3 && f.lossStreak<2){
+      d.dK=0.28*Math.max(f.K,0.7); d.rule='人设:产能即市值(herd=0.8)';
+      d.note=pick(rng,['产能规划就是市值管理，发布会先开起来。','讲一个千亿营收的故事，资本市场会买单的。']);
+    } else { d.rule='人设:故事失灵则收缩'; d.note='故事讲不动了，先收一收。'; }
+    return d;
+  },
+  chaser: function(f,o,rng){
+    var d={rd:false,dK:0,fake:0};
+    if(!f.entered){
+      if(o.avgMargin>1.6 && o.policy.mode!=='none'){ f.entered=true; d.dK=0.35; d.rule='性格招式:入场(herd=0.95,行业毛利>1.6)';
+        d.note='隔壁做服装的都杀进光伏了，我们不能踏空这波风口！'; }
+      else { d.rule='人设:场外观望'; d.note='再看看，风口还没起来。'; }
+      return d;
+    }
+    if(o.margin>0.8 && f.cash>o.capex*0.3){ d.dK=0.25*Math.max(f.K,0.3); d.rule='人设:追风加码'; d.note='风口正劲，追加投入。'; }
+    else { d.rule='人设:风口冷却,焦虑观望'; d.note=pick(rng,['利润没想象中好，有点慌……','早知道不凑这个热闹了。']); }
+    return d;
+  },
+  bound: function(f,o,rng){
+    var d={rd:false,dK:0,fake:0};
+    var subOn = o.policy.mode!=='none' && o.policy.intensity>=30;
+    if(subOn && f.cash>o.capex*0.25){
+      d.dK=Math.min(0.32, 0.16+0.14*o.policy.intensity/100);
+      d.rule='政企绑定:政策风口+隐性担保→产能即政绩';
+      d.note='省里要的是全国前十的名片，银行的授信函就在抽屉里——扩！';
+    } else if(o.margin>0.6 && f.cash>o.capex*0.3){
+      d.dK=0.20; d.rule='政企绑定:有毛利即扩,预算约束是软的';
+      d.note='亏了有人兜，赚了是政绩，这买卖怎么算都该做大。';
+    } else { d.rule='政企绑定:现金见底,等省里协调'; d.note='账上快没钱了……该给园区管委会打电话了。'; }
+    return d;
+  },
+  soe: function(f,o,rng){
+    var d={rd:false,dK:0,fake:0};
+    if(o.r<0.85 && f.cash>o.capex*0.6){
+      d.dK=0.18; d.rule='国资使命:逆周期托底(供需比'+o.r.toFixed(2)+')';
+      d.note='民企在撤，行业不能垮——这个时候进场，既是使命也是便宜。';
+    } else if(o.margin>1.2 && f.cash>o.capex*0.5){
+      d.dK=0.16; d.rd=f.cash>40; d.rule='国资稳健:顺周期跟进+技改';
+      d.note='不抢头名，跟住大盘，把技改做扎实。';
+    } else { d.rd=f.cash>50; d.rule='国资稳健:守仓观望'; d.note='等一等，看清楚再动。'; }
+    return d;
+  },
+  fraud: function(f,o,rng){
+    var d={rd:false,dK:0,fake:0};
+    var burned=f.mems&&f.mems.some(function(m){return m.type==='audit_hit'&&o.t-m.t<=2;});
+    if(o.policy.mode==='capacity'){
+      if(burned){ d.rule='记忆:两期内有被查处记录→蛰伏(一朝被蛇咬)'; d.note='上次的罚单还热着，这阵子收手，等风头过去。'; }
+      else if(o.effA<55){
+        d.fake = 0.25 + 0.30*(55-o.effA)/55; d.rule='人设:装机付钱+本地实核'+o.effA.toFixed(0)+'<55→造假EV为正(integrity=0.05)';
+        d.note = pick(rng,['装机就给钱，验收的人又不会上屋顶数板子。','板子朝哪边不重要，验收单好看就行。','这地方管得松，再立几个"电站"，补贴到账比卖电快多了。']);
+      } else { d.rule='性格招式:蛰伏(本地实核'+o.effA.toFixed(0)+'≥55)'; d.note='风声太紧，先蛰伏，等核查松了再干。'; }
+    } else if(o.policy.mode==='generation'){
+      d.rule='机制:度电结算→假电站发不出电,造假EV≤0';
+      d.note='按发电量结算？假电站发不出一度电，这生意没法做了。';
+      if(o.margin>1 && f.cash>o.capex*0.2){ d.dK=0.1; d.note+='要不……真干点？'; }
+    } else { d.rule='人设:无利可图'; d.note='没补贴，收摊观望。'; }
+    return d;
+  },
+  oem: function(f,o,rng){
+    var d={rd:false,dK:0,fake:0};
+    if(o.margin>1.2 && o.r>0.95 && f.cash>o.capex*0.25){ d.dK=0.15*f.K; d.rule='人设:订单确定才扩(patience=0.9)'; d.note='订单排满了，谨慎加一条产线。'; }
+    else if(o.margin<0.3 && f.cash>25){ d.rd=true; d.rule='人设:利润受压→设备升级求生'; d.note='利润薄得像纸，升级设备降本求生。'; }
+    else { d.rule='人设:现金为王,观望'; d.note=pick(rng,['现金为王，等价格企稳再说。','看天阳他们冲，我们跟在后面捡稳单。']); }
+    return d;
+  }
+};
+
+/* 记忆检索的情境相关矩阵（斯坦福小镇三要素的极简版：显著性×时近×相关） */
+var REL = {
+  expand: {policy_change:0.9, windfall:0.7, peer_bankrupt:0.5, loss:0.6, audit_hit:0.2, media:0.2},
+  fraud:  {policy_change:0.8, windfall:0.2, peer_bankrupt:0.3, loss:0.4, audit_hit:1.0, media:0.9},
+  bound:  {policy_change:0.9, windfall:0.3, peer_bankrupt:0.5, loss:0.7, audit_hit:0.4, media:0.5, bailout:1.0},
+  soe:    {policy_change:0.7, windfall:0.2, peer_bankrupt:0.6, loss:0.5, audit_hit:0.3, media:0.3},
+  survive:{policy_change:0.6, windfall:0.2, peer_bankrupt:1.0, loss:0.9, audit_hit:0.3, media:0.3}
+};
+
+function Sim(seed){
+  var rng = this.rng = mulberry32(seed);
+  this.t=0; this.frontier=CFG.C0; this.opinion=80; this.opinionCrisis=false;
+  this.fiscal={cap:0, gen:0, waste:0, fines:0};
+  this.regions = REGIONS.map(function(r){ return {id:r.id,name:r.name,incentive:r.incentive,cred:r.cred,disc:r.disc,cost:r.cost,css:r.css}; });
+  this.provs = PROVS.map(function(p){ var b=REGIONS[p.band];
+    return {id:p.id,name:p.name,band:p.band,selfFin:p.selfFin,disc:b.disc,rescues:0,lastCard:null}; });
+  this.firms = FIRMS.map(function(f){ return Object.assign({}, f, {
+    pending:0, fakeStock:0, lossStreak:0, monologues:[], mems:[], alive:true, dead:null,
+    entered: f.arch!=='chaser', didRd:false, pnl:0, sell:0, plan:null, lastCard:null
+  });});
+  /* —— 群演长尾初始化（幂律规模 + trait-lite）—— */
+  var ex = this.ex = {K:[],f:[],cash:[],integ:[],herd:[],expand:[],region:[],alive:[],pend:[],fakeNow:[],bornAt:[],deadAt:[]};
+  for(var i=0;i<CFG.exN0;i++){
+    var u=rng(), K=Math.min(CFG.exKcap, CFG.exKmin*Math.pow(1-u,-1/CFG.exAlpha));
+    var lowInteg = rng()<0.12;
+    ex.K.push(K);
+    ex.f.push(rng()<0.10? 0.96+rng()*0.05 : 1.02+rng()*0.18);
+    ex.cash.push(0.5 + K*50*(0.6+rng()));
+    ex.integ.push(lowInteg? 0.05+rng()*0.2 : 0.45+rng()*0.55);
+    ex.herd.push(rng());
+    ex.expand.push(0.3+0.6*rng());
+    var rr=rng(); ex.region.push(rr<0.45?0:rr<0.8?1:2);
+    ex.alive.push(true); ex.pend.push(0); ex.fakeNow.push(0); ex.bornAt.push(0); ex.deadAt.push(-1);
+  }
+  this.exDeadCum=0;
+  this.history=[]; this._lastPol=null;
+}
+Sim.prototype.yearLabel=function(t){ if(t===undefined)t=this.t; return (2009+Math.floor(t/2))+'年'+(t%2?'下':'上')+'半年'; };
+Sim.prototype.alive=function(){ return this.firms.filter(function(f){return f.alive;}); };
+Sim.prototype.cabinetTick=function(policy, ev){
+  var self=this, t=this.t;
+  if(!this._share0){ var s0=[0,0,0];
+    this.firms.forEach(function(f){ s0[f.home]+=f.K; });
+    for(var i=0;i<this.ex.K.length;i++) s0[this.ex.region[i]]+=this.ex.K[i];
+    var tt=s0[0]+s0[1]+s0[2]||1; this._share0=[s0[0]/tt,s0[1]/tt,s0[2]/tt]; }
+  var hPrev=this.history[this.history.length-1]||null;
+  this.provs.forEach(function(pv){
+    var b=self.regions[pv.band];
+    var fr=0; for(var k=Math.max(0,self.history.length-2);k<self.history.length;k++) fr+=self.history[k].fraudRegion[pv.band];
+    var subHot=policy.mode!=='none'&&policy.intensity>=40;
+    var shareNow=hPrev?hPrev.shares[pv.band]:null;
+    var zs=(subHot?1:0)+(shareNow!==null&&shareNow<self._share0[pv.band]*0.92?1:0);
+    var cz=(pv.selfFin<0.55?-1:0)+(subHot&&pv.selfFin>=0.7?1:0);
+    var jg=Math.max(0,(policy.audit>=45?2:0)+(fr>=3?1:0)-(policy.audit<30?1:0));
+    var W=CABW[pv.id], score=W.zs*zs+W.cz*cz-W.jg*jg;
+    var act, old=pv.disc;
+    if(score<=-1.5){ pv.disc=Math.max(b.disc*0.5,pv.disc-0.10); act='加严执行（折扣'+old.toFixed(2)+'→'+pv.disc.toFixed(2)+'）'; }
+    else if(score>=2){ pv.disc=Math.min(b.disc*1.15,pv.disc+0.04); act='放松执行（招商优先）'; }
+    else act='维持现状（折扣'+pv.disc.toFixed(2)+'）';
+    pv.lastCard={t:t,
+      observed:['中央核查'+policy.audit,'两期辖区虚报'+fr+'起','产业份额'+(shareNow!==null?(shareNow*100).toFixed(0)+'%':'—'),'财政自给率'+(pv.selfFin*100).toFixed(0)+'%'],
+      seats:[{s:'招商席',v:zs},{s:'财政席',v:cz},{s:'监管席',v:-jg}],
+      rule:'票决 '+(W.zs*zs).toFixed(1)+'+'+(W.cz*cz).toFixed(1)+'−'+(W.jg*jg).toFixed(1)+'='+score.toFixed(1), act:act};
+    if(act.indexOf('加严')===0) ev.push({t:t,type:'region',msg:pv.name+'省'+act+'——监管席在票决中压过招商席'});
+  });
+};
+Sim.prototype.ledgerAdd=function(j,prom,paid){
+  if(!this.credLedger) this.credLedger=[{prom:0,paid:0},{prom:0,paid:0},{prom:0,paid:0}];
+  this.credLedger[j].prom+=prom; this.credLedger[j].paid+=paid;
+};
+Sim.prototype.effA=function(regionIdx, policy, provId){
+  var dm=(policy.x&&policy.x.discountMul!==undefined)?policy.x.discountMul:1;
+  var disc=this.regions[regionIdx].disc;
+  if(provId&&this.provs){ for(var q=0;q<this.provs.length;q++) if(this.provs[q].id===provId){ disc=this.provs[q].disc; break; } }
+  return policy.audit*(1-disc*dm);
+};
+Sim.prototype.demand=function(policy){
+  if(!this._Dbase){ this._Dbase=[CFG.D0]; var g=CFG.demandGrowth;
+    for(var k=1;k<=CFG.rounds;k++){ this._Dbase.push(this._Dbase[k-1]*(1+g)); g*=CFG.growthDecay; } }
+  var PX=policy.x||{};
+  var d=this._Dbase[this.t];
+  if(this.t>=CFG.shockRound) d*=CFG.shockFactor*(PX.shockMul||1);
+  var b = policy.mode==='generation'?CFG.demandBoostGen : policy.mode==='capacity'?CFG.demandBoostCap : 0;
+  return d*(1+policy.intensity/100*b+(PX.demandBonus||0));
+};
+Sim.prototype.writeMem=function(f,type,text,sal){
+  f.mems.push({t:this.t,type:type,text:text,sal:sal});
+  if(f.mems.length>12) f.mems.shift();
+};
+Sim.prototype.retrieve=function(f,ctx){
+  var t=this.t, rel=REL[ctx]||REL.expand;
+  return f.mems.map(function(m){
+    return {m:m, s: m.sal*Math.pow(0.75,t-m.t)*(rel[m.type]||0.3)};
+  }).sort(function(a,b){return b.s-a.s;}).slice(0,2).filter(function(x){return x.s>0.08;})
+    .map(function(x){ return {t:x.m.t, text:x.m.text}; });
+};
+
+Sim.prototype.step=function(policy,ctrl){
+  var rng=this.rng, ev=[], flows=[], t=this.t, self=this;
+  var PX=policy.x||{};
+  var FINE=PX.fineMult||CFG.fineMult, MEDIA=(PX.mediaProb!==undefined?PX.mediaProb:CFG.mediaProb);
+  var SUBF=PX.subEligF||99, CAPM=PX.capexMul||1, RDM=PX.rdCostMul||1, OPR=1-(PX.opexRelief||0);
+  if(t===CFG.shockRound) ev.push({t:t,type:'market',msg:'欧美"双反"关税落地，海外需求接近腰斩'});
+  if(t===CFG.turnoverRound){
+    this.regions[CFG.turnoverRegion].cred=CFG.turnoverCred;
+    ev.push({t:t,type:'region',msg:'辽宁省换届："新官不理旧账"，多家企业的奖补承诺被搁置——兑现信誉跌至冰点'});
+  }
+  this.cabinetTick(policy, ev);
+  /* 政策变更写入名角记忆 */
+  if(this._lastPol && (this._lastPol.mode!==policy.mode||this._lastPol.intensity!==policy.intensity||this._lastPol.audit!==policy.audit)){
+    var pd=MODE_CN[policy.mode]+'·强度'+policy.intensity+'·核查'+policy.audit;
+    this.alive().forEach(function(f){ self.writeMem(f,'policy_change','政策转向:'+pd,0.7); });
+  }
+  this._lastPol={mode:policy.mode,intensity:policy.intensity,audit:policy.audit};
+
+  /* 0. 在建产能投产（半年时滞） */
+  this.firms.forEach(function(f){ if(f.alive){ f.K+=f.pending; f.pending=0; } });
+  var ex=this.ex, N=ex.K.length;
+  for(var i=0;i<N;i++) if(ex.alive[i]){ ex.K[i]+=ex.pend[i]; ex.pend[i]=0; }
+
+  var alive=this.alive();
+  var castK=alive.reduce(function(s,f){return s+f.K;},0);
+  var exK=0; for(i=0;i<N;i++) if(ex.alive[i]) exK+=ex.K[i];
+  var S=castK+exK;
+  var D=this.demand(policy);
+  var r=Math.min(S>0.01? D/S : CFG.rMax, CFG.rMax);
+  var P=this.frontier*(CFG.priceA+CFG.priceB*Math.pow(r,CFG.priceExp));
+  var capex=CFG.capexK*this.frontier;
+  var capexEff=capex*CAPM;
+  var capSubPerGW = policy.mode==='capacity'? policy.intensity/100*CFG.capSubShare*capex : 0;
+  var genSubPerGW = policy.mode==='generation'? policy.intensity/100*CFG.genSubK : 0;
+  var avgMargin=P-this.frontier;
+  var fraudThisRound=false;
+  var fraudRegion=[0,0,0];
+
+  /* 1. 名角决策（记忆检索 → 决策 → 五段卡 basis） */
+  alive.forEach(function(f){
+    if(f.moveCd===undefined) f.moveCd=0;
+    if(f.moveCd>0) f.moveCd--;
+    f.movedNow=false;
+    var C=self.frontier*f.f, effA=self.effA(f.home,policy,f.prov);
+    var obs={t:t,P:P,Cf:self.frontier,C:C,margin:P-C,r:r,policy:policy,capex:capex,capSubPerGW:capSubPerGW,avgMargin:avgMargin,effA:effA};
+    var ctx = f.arch==='fraud'?'fraud' : (obs.margin<0||f.lossStreak>=1)?'survive' : 'expand';
+    var recalled = self.retrieve(f,ctx);
+    var d;
+    /* 粘性计划：激进者的组织惯性（Calvo 交错调整 / 结构惯性） */
+    if(f.arch==='aggr' && f.plan && f.plan.left>0 && f.cash>=capex*0.4){
+      d={rd:false,dK:f.plan.dK,fake:0,rule:'组织惯性:执行既定扩张计划(董事会已批,剩'+f.plan.left+'期)',
+         note:'计划已经上会批了，中途停下来损失更大——按原计划推进。'};
+      f.plan.left--;
+    } else {
+      d=ARCH[f.arch](f,obs,rng); f.plan=null;
+      if(f.arch==='aggr' && (d.dK||0)>0.05) f.plan={dK:d.dK,left:1};
+    }
+    if(ctrl && ctrl[f.id]){
+      var pd0=ctrl[f.id];
+      d={rd:!!pd0.rd, dK:pd0.dK||0, fake:pd0.fake||0, rule:'玩家指令', note:pd0.note||null};
+      f.plan=null;
+      if(pd0.move!==undefined && pd0.move!==f.home){
+        if(f.moveCd>0){ ev.push({t:t,type:'firm',msg:f.name+'：迁址冷却中（还需'+f.moveCd+'期）'}); }
+        else {
+          var mc=CFG.moveCostK*f.K*capex;
+          if(f.cash>mc*1.05){
+            f.cash-=mc; var oldH=f.home; f.home=pd0.move; f.moveCd=CFG.moveCoolRounds; f.movedNow=true;
+            self.writeMem(f,'move','从'+self.regions[oldH].name+'迁往'+self.regions[pd0.move].name+',一次性成本'+mc.toFixed(1)+'亿',0.9);
+            ev.push({t:t,type:'firm',msg:f.name+'整体迁址：'+self.regions[oldH].name+'→'+self.regions[pd0.move].name+'（迁址费'+mc.toFixed(1)+'亿，本期出货受损）'});
+          } else ev.push({t:t,type:'firm',msg:f.name+'：现金不足以支付迁址费'+mc.toFixed(1)+'亿，迁址取消'});
+        }
+      }
+    }
+    if(d.note){ f.monologues.push({t:t,note:d.note}); if(f.monologues.length>6)f.monologues.shift(); }
+    f.didRd=false;
+    var rdC=CFG.rdCost*RDM;
+    if(d.rd && f.cash>rdC){ f.cash-=rdC; f.f=Math.max(CFG.fMin,f.f*CFG.rdGain); f.didRd=true; }
+    var dK=Math.min(Math.max(0,d.dK||0), CFG.dKMax*(PX.dKCapMul||1));
+    if(dK*capexEff>f.cash*CFG.cashUse) dK=Math.max(0,f.cash*CFG.cashUse/capexEff);
+    if(dK>0.01){
+      f.cash-=dK*capexEff;
+      var sub=(f.f<=SUBF? dK*capSubPerGW : 0);
+      if(sub>0.01){ f.cash+=sub; self.fiscal.cap+=sub; flows.push({id:f.id,amt:sub,kind:'sub'});
+        if(CFG.localMatchK>0){ var lp=CFG.localMatchK*self.regions[f.home].incentive*sub, lg=lp*self.regions[f.home].cred;
+          f.cash+=lg; self.fiscal.local=(self.fiscal.local||0)+lg; self.ledgerAdd(f.home,lp,lg); } }
+      f.pending+=dK;
+    } else dK=0;
+    var fake = policy.mode==='capacity'? Math.max(0,d.fake||0) : 0;
+    if(fake*capex*CFG.fakeCostShare>f.cash*0.8) fake=Math.max(0,f.cash*0.8/(capex*CFG.fakeCostShare));
+    if(fake>0.01){
+      fraudThisRound=true; fraudRegion[f.home]++;
+      var fsub=fake*capSubPerGW;
+      f.cash-=fake*capex*CFG.fakeCostShare;
+      f.cash+=fsub; self.fiscal.cap+=fsub;
+      flows.push({id:f.id,amt:fsub,kind:'sub'});
+      if(rng()<self.effA(f.home,policy,f.prov)/100*CFG.catchK){
+        var fine=fsub*FINE;
+        f.cash-=fine; self.fiscal.fines+=fine;
+        self.opinion=Math.max(0,self.opinion-4);
+        flows.push({id:f.id,amt:fine,kind:'fine'});
+        self.writeMem(f,'audit_hit','虚报被本地核查查实,罚'+fine.toFixed(1)+'亿',1.0);
+        ev.push({t:t,type:'fraud',msg:'核查查实：'+f.name+'虚报'+fake.toFixed(2)+'GW装机，追缴并处罚'+fine.toFixed(1)+'亿'});
+      } else {
+        f.fakeStock+=fake; self.fiscal.waste+=fsub;
+        if(rng()<MEDIA){
+          if(policy.audit>=45){ /* 中央媒体曝光→中央直查,绕过地方 */
+            var back=fsub; f.cash-=back; self.fiscal.fines+=back; self.fiscal.waste-=fsub;
+            f.fakeStock-=fake;
+            self.opinion=Math.max(0,self.opinion-6);
+            flows.push({id:f.id,amt:back,kind:'fine'});
+            self.writeMem(f,'audit_hit','被媒体曝光后中央直查追缴',1.0);
+            ev.push({t:t,type:'media',msg:'媒体曝光'+f.name+'"晒不到太阳的电站"，中央直查追缴'+back.toFixed(1)+'亿'});
+          } else {
+            self.opinion=Math.max(0,self.opinion-10);
+            self.writeMem(f,'media','被媒体点名但不了了之',0.8);
+            ev.push({t:t,type:'media',msg:'媒体曝光：'+f.name+'的"电站"从未并网——本地核查不了了之，舆情恶化'});
+          }
+        }
+      }
+    }
+    /* 五段决策卡 */
+    var acts=[]; if(f.didRd)acts.push('研发投入'+CFG.rdCost+'亿'); if(dK>0)acts.push('扩产+'+dK.toFixed(2)+'GW');
+    if(fake>0.01)acts.push('虚报'+fake.toFixed(2)+'GW'); if(!acts.length)acts.push('按兵不动');
+    f.lastCard={t:t,
+      observed:['供需比 r='+r.toFixed(2)+'（'+(r<0.8?'过剩':r>1.1?'偏紧':'均衡')+'）','自身毛利 '+(P-C).toFixed(1)+' 元/W',
+        MODE_CN[policy.mode]+'·强度'+policy.intensity+'·中央核查'+policy.audit+'（本地实际 '+effA.toFixed(0)+'）'],
+      recalled:recalled, rule:d.rule||'—', act:acts.join(' · '), note:d.note||''};
+  });
+
+  /* 2. 群演决策与执行（向量化规则；进入分布被政策塑形的物种） */
+  var boom=Math.max(0,r-0.85);
+  var exSubReg=[0,0,0];
+  for(i=0;i<N;i++){
+    if(!ex.alive[i]) continue;
+    var eC=this.frontier*ex.f[i], eM=P-eC, reg=ex.region[i];
+    var edK = (eM>0.4 && ex.cash[i]>0.3)? Math.min(0.02, ex.expand[i]*(0.12+0.5*ex.herd[i]*boom)*ex.K[i]) : 0;
+    if(edK*capexEff>ex.cash[i]*0.5) edK=ex.cash[i]*0.5/capexEff;
+    if(edK>0.0005){
+      ex.cash[i]-=edK*capexEff;
+      var esub=edK*capSubPerGW;
+      if(esub>0){ ex.cash[i]+=esub; this.fiscal.cap+=esub; exSubReg[reg]+=esub;
+        if(CFG.localMatchK>0){ var elp=CFG.localMatchK*this.regions[reg].incentive*esub, elg=elp*this.regions[reg].cred;
+          ex.cash[i]+=elg; this.fiscal.local=(this.fiscal.local||0)+elg; this.ledgerAdd(reg,elp,elg); } }
+      ex.pend[i]+=edK;
+    }
+    ex.fakeNow[i]=0;
+    if(policy.mode==='capacity' && ex.integ[i]<0.3 && this.effA(reg,policy)<45){
+      var efake=(0.003+0.4*ex.K[i])*(0.5+rng());
+      var ecost=efake*capex*CFG.fakeCostShare;
+      if(ecost<ex.cash[i]*0.7){
+        fraudThisRound=true; fraudRegion[reg]++;
+        var efsub=efake*capSubPerGW;
+        ex.cash[i]+=efsub-ecost; this.fiscal.cap+=efsub; exSubReg[reg]+=efsub;
+        if(rng()<this.effA(reg,policy)/100*CFG.catchK){
+          ex.cash[i]-=efsub*FINE; this.fiscal.fines+=efsub*FINE;
+        } else { this.fiscal.waste+=efsub; ex.fakeNow[i]=efake; }
+      }
+    }
+  }
+
+  for(var rj=0;rj<3;rj++) if(exSubReg[rj]>0.4) flows.push({region:rj,amt:exSubReg[rj],kind:'sub',ex:true});
+  /* 3. 销售与经营结算（名角+群演同一供给池，按成本优势分配） */
+  var wSum=0;
+  alive.forEach(function(f){ wSum+=f.K*Math.pow(f.f,-CFG.weightExp); });
+  for(i=0;i<N;i++) if(ex.alive[i]) wSum+=ex.K[i]*Math.pow(ex.f[i],-CFG.weightExp);
+  alive.forEach(function(f){
+    var w=f.K*Math.pow(f.f,-CFG.weightExp);
+    var sell=wSum>0? Math.min(f.K, D*w/wSum) : 0;
+    if(f.movedNow) sell*=CFG.moveDownMul;
+    var gsub=(f.f<=SUBF? genSubPerGW*sell : 0);
+    if(gsub>0.01){ self.fiscal.gen+=gsub; if(gsub>0.8) flows.push({id:f.id,amt:gsub,kind:'gen'});
+      if(CFG.localMatchK>0){ var lp2=CFG.localMatchK*self.regions[f.home].incentive*gsub, lg2=lp2*self.regions[f.home].cred;
+        f.cash+=lg2; self.fiscal.local=(self.fiscal.local||0)+lg2; self.ledgerAdd(f.home,lp2,lg2); } }
+    var pnl=(P-self.frontier*f.f)*sell*CFG.scale + gsub - (CFG.opexBase+CFG.opexPerGW*f.K*(f.lev||1))*OPR;
+    f.cash+=pnl; f.pnl=pnl; f.sell=sell;
+    if(f.cash>CFG.divThresh) f.cash-=(f.cash-CFG.divThresh)*CFG.divRate;
+    var was=f.lossStreak;
+    f.lossStreak = pnl<-0.5? f.lossStreak+1 : 0;
+    if(f.lossStreak===2 && was===1) self.writeMem(f,'loss','已连续两期亏损,现金'+f.cash.toFixed(0)+'亿',0.6);
+    if(pnl>30) self.writeMem(f,'windfall','本期大赚'+pnl.toFixed(0)+'亿',0.4);
+  });
+  var exDeaths=0;
+  for(i=0;i<N;i++){
+    if(!ex.alive[i]) continue;
+    var ew=ex.K[i]*Math.pow(ex.f[i],-CFG.weightExp);
+    var esell=wSum>0? Math.min(ex.K[i], D*ew/wSum) : 0;
+    var egsub=genSubPerGW*esell; this.fiscal.gen+=egsub;
+    if(CFG.localMatchK>0&&egsub>0){ var elp2=CFG.localMatchK*this.regions[ex.region[i]].incentive*egsub, elg2=elp2*this.regions[ex.region[i]].cred;
+      ex.cash[i]+=elg2; this.fiscal.local=(this.fiscal.local||0)+elg2; this.ledgerAdd(ex.region[i],elp2,elg2); }
+    ex.cash[i]+=(P-this.frontier*ex.f[i])*esell*CFG.scale + egsub - (CFG.exOpexBase+CFG.exOpexPerGW*ex.K[i])*OPR;
+    if(ex.cash[i]<0){ ex.alive[i]=false; ex.deadAt[i]=t; exDeaths++; }
+  }
+  var fe=PX.forceExit||0;
+  if(fe>0){ var worst=[];
+    for(i=0;i<N;i++) if(ex.alive[i]) worst.push([ex.f[i],i]);
+    worst.sort(function(a,b){return b[0]-a[0];});
+    for(var w=0;w<Math.min(fe,worst.length);w++){ var wi=worst[w][1];
+      ex.alive[wi]=false; ex.deadAt[wi]=t; exDeaths++; this.fiscal.gen+=0.3; }
+    if(fe>0&&worst.length) ev.push({t:t,type:'policy',msg:'落后产能强制退出：'+Math.min(fe,worst.length)+'家高成本厂商关停（含退出补偿）'});
+  }
+  this.exDeadCum+=exDeaths;
+  if(exDeaths>=2) ev.push({t:t,type:'wave',msg:'长尾出清：本期 '+exDeaths+' 家中小厂商倒闭（累计 '+this.exDeadCum+' 家）'});
+
+  /* 4. 名角退出与破产 + 法拍收购 */
+  var deadK=0;
+  alive.forEach(function(f){
+    if(!f.alive) return;
+    if(f.cash<0 && f.arch==='bound' && f.prov){
+      var pvB=null; for(var q2=0;q2<self.provs.length;q2++) if(self.provs[q2].id===f.prov) pvB=self.provs[q2];
+      if(pvB && pvB.rescues<2){
+        var need=10-f.cash;
+        f.cash+=need; pvB.rescues++; self.fiscal.local=(self.fiscal.local||0)+need;
+        if(pvB.lastCard) pvB.lastCard.act+=' · 协调银团救助'+f.name+' '+need.toFixed(0)+'亿';
+        self.writeMem(f,'bailout','省里协调银团+担保注入'+need.toFixed(0)+'亿',1.0);
+        ev.push({t:t,type:'region',msg:pvB.name+'省出手：银团贷款+政府担保'+need.toFixed(0)+'亿，'+f.name+'起死回生——"大到不能倒"'});
+        return;
+      }
+    }
+    if(f.cash<0){ f.alive=false; f.dead='bankrupt'; deadK+=f.K;
+      ev.push({t:t,type:'firm',msg:f.name+'资金链断裂，破产退出'});
+      self.alive().forEach(function(g){ self.writeMem(g,'peer_bankrupt','同行'+f.name+'倒下了',0.9); });
+    } else if(f.arch==='chaser' && f.entered && f.lossStreak>=2){
+      f.alive=false; f.dead='exit'; deadK+=f.K;
+      ev.push({t:t,type:'firm',msg:f.name+'连亏两期，割肉离场："这波风口，是别人的。"'});
+    }
+  });
+  if(deadK>0.05){
+    var buyers=this.alive().filter(function(f){return f.cash>25;});
+    var cashSum=buyers.reduce(function(s,f){return s+f.cash;},0);
+    if(cashSum>0){
+      var pool=deadK*0.45, bought=0;
+      buyers.forEach(function(f){
+        var share=pool*f.cash/cashSum;
+        var price=share*capex*0.25;
+        if(price>f.cash*0.5){ share=f.cash*0.5/(capex*0.25); price=f.cash*0.5; }
+        f.cash-=price; f.K+=share; bought+=share;
+      });
+      if(bought>0.05) ev.push({t:t,type:'firm',msg:'倒下者的产线被同行低价收购，'+bought.toFixed(1)+'GW产能易主续命'});
+    }
+  }
+
+  /* 5. 群演进入（潮涌 + 政策塑造物种 + 选址函数：优惠×信誉 + 集聚 − 成本 + 监管洼地虹吸） */
+  var nEntry=Math.min(CFG.entryCap+(PX.entryBonus||0), Math.round(1+CFG.entryPerMargin*Math.max(0,avgMargin-CFG.entryMarginFloor))+(PX.entryBonus||0));
+  if(policy.mode==='none') nEntry=Math.min(nEntry,1);
+  if(nEntry>0 && N<340){
+    var regK=[0,0,0];
+    alive.forEach(function(f){ regK[f.home]+=f.K; });
+    for(i=0;i<N;i++) if(ex.alive[i]) regK[ex.region[i]]+=ex.K[i];
+    var totK=regK[0]+regK[1]+regK[2]||1;
+    for(var e=0;e<nEntry;e++){
+      var lowI = rng() < (0.12 + (policy.mode==='capacity'? 0.15*policy.intensity/100 : 0))*(1-(PX.lowIntegCut||0));
+      var integ = lowI? 0.05+rng()*0.2 : 0.45+rng()*0.55;
+      var bestJ=0,bestU=-9;
+      for(var j=0;j<3;j++){
+        var rj=this.regions[j];
+        var U=2.2*rj.incentive*rj.cred + 1.4*regK[j]/totK - rj.cost + 0.25*rng();
+        if(integ<0.3) U += Math.max(0,(45-this.effA(j,policy)))/100*1.2; /* 监管洼地虹吸投机者 */
+        if(U>bestU){bestU=U;bestJ=j;}
+      }
+      var K0=Math.max(PX.entryGateK0||0, 0.003+rng()*0.009);
+      var ef0=1.02+rng()*0.18; if(PX.entryGateF) ef0=Math.min(ef0,PX.entryGateF);
+      ex.K.push(K0); ex.f.push(ef0); ex.cash.push(0.45+K0*35);
+      ex.integ.push(integ); ex.herd.push(0.5+0.5*rng()); ex.expand.push(0.3+0.6*rng());
+      ex.region.push(bestJ); ex.alive.push(true); ex.pend.push(0); ex.fakeNow.push(0);
+      ex.bornAt.push(t); ex.deadAt.push(-1);
+    }
+    if(nEntry>=5) ev.push({t:t,type:'wave',msg:'潮涌：本期 '+nEntry+' 家新厂商跨界入场'});
+    N=ex.K.length;
+  }
+
+  /* 6. 学习曲线 / 舆情 */
+  var left=this.alive();
+  var S2=left.reduce(function(s,f){return s+f.K;},0);
+  var rdShare=S2>0? left.filter(function(f){return f.didRd;}).reduce(function(s,f){return s+f.K;},0)/S2 : 0;
+  this.frontier*=1-(CFG.frontierDrift+CFG.frontierRnD*rdShare);
+  left.forEach(function(f){ if(!f.didRd) f.f=Math.min(1.35,f.f*1.005); });
+  if(!fraudThisRound) this.opinion=Math.min(85,this.opinion+2);
+  if(PX.opinionDrip) this.opinion=Math.min(85,this.opinion+PX.opinionDrip);
+  if(PX.fiscalDrip) this.fiscal.gen+=PX.fiscalDrip;
+  if(this.opinion<40 && !this.opinionCrisis){
+    this.opinionCrisis=true;
+    ev.push({t:t,type:'media',msg:'舆情跌破临界：全国性问责启动——现实中，此刻政策将被迫全面收紧'});
+  }
+
+  /* 7. 快照 */
+  var exAlive=0; exK=0; var shares=[0,0,0];
+  for(i=0;i<ex.K.length;i++) if(ex.alive[i]){ exAlive++; exK+=ex.K[i]; shares[ex.region[i]]+=ex.K[i]; }
+  left.forEach(function(f){ shares[f.home]+=f.K; });
+  var totS=shares[0]+shares[1]+shares[2]||1;
+  this.history.push({t:t,P:P,Cf:this.frontier,D:D,S:S,alive:left.length,
+    exAlive:exAlive, exDeaths:exDeaths, exDeadCum:this.exDeadCum, exK:exK, castK:castK,
+    fiscalTotal:this.fiscal.cap+this.fiscal.gen-this.fiscal.fines,
+    waste:this.fiscal.waste, opinion:this.opinion,
+    shares:[shares[0]/totS,shares[1]/totS,shares[2]/totS], fraudRegion:fraudRegion});
+  this.t++;
+  return {ev:ev, flows:flows, exDeaths:exDeaths};
+};
+
+function scriptPolicy(t){
+  if(t<8)  return {mode:'capacity',   intensity:60, audit:20};
+  if(t<18) return {mode:'generation', intensity:55, audit:55};
+  return        {mode:'generation', intensity:15, audit:55};
+}
+
+if(typeof module!=='undefined' && module.exports){
+  module.exports={Sim:Sim, scriptPolicy:scriptPolicy, CFG:CFG, FIRMS:FIRMS, REGIONS:REGIONS, ARCH:ARCH, MODE_CN:MODE_CN, mulberry32:mulberry32};
+}
+
+/* ---------- ENGINE bridge：现役 engine/engine2.js 的浏览器出口 ---------- */
+var ENGINE={Sim:Sim,scriptPolicy:scriptPolicy,CFG:CFG,FIRMS:FIRMS,REGIONS:REGIONS,PROVS:PROVS,
+  ARCH:ARCH,MODE_CN:MODE_CN,mulberry32:mulberry32};
+/* ============================================================
+   万历 · 政策树 v1（光伏包）—— 21 节点 × 5 支线
+   结构：节点(UI/状态机) → compile() → {mode,intensity,audit,x{...}} → 引擎
+   GR 安全规则：史实自动驾驶只点亮校准三件套(装机/度电/核查)，
+   其余节点为用户反事实能力；节点效果只做加法，不动基线路径。
+   ============================================================ */
+
+var BRANCHES=[
+  {id:0,name:'供给 · 成本端',css:'#e8b64c'},
+  {id:1,name:'需求 · 产出端',css:'#7fd6c2'},
+  {id:2,name:'准入 · 秩序端',css:'#b9a8ef'},
+  {id:3,name:'监督 · 问责端',css:'#ef5350'},
+  {id:4,name:'贸易 · 外部端',css:'#60a5fa'}
+];
+
+/* lv 定义：lvs[k] 为第 k+1 级效果；core 写核心三元组，x 写扩展通道（可叠加） */
+var PNODES=[
+  /* —— 供给·成本端 —— */
+  {id:'cap_sub',br:0,icon:'🏗️',name:'装机补贴（金太阳式）',mutex:'mainsub',cost:1,
+   lvs:[{tag:'30%返现',core:{mode:'capacity',intensity:20}},{tag:'40%返现',core:{mode:'capacity',intensity:40}},{tag:'50%+返现',core:{mode:'capacity',intensity:60}}],
+   hist:'史实：财建[2009]397号，2009 启动',desc:'按建成产能给付资本补贴。上量最快，可核性最差——付钱时点在发电之前。'},
+  {id:'tax_break',br:0,icon:'🧾',name:'税收减免',cost:1,
+   lvs:[{tag:'高新15%',x:{opexRelief:0.12}}],
+   hist:'史实：高新技术企业所得税优惠',desc:'降低企业经常性负担，普惠不可瞄准。'},
+  {id:'credit_ease',br:0,icon:'🏦',name:'政策性信贷',cost:1,
+   lvs:[{tag:'授信',x:{capexMul:0.92}},{tag:'大额授信',x:{capexMul:0.85}}],
+   hist:'史实：国开行等对龙头大额授信',desc:'降低扩产资金成本。注意：也同样降低了盲目扩张的门槛。'},
+  {id:'rd_sub',br:0,icon:'🧪',name:'研发补助',cost:1,
+   lvs:[{tag:'补30%',x:{rdCostMul:0.7}},{tag:'补50%',x:{rdCostMul:0.5}}],
+   desc:'定向降低研发投入成本，推学习曲线（Wright）。'},
+  {id:'land_grant',br:0,icon:'🗺️',name:'园区土地要素',cost:1,
+   lvs:[{tag:'招商园区',x:{entryBonus:1}}],
+   desc:'降低进入门槛，鼓励建厂——潮涌的助燃剂。'},
+
+  /* —— 需求·产出端 —— */
+  {id:'gen_sub',br:1,icon:'⚡',name:'度电补贴（标杆电价）',mutex:'mainsub',cost:1,
+   lvs:[{tag:'0.1元/度级',core:{mode:'generation',intensity:15}},{tag:'0.3元/度级',core:{mode:'generation',intensity:35}},{tag:'0.5元/度级',core:{mode:'generation',intensity:55}}],
+   hist:'史实：发改价格[2013]1638号',desc:'按实际发电量结算。假电站发不出电——工具设计内生了可核性。'},
+  {id:'pv_poverty',br:1,icon:'🌾',name:'光伏扶贫',req:['gen_sub'],cost:1,
+   lvs:[{tag:'专项工程',x:{demandBonus:0.04,opinionDrip:1,fiscalDrip:2}}],
+   hist:'史实：2015 起国家专项',desc:'扶贫电站带小额稳定需求与民意，财政持续小额支出。'},
+  {id:'consume_guarantee',br:1,icon:'🔌',name:'全额消纳保障',req:['gen_sub'],cost:1,
+   lvs:[{tag:'保障性收购',x:{demandBonus:0.08}}],
+   hist:'史实：可再生能源全额保障性收购',desc:'解决"发得出、送不走"，度电补贴的配套件。'},
+  {id:'grid_parity',br:1,icon:'🌅',name:'平价上网',cost:1,
+   unlock:function(sim){return sim.frontier<4.0;},
+   lvs:[{tag:'市场接棒',x:{demandBonus:0.18}}],
+   desc:'解锁条件：标杆成本 < 4 元/W。产业毕业典礼——需求由市场自发接棒。'},
+
+  /* —— 准入·秩序端 —— */
+  {id:'mfg_standard',br:2,icon:'📋',name:'制造行业规范条件',cost:1,
+   lvs:[{tag:'白名单',x:{entryGateF:1.12,lowIntegCut:0.5}},{tag:'严标准',x:{entryGateF:1.08,entryGateK0:0.006,lowIntegCut:0.7}}],
+   hist:'史实：工信部 2013 年发布（标注；史实回放未启用，见 GR 安全规则）',
+   desc:'给进入者设质量与规模门槛——政策塑造物种的反向操作：挡住皮包公司。'},
+  {id:'capacity_approval',br:2,icon:'🚧',name:'产能备案审批',cost:1,
+   lvs:[{tag:'从严备案',x:{dKCapMul:0.7}}],
+   desc:'给所有扩产踩刹车。副作用：好公司也被按住。'},
+  {id:'tech_floor',br:2,icon:'📐',name:'技术门槛（补贴资格）',cost:1,
+   lvs:[{tag:'效率门槛',x:{subEligF:1.1}}],
+   hist:'史实：领跑者技术标准的雏形',desc:'高成本(f>1.1)企业失去补贴资格——把钱瞄准先进产能。'},
+  {id:'force_exit',br:2,icon:'⛔',name:'落后产能强制退出',cost:1,
+   lvs:[{tag:'关停+补偿',x:{forceExit:2}}],
+   desc:'每期强制关停最高成本的 2 家长尾（含退出补偿）。行政出清，快但贵且招怨。'},
+  {id:'leader_program',br:2,icon:'🏆',name:'领跑者计划',req:['gen_sub','mfg_standard'],cost:1,
+   lvs:[{tag:'招标+门槛',x:{rdCostMul:0.6,subEligF:1.05,opinionDrip:1}}],
+   hist:'史实：2015 能源局领跑者',desc:'招标制+先进指标：补贴与技术标杆绑定。'},
+
+  /* —— 监督·问责端 —— */
+  {id:'audit',br:3,icon:'🔍',name:'核查体系',cost:1,
+   lvs:[{tag:'抽查',core:{audit:20}},{tag:'专项核查',core:{audit:55}},{tag:'全覆盖核验',core:{audit:80}}],
+   hist:'史实：金太阳期抽查(20)→2013 专项(55)',desc:'中央核查力度。注意：落地要过地方执行折扣。'},
+  {id:'fine_boost',br:3,icon:'⚖️',name:'处罚加码',cost:1,
+   lvs:[{tag:'1.5→2.2倍',x:{fineMult:2.2}},{tag:'3倍重罚',x:{fineMult:3.0}}],
+   desc:'提高骗补的期望成本。查得到才罚得到——与核查是乘法关系。'},
+  {id:'info_disclose',br:3,icon:'📢',name:'补贴名单公示',cost:1,
+   lvs:[{tag:'全网公示',x:{mediaProb:0.55}}],
+   desc:'把名单晒在太阳下，媒体与公众成为免费的核查员。'},
+  {id:'local_inspect',br:3,icon:'🚨',name:'中央巡查组',cost:2,
+   lvs:[{tag:'进驻巡查',x:{discountMul:0.4}}],
+   desc:'直插地方，执行折扣×0.4——委托代理问题的政策解。行政成本高（占2行动点）。'},
+
+  /* —— 贸易·外部端 —— */
+  {id:'export_rebate',br:4,icon:'🚢',name:'出口退税',cost:1,
+   lvs:[{tag:'退税支持',x:{demandBonus:0.06,shockMul:0.93}}],
+   desc:'放大海外需求；代价是加深出口依赖——若"双反"落地，冲击更狠(0.58→0.54)。'},
+  {id:'trade_talk',br:4,icon:'🤝',name:'双反应对·价格承诺',cost:1,window:[5,7],
+   lvs:[{tag:'谈判窗口',x:{shockMul:1.14}}],
+   hist:'史实：2013 中欧价格承诺',desc:'仅在 2011下–2012下 窗口可启用。谈成则冲击减缓(0.58→0.66)。'},
+  {id:'overseas_fab',br:4,icon:'🏭',name:'海外建厂鼓励',cost:1,
+   unlock:function(sim){return sim.t>=7;},
+   lvs:[{tag:'绕关税',x:{demandBonus:0.05}}],
+   hist:'史实：东南亚产能布局',desc:'双反之后解锁：借第三地产能重新触达海外需求。'}
+];
+
+var AP_PER_ROUND=3; /* 政策注意力预算（Sims 理性疏忽的政府侧版本）*/
+
+/* ---------- 编译器：活跃节点 → 引擎政策对象 ---------- */
+function compilePolicy(active){
+  var pol={mode:'none',intensity:0,audit:5,x:{}};
+  PNODES.forEach(function(n){
+    var lv=active[n.id]||0; if(!lv) return;
+    var eff=n.lvs[lv-1];
+    if(eff.core){
+      if(eff.core.mode){ pol.mode=eff.core.mode; pol.intensity=eff.core.intensity; }
+      if(eff.core.audit!==undefined) pol.audit=eff.core.audit;
+    }
+    if(eff.x) Object.keys(eff.x).forEach(function(k){
+      if(k==='demandBonus'||k==='opinionDrip'||k==='fiscalDrip'||k==='entryBonus'||k==='forceExit')
+        pol.x[k]=(pol.x[k]||0)+eff.x[k];
+      else if(k==='shockMul'||k==='capexMul'||k==='rdCostMul'||k==='discountMul'||k==='dKCapMul')
+        pol.x[k]=(pol.x[k]||1)*eff.x[k];
+      else pol.x[k]=eff.x[k];
+    });
+  });
+  return pol;
+}
+
+/* ---------- 节点可用性 ---------- */
+function nodeState(n,active,sim,ap){
+  var lv=active[n.id]||0;
+  if(n.window && (sim.t<n.window[0]||sim.t>n.window[1]) && !lv) return {s:'locked',why:'时间窗 '+n.window[0]+'–'+n.window[1]+' 期'};
+  if(n.unlock && !n.unlock(sim) && !lv) return {s:'locked',why:'解锁条件未达成'};
+  if(n.req){ for(var i=0;i<n.req.length;i++) if(!active[n.req[i]]) return {s:'locked',why:'需先启用：'+ (PNODES.find(function(x){return x.id===n.req[i];})||{}).name}; }
+  if(n.mutex && !lv){ var conflict=PNODES.find(function(x){return x.mutex===n.mutex && x.id!==n.id && active[x.id];});
+    if(conflict) return {s:'blocked',why:'与「'+conflict.name+'」互斥，需先废止'}; }
+  return {s: lv? 'active':'avail', why:''};
+}
+
+/* ---------- 史实剧本（节点化）：编译结果与旧三元组逐位等价 ---------- */
+var AUTOPILOT_OPS={
+  0:[['set','cap_sub',3],['set','audit',1]],
+  8:[['set','cap_sub',0],['set','gen_sub',3],['set','audit',2]],
+  18:[['set','gen_sub',1]]
+};
+function applyOps(active,ops){ (ops||[]).forEach(function(o){ if(o[2]>0) active[o[1]]=o[2]; else delete active[o[1]]; }); }
+
+if(typeof module!=='undefined' && module.exports){
+  module.exports={PNODES:PNODES,BRANCHES:BRANCHES,compilePolicy:compilePolicy,nodeState:nodeState,
+    AUTOPILOT_OPS:AUTOPILOT_OPS,applyOps:applyOps,AP_PER_ROUND:AP_PER_ROUND};
+}
+
+/* ============================================================
+   万历 · 政企推演场 app v2 —— 按 specs/frontend-layout-spec.md §0 重建
+   左策略树(整列) / 中上 three.js / 中下 Agent与决策链(46%) /
+   右二事件流(整列) / 最右数据图表(整列) / 底部时间线(通宽)
+   ============================================================ */
+(function(){
+'use strict';
+function byId(id){return document.getElementById(id);}
+var NF=ENGINE.FIRMS.length;
+
+/* ---------- 舞台尺寸 ---------- */
+var cvs=byId('c');
+function stageRect(){ return cvs.getBoundingClientRect(); }
+var renderer=new THREE.WebGLRenderer({canvas:cvs,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+var scene=new THREE.Scene();
+renderer.setClearColor(0x080c12);
+scene.fog=new THREE.Fog(0x080c12,42,120);
+var camera=new THREE.PerspectiveCamera(45,1,0.1,300);
+function fitStage(){ var r=stageRect(); if(!r.width||!r.height)return;
+  renderer.setSize(r.width,r.height,false);
+  camera.aspect=r.width/r.height; camera.updateProjectionMatrix(); }
+addEventListener('resize',fitStage);
+
+scene.add(new THREE.HemisphereLight(0x35496a,0x0a0d12,0.95));
+var key=new THREE.DirectionalLight(0xbcd4f0,0.75); key.position.set(14,26,12); scene.add(key);
+var rim=new THREE.DirectionalLight(0x7fd6c2,0.2); rim.position.set(-16,10,-14); scene.add(rim);
+
+/* ---------- 地图：解码 → 投影 → 挤出 ---------- */
+decodeGeo(CHINA_GEO);
+function PROJ(lon,lat){ return [(lon-105)*0.60, -(lat-36)*0.75]; }
+var BANDS=[
+  {name:'沿海带',css:'#4dd0c4',col:new THREE.Color(0x1c4a46),provs:[['江苏',.32],['浙江',.15],['广东',.15],['山东',.12],['上海',.06],['福建',.08],['天津',.05],['海南',.02],['北京',.05]]},
+  {name:'中西部带',css:'#d4b45a',col:new THREE.Color(0x4a3f1e),provs:[['河北',.18],['河南',.13],['江西',.13],['安徽',.11],['湖北',.08],['湖南',.06],['四川',.08],['陕西',.08],['青海',.05],['内蒙古',.05],['宁夏',.05]]},
+  {name:'东北带',css:'#7f96c4',col:new THREE.Color(0x28324e),provs:[['辽宁',.5],['吉林',.28],['黑龙江',.22]]}
+];
+var PROV_BAND={}; BANDS.forEach(function(b,j){b.provs.forEach(function(p){PROV_BAND[p[0]]=j;});});
+var CENTROID={}, provMat={};
+CHINA_GEO.features.forEach(function(f){
+  var xs=[],ys=[];
+  (function walk(c){ if(typeof c[0]==='number'){xs.push(c[0]);ys.push(c[1]);} else c.forEach(walk); })(f.geometry.coordinates);
+  CENTROID[f.properties.name]=[(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2,(Math.min.apply(null,ys)+Math.max.apply(null,ys))/2];
+});
+CENTROID['河北']=[115.5,38.6];CENTROID['内蒙古']=[111.5,41.0];CENTROID['广东']=[113.6,23.2];
+CENTROID['陕西']=[108.9,34.5];CENTROID['辽宁']=[122.6,41.3];CENTROID['甘肃']=[103.5,36.0];
+var NEUTRAL=new THREE.Color(0x10151d), sideMat=new THREE.MeshStandardMaterial({color:0x0a0e15,roughness:.85});
+function ringPts(ring){
+  var step=Math.max(1,Math.ceil(ring.length/220)), pts=[];
+  for(var i=0;i<ring.length;i+=step){ var p=PROJ(ring[i][0],ring[i][1]); pts.push(new THREE.Vector2(p[0],-p[1])); }
+  return pts;
+}
+CHINA_GEO.features.forEach(function(f){
+  var name=f.properties.name, j=PROV_BAND[name];
+  var cap=new THREE.MeshStandardMaterial({color:(j!==undefined?BANDS[j].col.clone():NEUTRAL.clone()),
+    roughness:.72,metalness:.08});
+  provMat[name]=cap;
+  var polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+  polys.forEach(function(poly){
+    var outer=ringPts(poly[0]); if(outer.length<3) return;
+    var shape=new THREE.Shape(outer);
+    for(var h=1;h<poly.length;h++){ var hp=ringPts(poly[h]); if(hp.length>2) shape.holes.push(new THREE.Path(hp)); }
+    var g=new THREE.ExtrudeGeometry(shape,{depth:0.45,bevelEnabled:false});
+    var m=new THREE.Mesh(g,[cap,sideMat]); m.rotation.x=-Math.PI/2; scene.add(m);
+    if(outer.length>8){
+      var lg=new THREE.BufferGeometry().setFromPoints(outer.map(function(v){return new THREE.Vector3(v.x,0.47,v.y);}));
+      scene.add(new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:0x24354c,transparent:true,opacity:0.6})));
+    }
+  });
+});
+
+/* ---------- 中央与名角 ---------- */
+var GLOW=(function(){ var cv=document.createElement('canvas');cv.width=cv.height=64;
+  var g=cv.getContext('2d'),gr=g.createRadialGradient(32,32,2,32,32,30);
+  gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,'rgba(255,255,255,.3)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,64,64); return new THREE.CanvasTexture(cv); })();
+function makeGlow(color,s){ var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:color,
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:.85})); sp.scale.set(s,s,1); return sp; }
+/* 八名角原型城市（§1.2：维赛@新余、国晶@天津 为本版新补）*/
+var CITY={tianyang:['无锡',120.31,31.49],hanguang:['上海',121.47,31.23],longsheng:['西安',108.94,34.34],
+  kuajie:['深圳',114.06,22.54],xiaosheng:['沈阳',123.43,41.80],daigong:['东莞',113.75,23.02],
+  weisai:['新余',114.93,27.82],guojing:['天津',117.20,39.08]};
+var BJp=PROJ(116.40,39.90);
+var gov=new THREE.Group(); gov.position.set(BJp[0],0.46,BJp[1]);
+var gv=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.22,1.5,6),
+  new THREE.MeshStandardMaterial({color:0x2a3c5c,emissive:0x0e1522,roughness:.4,metalness:.5}));
+gv.position.y=0.75; gov.add(gv);
+var beacon=new THREE.Mesh(new THREE.SphereGeometry(0.14,12,12),new THREE.MeshBasicMaterial({color:0xe8b64c}));
+beacon.position.y=1.7; gov.add(beacon);
+var beaconGlow=makeGlow(0xe8b64c,2.2); beaconGlow.position.y=1.7; gov.add(beaconGlow);
+scene.add(gov);
+var labels=byId('labels');
+function mkLbl(html){ var el=document.createElement('div'); el.className='lbl'; el.innerHTML=html; labels.appendChild(el); return el; }
+var bjLbl=mkLbl('<b style="color:#e8b64c">★ 中央</b><span></span>');
+var firmVisuals={};
+ENGINE.FIRMS.forEach(function(f){
+  var p=PROJ(CITY[f.id][1],CITY[f.id][2]);
+  var grp=new THREE.Group(); grp.position.set(p[0],0.46,p[1]);
+  var body=new THREE.Mesh(new THREE.BoxGeometry(0.5,1,0.5),
+    new THREE.MeshStandardMaterial({color:f.color,roughness:.42,metalness:.12,emissive:f.color,emissiveIntensity:.28}));
+  body.userData.firmId=f.id; grp.add(body);
+  var ghost=new THREE.Mesh(new THREE.BoxGeometry(0.56,1,0.56),
+    new THREE.MeshBasicMaterial({color:0xef5350,wireframe:true,transparent:true,opacity:.7}));
+  ghost.visible=false; grp.add(ghost);
+  var glow=makeGlow(f.color,1.0); grp.add(glow);
+  scene.add(grp);
+  var el=mkLbl('<b style="color:'+f.css+'">'+f.emoji+' '+f.name+'</b><span></span>');
+  firmVisuals[f.id]={grp:grp,body:body,ghost:ghost,glow:glow,el:el,curH:0.35,tH:0.35,curG:0,tG:0,x:p[0],z:p[1]};
+});
+
+/* ---------- 群演楼海 ---------- */
+var EX_CAP=340;
+var exGeoBox=new THREE.BoxGeometry(0.16,1,0.16); exGeoBox.translate(0,0.5,0);
+var exMesh=new THREE.InstancedMesh(exGeoBox,
+  new THREE.MeshStandardMaterial({roughness:.6,metalness:.05,emissive:0x0e1114,emissiveIntensity:.5}),EX_CAP);
+exMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); exMesh.count=0; scene.add(exMesh);
+var EXC=[new THREE.Color(0x3d7f78),new THREE.Color(0x93803f),new THREE.Color(0x5a6c92)];
+var DEADC=new THREE.Color(0x1a1f26),FLASHC=new THREE.Color(0xff5040);
+function mb32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function wpick(list,u){var s=0;for(var i=0;i<list.length;i++){s+=list[i][1];if(u<=s)return list[i][0];}return list[list.length-1][0];}
+var exInfoCache={};
+function exInfo(i,region){
+  var key=i+'_'+region; if(exInfoCache[key])return exInfoCache[key];
+  var r=mb32((i+7)*2654435761 ^ region*97);
+  var prov=wpick(BANDS[region].provs,r());
+  var c=CENTROID[prov]||[112,33];
+  var p=PROJ(c[0]+(r()-0.5)*2.4, c[1]+(r()-0.5)*1.8);
+  return exInfoCache[key]={prov:prov,x:p[0],z:p[1]};
+}
+var exCurH=[],exTH=[],exFlash=[],exCol=[];
+var dummy=new THREE.Object3D(),tmpCol=new THREE.Color();
+
+/* ---------- 粒子 ---------- */
+var particles=[],pGeo=new THREE.SphereGeometry(0.09,7,7);
+function spawnFlow(from,to,color,n){
+  for(var i=0;i<n;i++){
+    var m=new THREE.Mesh(pGeo,new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:.95,
+      blending:THREE.AdditiveBlending,depthWrite:false}));
+    var mid=from.clone().lerp(to,.5); mid.y+=2.6+Math.random()*1.8;
+    particles.push({m:m,a:from.clone(),b:mid,c:to.clone(),t:-i*.12,sp:.9+Math.random()*.5}); scene.add(m);
+  }
+}
+function bez(a,b,c,t){var ab=a.clone().lerp(b,t),bc=b.clone().lerp(c,t);return ab.lerp(bc,t);}
+function govTop(){return new THREE.Vector3(BJp[0],2.1,BJp[1]);}
+function firmTop(id){var v=firmVisuals[id];return new THREE.Vector3(v.x,0.46+v.curH+0.3,v.z);}
+var BANDCAP=['江苏','河北','辽宁'];
+function bandMid(j){var c=CENTROID[BANDCAP[j]],p=PROJ(c[0],c[1]);return new THREE.Vector3(p[0],0.7,p[1]);}
+
+/* ---------- 相机 ---------- */
+var cam={r:30,phi:.98,theta:0,tr:30,tphi:.98,ttheta:0};
+var intro={on:true,t0:performance.now(),dur:2200};
+var lastPointer=performance.now(),LOOK=new THREE.Vector3(0,0,0.8);
+function applyCam(){
+  camera.position.set(LOOK.x+cam.r*Math.sin(cam.phi)*Math.sin(cam.theta),
+    cam.r*Math.cos(cam.phi), LOOK.z+cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
+  camera.lookAt(LOOK);
+}
+var drag=null;
+cvs.addEventListener('pointerdown',function(e){drag={x:e.clientX,y:e.clientY,th:cam.ttheta,ph:cam.tphi,moved:false};
+  intro.on=false;lastPointer=performance.now();});
+addEventListener('pointermove',function(e){lastPointer=performance.now();if(!drag)return;
+  var dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;
+  cam.ttheta=drag.th-dx*.005;cam.tphi=Math.min(1.35,Math.max(.32,drag.ph-dy*.004));});
+addEventListener('pointerup',function(e){if(drag&&!drag.moved)onTap(e);drag=null;});
+cvs.addEventListener('wheel',function(e){e.preventDefault();lastPointer=performance.now();
+  cam.tr=Math.min(52,Math.max(10,cam.tr+e.deltaY*.02));},{passive:false});
+
+/* ---------- 推演状态 ---------- */
+var userSim,baseSim,activeNodes,apRemaining,pendingOps,roundRecs,takenOver,gameOver,selected,playTimer=null;
+var scrub={on:false,k:-1,u:null,b:null,active:null};
+/* 企业镜头预留通道（§3）：{firmId:{dK,rd,fake,move,note}}；本版不开 UI，接口不封死 */
+var playerCtrl=null;
+function cur(){return scrub.on?scrub.u:userSim;}
+function curBase(){return scrub.on?scrub.b:baseSim;}
+function log(cls,msg,t){var p=document.createElement('p');p.className=cls;
+  var s=cur();
+  p.innerHTML='<b>'+(t!==undefined?s.yearLabel(t):s.yearLabel(Math.max(0,s.t-1)))+'</b>'+msg;
+  byId('evtBody').prepend(p);
+  while(byId('evtBody').children.length>200)byId('evtBody').lastChild.remove();}
+
+/* ---------- 政策树 UI ---------- */
+var treeBody=byId('treeBody'),nodeTip=byId('nodeTip');
+function opName(o){var n=PNODES.find(function(x){return x.id===o[1];});
+  return o[2]>0?(n.name+' Lv'+o[2]):('废止「'+n.name+'」');}
+function userOp(id,lv){
+  if(scrub.on||gameOver)return;
+  var n=PNODES.find(function(x){return x.id===id;});
+  var cost=n.cost||1;
+  if(apRemaining<cost){log('sys','行动点不足——政策注意力是稀缺品（本回合还剩 '+apRemaining+' 点）。');return;}
+  var st=nodeState(n,activeNodes,userSim,apRemaining);
+  if(lv>0&&(st.s==='locked'||st.s==='blocked')){log('sys',n.name+'：'+st.why);return;}
+  apRemaining-=cost;
+  if(lv>0)activeNodes[id]=lv;else delete activeNodes[id];
+  pendingOps.push(['set',id,lv]);
+  if(!takenOver){takenOver=true;
+    byId('autopilotHint').innerHTML='<b>你已接管</b>——史实剧本停用，基线宇宙继续按史实运行供对照。';
+    log('sys','【接管】'+userSim.yearLabel()+'：你从这里改写政策组合。');}
+  log('policy','【拟定】'+opName(['set',id,lv])+'（下一期生效）');
+  renderTree();updateAP();
+}
+function renderTree(){
+  var sim=cur(),act=scrub.on?scrub.active:activeNodes;
+  var html='';
+  BRANCHES.forEach(function(b){
+    html+='<div class="branch"><div class="bhead"><i style="background:'+b.css+'"></i>'+b.name+'</div>';
+    PNODES.filter(function(n){return n.br===b.id;}).forEach(function(n){
+      var lv=act[n.id]||0,st=nodeState(n,act,sim,apRemaining);
+      var pips='';for(var k=0;k<n.lvs.length;k++)pips+='<i class="'+(k<lv?'on':'')+'"></i>';
+      var ops='';
+      if(!scrub.on){
+        if(st.s==='active'){
+          ops='<div class="ops">'+(lv<n.lvs.length?'<b data-op="up" data-id="'+n.id+'">▲</b>':'')+
+              '<b data-op="down" data-id="'+n.id+'">▼</b></div>';
+        } else if(st.s==='avail') ops='<div class="ops"><b data-op="up" data-id="'+n.id+'">启用</b></div>';
+      }
+      html+='<div class="pnode '+st.s+'" data-id="'+n.id+'">'+ops+
+        '<div class="nrow"><span>'+n.icon+'</span><span class="nname">'+n.name+'</span><span class="pips">'+pips+'</span></div>'+
+        (lv?'<div class="lvtag">'+n.lvs[lv-1].tag+(n.cost>1?' · 占'+n.cost+'点':'')+'</div>':'')+'</div>';
+    });
+    html+='</div>';
+  });
+  treeBody.innerHTML=html;
+}
+treeBody.addEventListener('click',function(e){
+  var b=e.target.closest('[data-op]');
+  if(b){var id=b.dataset.id,n=PNODES.find(function(x){return x.id===id;}),lv=activeNodes[id]||0;
+    userOp(id, b.dataset.op==='up'?Math.min(n.lvs.length,lv+1):lv-1); e.stopPropagation(); return;}
+  var nd=e.target.closest('.pnode');
+  if(nd&&(nd.classList.contains('avail')||nd.classList.contains('active'))){
+    var id2=nd.dataset.id,n2=PNODES.find(function(x){return x.id===id2;}),lv2=activeNodes[id2]||0;
+    if(lv2<n2.lvs.length)userOp(id2,lv2+1);
+  }
+});
+treeBody.addEventListener('mouseover',function(e){
+  var nd=e.target.closest('.pnode'); if(!nd){nodeTip.style.display='none';return;}
+  var n=PNODES.find(function(x){return x.id===nd.dataset.id;});
+  var st=nodeState(n,scrub.on?scrub.active:activeNodes,cur(),apRemaining);
+  nodeTip.innerHTML='<h6>'+n.icon+' '+n.name+'</h6>'+n.desc+
+    '<div style="margin-top:4px;color:#7fd6c2;font-size:10px">'+n.lvs.map(function(l,i){return 'Lv'+(i+1)+' '+l.tag;}).join(' · ')+'</div>'+
+    (n.hist?'<div class="hist">'+n.hist+'</div>':'')+
+    (st.why?'<div class="why">'+st.why+'</div>':'');
+  var r=nd.getBoundingClientRect();
+  nodeTip.style.display='block';
+  nodeTip.style.left=(r.right+8)+'px';
+  nodeTip.style.top=Math.min(innerHeight-170,r.top)+'px';
+});
+treeBody.addEventListener('mouseleave',function(){nodeTip.style.display='none';});
+function updateAP(){var pips=byId('apBox').querySelectorAll('i');
+  pips.forEach(function(p,i){p.className=i<apRemaining?'on':'';});}
+
+/* ---------- 时间线（通宽） ---------- */
+var tl=byId('timeline'),cells=[];
+for(var ci=0;ci<20;ci++){
+  var d=document.createElement('div');d.className='tcell';d.dataset.k=ci;
+  if(ci%4===0)d.innerHTML='<span class="yr">'+(2009+ci/2)+'</span>';
+  tl.appendChild(d);cells.push(d);
+}
+tl.addEventListener('click',function(e){
+  var c=e.target.closest('.tcell');if(!c||!c.classList.contains('played'))return;
+  var k=+c.dataset.k; if(k>=userSim.t-0)return;
+  doScrub(k);
+});
+function refreshTimeline(){
+  cells.forEach(function(c,k){
+    c.className='tcell'+(k<userSim.t?' played':'')+(k===userSim.t-1&&!scrub.on?' cur':'')+(scrub.on&&k===scrub.k?' scrub':'');
+    if(k%4===0)c.innerHTML='<span class="yr">'+(2009+k/2)+'</span>';
+  });
+}
+function doScrub(k){
+  stopPlay();
+  var u=new ENGINE.Sim(ENGINE.CFG.seed),b=new ENGINE.Sim(ENGINE.CFG.seed),act={};
+  for(var t=0;t<=k;t++){
+    (roundRecs[t].ops||[]).forEach(function(o){if(o[2]>0)act[o[1]]=o[2];else delete act[o[1]];});
+    u.step(roundRecs[t].policy); b.step(ENGINE.scriptPolicy(t));
+  }
+  scrub={on:true,k:k,u:u,b:b,active:act};
+  byId('scrubT').textContent=u.yearLabel(k);
+  byId('scrubBanner').style.display='flex';
+  byId('btnPlay').disabled=true;byId('btnStep').disabled=true;
+  refreshAll();
+  log('sys','【回看】'+u.yearLabel(k)+' 的世界快照——同种子重演，逐位还原。');
+}
+byId('btnBack').addEventListener('click',function(){
+  scrub.on=false;byId('scrubBanner').style.display='none';
+  byId('btnPlay').disabled=false;byId('btnStep').disabled=false;refreshAll();
+});
+byId('btnBranch').addEventListener('click',function(){
+  userSim=scrub.u;baseSim=scrub.b;activeNodes=scrub.active;
+  roundRecs=roundRecs.slice(0,scrub.k+1);
+  takenOver=true;gameOver=false;pendingOps=[];apRemaining=AP_PER_ROUND;
+  scrub.on=false;byId('scrubBanner').style.display='none';
+  byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
+  byId('autopilotHint').innerHTML='<b>已分叉</b>——你从 '+userSim.yearLabel(userSim.t-1)+' 之后接管历史。';
+  log('sys','【分叉】丢弃 '+userSim.yearLabel(userSim.t)+' 之后的旧未来，从这里重新推演。');
+  updateAP();refreshAll();
+});
+
+/* ---------- 决策卡流（顶带） ---------- */
+var cardFlow=byId('cardFlow');
+function pushFeed(){
+  var g=document.createElement('div');g.className='rgroup';
+  g.innerHTML='<span class="rlab">'+userSim.yearLabel(userSim.t-1)+'</span>';
+  userSim.firms.forEach(function(f){
+    if(!f.lastCard||f.lastCard.t!==userSim.t-1)return;
+    var c=document.createElement('div');c.className='acard'+(selected===f.id?' sel':'');c.dataset.firm=f.id;
+    c.innerHTML='<div class="who">'+f.emoji+' '+f.name+'</div><div class="act">'+f.lastCard.act+'</div>'+
+      '<div class="rule">'+f.lastCard.rule+'</div>';
+    g.appendChild(c);
+  });
+  cardFlow.prepend(g);
+  while(cardFlow.children.length>12)cardFlow.lastChild.remove();
+}
+cardFlow.addEventListener('click',function(e){
+  var c=e.target.closest('.acard');if(c)selectFirm(c.dataset.firm);
+});
+function markSel(){
+  cardFlow.querySelectorAll('.acard').forEach(function(c){
+    c.classList.toggle('sel', c.dataset.firm===selected);
+  });
+}
+
+/* ---------- 五段卡详情（底带） ---------- */
+function selectFirm(id){
+  selected=id||null;
+  byId('dtEmpty').style.display=selected?'none':'block';
+  byId('dtBody').style.display=selected?'block':'none';
+  markSel();
+  if(selected)renderDetail(selected);
+}
+function renderDetail(id){
+  var sim=cur(),f=sim.firms.find(function(x){return x.id===id;});
+  if(!f){selectFirm(null);return;}
+  byId('dtFace').textContent=f.emoji;
+  byId('dtName').textContent=f.name+(f.alive?'':f.dead==='exit'?'（已离场）':'（已破产）');
+  byId('dtArch').textContent=CITY[id][0]+' · '+f.desc;
+  byId('dtPnl').innerHTML='产能 K '+f.K.toFixed(2)+' GW · 现金 '+Math.max(0,f.cash).toFixed(0)+' 亿<br>'+
+    '成本系数 f '+f.f.toFixed(3)+' · 本期损益 '+(f.pnl||0).toFixed(1)+' 亿'+
+    (f.prov?' · 驻地省 '+f.prov:'');
+  var c=f.lastCard;
+  byId('segObserved').innerHTML=c?c.observed.map(function(s){return '<li>'+s+'</li>';}).join(''):'<li>—</li>';
+  byId('segRecalled').innerHTML=(c&&c.recalled&&c.recalled.length)?
+    c.recalled.map(function(m){return '<li>『'+sim.yearLabel(m.t)+'』'+m.text+'</li>';}).join(''):'<li>（尚无相关记忆）</li>';
+  byId('segRule').textContent=c?c.rule:'—';
+  byId('segAct').textContent=c?c.act:'—';
+  byId('segMono').innerHTML=f.monologues.slice(-3).reverse().map(function(m){
+    return '<p><b>'+sim.yearLabel(m.t)+'</b>'+m.note+'</p>';}).join('')||'<p>—</p>';
+}
+function onTap(e){
+  var r=stageRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
+  var mx=((e.clientX-r.left)/r.width)*2-1,my=-((e.clientY-r.top)/r.height)*2+1;
+  var rc=new THREE.Raycaster();rc.setFromCamera({x:mx,y:my},camera);
+  var hits=rc.intersectObjects(Object.keys(firmVisuals).map(function(id){return firmVisuals[id].body;}));
+  if(hits.length){selectFirm(hits[0].object.userData.firmId);return;}
+  var eh=rc.intersectObject(exMesh);
+  if(eh.length&&eh[0].instanceId!==undefined){
+    var i=eh[0].instanceId,ex=cur().ex,gi=exInfo(i,ex.region[i]),tip=byId('exTip');
+    tip.innerHTML='<b style="color:'+BANDS[ex.region[i]].css+'">长尾厂商 #'+(i+1)+'</b> · '+gi.prov+'<br>'+
+      (ex.K[i]*1000).toFixed(0)+'MW · '+(ex.alive[i]?'存活':'已倒闭')+
+      (ex.integ[i]<0.3?'<br><span style="color:#ef5350">投机型</span>':'');
+    tip.style.display='block';tip.style.left=Math.min(innerWidth-180,e.clientX+12)+'px';
+    tip.style.top=Math.max(52,e.clientY-10)+'px';
+    clearTimeout(tip._tm);tip._tm=setTimeout(function(){tip.style.display='none';},2400);
+    return;
+  }
+  selectFirm(null);
+}
+
+/* ---------- 主循环 ---------- */
+function eraName(t){return t<8?'金太阳时期':t<18?'度电补贴时期':'「531」退坡时期';}
+function tick(){
+  if(gameOver||scrub.on)return;
+  if(!takenOver&&AUTOPILOT_OPS[userSim.t]){
+    AUTOPILOT_OPS[userSim.t].forEach(function(o){
+      if(o[2]>0)activeNodes[o[1]]=o[2];else delete activeNodes[o[1]];
+      pendingOps.push(o);
+      log('policy','【史实】'+opName(o));
+    });
+  }
+  var pol=compilePolicy(activeNodes);
+  roundRecs.push({ops:pendingOps.slice(),policy:pol});
+  pendingOps=[];
+  var res=userSim.step(pol,playerCtrl);
+  baseSim.step(ENGINE.scriptPolicy(baseSim.t));
+  res.ev.forEach(function(e){log(e.type,e.msg,e.t);});
+  res.flows.forEach(function(fl){
+    var col=fl.kind==='fine'?0xef5350:fl.kind==='gen'?0x7fd6c2:0xe8b64c;
+    var n=Math.min(6,Math.max(2,Math.round(fl.amt/6)));
+    if(fl.ex!==undefined&&fl.region!==undefined)spawnFlow(govTop(),bandMid(fl.region),col,Math.min(3,n));
+    else if(fl.kind==='fine')spawnFlow(firmTop(fl.id),govTop(),col,n);
+    else spawnFlow(govTop(),firmTop(fl.id),col,n);
+  });
+  apRemaining=AP_PER_ROUND;updateAP();
+  pushFeed();refreshAll();
+  if(userSim.t>=ENGINE.CFG.rounds){gameOver=true;stopPlay();setTimeout(finale,800);}
+}
+function refreshAll(){
+  var sim=cur(),base=curBase();
+  byId('clock').textContent=sim.yearLabel(Math.min(Math.max(sim.t-1,0),19));
+  byId('era').textContent=eraName(Math.min(Math.max(sim.t-1,0),19));
+  byId('dpRound').textContent=sim.t?('本期 '+sim.yearLabel(Math.min(sim.t-1,19))+(scrub.on?' · 回看':'')):'未开局';
+  var h=sim.history[sim.history.length-1],hb=base.history[base.history.length-1];
+  var pol=scrub.on?roundRecs[scrub.k].policy:compilePolicy(activeNodes);
+  if(!h){
+    var sh=[0,0,0];sim.firms.forEach(function(f){sh[f.home]+=f.K;});
+    for(var q=0;q<sim.ex.K.length;q++)sh[sim.ex.region[q]]+=sim.ex.K[q];
+    var tot=sh[0]+sh[1]+sh[2]||1;
+    h=hb={P:0,Cf:sim.frontier,alive:NF,exAlive:sim.ex.K.length,exDeadCum:0,fiscalTotal:0,waste:0,opinion:80,
+      shares:[sh[0]/tot,sh[1]/tot,sh[2]/tot]};
+  }
+  byId('kPrice').textContent=h.P?h.P.toFixed(1)+' / '+h.Cf.toFixed(1):'– / '+h.Cf.toFixed(1);
+  byId('kFiscal').textContent=h.fiscalTotal.toFixed(0)+'亿';
+  byId('kFiscalBase').textContent='基线 '+hb.fiscalTotal.toFixed(0);
+  byId('kWaste').textContent=h.waste.toFixed(0)+'亿';
+  byId('kWasteBase').textContent='基线 '+hb.waste.toFixed(0);
+  byId('kAlive').textContent=h.alive+'/'+NF+' · '+h.exAlive+'家';
+  byId('kAliveBase').textContent='基线 '+hb.alive+'/'+NF+' · '+hb.exAlive;
+  var op=byId('kOpinion');op.textContent=h.opinion.toFixed(0)+'/100';
+  op.className=h.opinion<40?'red':h.opinion<60?'gold':'teal';
+  var rows='';
+  BANDS.forEach(function(b,j){
+    rows+='<div class="rrow"><b style="color:'+b.css+'">'+b.name+'</b>'+
+      '<div class="bar"><i style="width:'+Math.round(h.shares[j]*100)+'%;background:'+b.css+'"></i></div>'+
+      '<small>实核 '+Math.round(sim.effA(j,pol))+'</small></div>';
+  });
+  byId('bandRows').innerHTML=rows;
+  /* 省域亮度=制度带实际核查（省级分化在 T-F2 接 sim.effA(band,pol,provId)） */
+  Object.keys(provMat).forEach(function(name){
+    var j=PROV_BAND[name];if(j===undefined)return;
+    var eff=sim.effA(j,pol),k=Math.min(1,eff/85);
+    provMat[name].color.copy(BANDS[j].col).lerp(new THREE.Color(0xffffff),0.06+k*0.22);
+  });
+  /* 名角 */
+  sim.firms.forEach(function(f){
+    var v=firmVisuals[f.id];
+    v.tH=Math.min(9,0.35+f.K*0.55);
+    v.tG=f.alive?Math.min(4,f.fakeStock*1.1):0;
+    var mat=v.body.material;
+    if(!f.alive){mat.color.set(0x3a414c);mat.emissiveIntensity=0;v.glow.visible=false;
+      v.el.classList.add('dead');v.el.querySelector('span').textContent=f.dead==='exit'?'已离场':'已破产';}
+    else{mat.color.set(f.color);mat.emissiveIntensity=(selected===f.id?.62:.28);v.glow.visible=true;
+      v.el.classList.remove('dead');
+      v.el.querySelector('span').textContent='K '+f.K.toFixed(1)+' · 现金 '+Math.max(0,f.cash).toFixed(0);}
+  });
+  /* 群演 */
+  var ex=sim.ex,n=Math.min(EX_CAP,ex.K.length),now=performance.now();
+  for(var i=0;i<n;i++){
+    if(exCurH[i]===undefined){exCurH[i]=0.02;exFlash[i]=0;exCol[i]=new THREE.Color();exCol[i].copy(EXC[ex.region[i]]);}
+    exTH[i]=ex.alive[i]?0.1+ex.K[i]*11:0.03;
+    if(ex.fakeNow[i]>0)exFlash[i]=now+1400;
+  }
+  exMesh.count=n;
+  drawCharts();refreshTimeline();renderTree();
+  if(selected)renderDetail(selected);
+}
+function series(sim,key){return sim.history.map(function(x){return x[key];});}
+function drawLine(ctx,data,color,dash,mn,mx,w,hh){
+  if(data.length<2)return;
+  ctx.strokeStyle=color;ctx.lineWidth=1.3;ctx.setLineDash(dash?[3,3]:[]);ctx.beginPath();
+  data.forEach(function(v,i){var x=4+(w-8)*i/19,y=hh-4-(hh-9)*(v-mn)/(mx-mn||1);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.stroke();ctx.setLineDash([]);
+}
+function drawCharts(){
+  var u=cur(),b=curBase();
+  [['ch1',[[series(u,'P'),'#e8b64c',0],[series(u,'Cf'),'#7fd6c2',0],[series(b,'P'),'#8b98ab',1]]],
+   ['ch2',[[series(u,'D'),'#7fd6c2',0],[series(u,'S'),'#e8b64c',0],[series(b,'S'),'#8b98ab',1]]],
+   ['ch3',[[series(u,'exAlive'),'#b9a8ef',0],[series(b,'exAlive'),'#8b98ab',1]]],
+   ['ch4',[[series(u,'fiscalTotal'),'#e8b64c',0],[series(b,'fiscalTotal'),'#8b98ab',1]]]
+  ].forEach(function(d){
+    var cv=byId(d[0]),ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+    var all=[];d[1].forEach(function(s){all=all.concat(s[0]);});
+    if(!all.length)return;
+    var mn=Math.min.apply(null,all),mx=Math.max.apply(null,all);
+    d[1].forEach(function(s){drawLine(ctx,s[0],s[1],s[2],mn,mx,cv.width,cv.height);});
+  });
+}
+function finale(){
+  var u=userSim.history[19],b=baseSim.history[19];
+  function row(nm,uv,bv,un){return '<div class="row"><span>'+nm+'</span><b>'+uv+un+
+    ' <span style="color:#8b98ab;font-weight:400">/ 基线 '+bv+un+'</span></b></div>';}
+  byId('finaleRows').innerHTML=
+    row('财政累计',u.fiscalTotal.toFixed(0),b.fiscalTotal.toFixed(0),'亿')+
+    row('骗补流失',u.waste.toFixed(0),b.waste.toFixed(0),'亿')+
+    row('名角存活',u.alive,b.alive,'/'+NF)+
+    row('长尾存活',u.exAlive,b.exAlive,'家')+
+    row('终局成本',u.Cf.toFixed(2),b.Cf.toFixed(2),'元/W')+
+    row('公众舆情',u.opinion.toFixed(0),b.opinion.toFixed(0),'');
+  var v;
+  if(!takenOver)v='你全程未接管——这就是历史本身。重开一局，试试用政策树打出不同的组合拳：单一旋钮解决不了的问题，组合可以。';
+  else{var s=(u.waste<b.waste-5)+(u.fiscalTotal<b.fiscalTotal-20)+(u.Cf<b.Cf+0.1)+(u.opinion>b.opinion+5);
+    v=s>=3?'你的政策组合全面优于史实。风洞的结论：同样的产业结局，本可以少交学费。'
+     :s>=2?'互有胜负——注意组合的副作用：政策没有免费午餐。'
+     :'这个宇宙比史实更糟。风洞存在的意义，就是让糟糕的组合死在推演里。';}
+  byId('finaleVerdict').textContent=v;
+  byId('finale').style.display='block';
+}
+byId('btnAgain').addEventListener('click',function(){byId('finale').style.display='none';init();});
+
+/* ---------- 播放控制 ---------- */
+var btnPlay=byId('btnPlay');
+function startPlay(){if(gameOver||scrub.on)return;stopPlay();
+  playTimer=setInterval(tick,+byId('speed').value);btnPlay.textContent='⏸ 暂停';btnPlay.classList.remove('primary');}
+function stopPlay(){if(playTimer){clearInterval(playTimer);playTimer=null;}
+  btnPlay.textContent='▶ 播放';btnPlay.classList.add('primary');}
+btnPlay.addEventListener('click',function(){playTimer?stopPlay():startPlay();});
+byId('btnStep').addEventListener('click',function(){stopPlay();tick();});
+byId('btnReset').addEventListener('click',function(){stopPlay();init();});
+byId('speed').addEventListener('change',function(){if(playTimer)startPlay();});
+
+function init(){
+  userSim=new ENGINE.Sim(ENGINE.CFG.seed);baseSim=new ENGINE.Sim(ENGINE.CFG.seed);
+  activeNodes={};apRemaining=AP_PER_ROUND;pendingOps=[];roundRecs=[];
+  takenOver=false;gameOver=false;playerCtrl=null;
+  scrub={on:false,k:-1,u:null,b:null,active:null};
+  byId('scrubBanner').style.display='none';
+  byId('finale').style.display='none';byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
+  byId('evtBody').innerHTML='';cardFlow.innerHTML='';
+  exCurH.length=0;exTH.length=0;exFlash.length=0;exCol.length=0;
+  particles.forEach(function(p){scene.remove(p.m);});particles.length=0;
+  byId('autopilotHint').innerHTML='<b>自动驾驶中</b>——史实政策正按时点自动点亮。点击任意节点即接管。';
+  selectFirm(null);
+  log('sys','万历引擎就绪 · 光伏包已加载（8 名角 · 4 省内阁 · 21 节点政策树）。左列是政策树，每回合 3 点行动力；中下是 Agent 决策链；底部时间线可回看任意回合并从那里分叉。');
+  updateAP();refreshAll();
+}
+
+/* ---------- RAF ---------- */
+var prevT=performance.now();
+function animate(){
+  requestAnimationFrame(animate);
+  var now=performance.now(),dt=Math.min(.05,(now-prevT)/1000);prevT=now;
+  if(intro.on){
+    var k=Math.min(1,(now-intro.t0)/intro.dur),e=1-Math.pow(1-k,3);
+    cam.r=46+(30-46)*e;cam.phi=.6+(0.98-.6)*e;cam.theta=-.5+(0-(-.5))*e;
+    cam.tr=cam.r;cam.tphi=cam.phi;cam.ttheta=cam.theta;
+    if(k>=1)intro.on=false;
+  }else{
+    if(now-lastPointer>8000)cam.ttheta=Math.sin(now*0.00012)*0.1;
+    cam.r+=(cam.tr-cam.r)*.12;cam.phi+=(cam.tphi-cam.phi)*.18;cam.theta+=(cam.ttheta-cam.theta)*.18;
+  }
+  applyCam();
+  Object.keys(firmVisuals).forEach(function(id){
+    var v=firmVisuals[id];
+    v.curH+=(v.tH-v.curH)*Math.min(1,dt*3.2);
+    v.body.scale.y=v.curH;v.body.position.y=v.curH/2;
+    v.glow.position.y=v.curH+.3;
+    v.curG+=(v.tG-v.curG)*Math.min(1,dt*3.2);
+    if(v.curG>.04){v.ghost.visible=true;v.ghost.scale.y=v.curG;v.ghost.position.y=v.curH+v.curG/2;}
+    else v.ghost.visible=false;
+  });
+  var sim=cur();
+  if(sim){
+    var ex=sim.ex;
+    for(var i=0;i<exMesh.count;i++){
+      exCurH[i]+=(exTH[i]-exCurH[i])*Math.min(1,dt*3.4);
+      var gi=exInfo(i,ex.region[i]);
+      dummy.position.set(gi.x,0.46,gi.z);dummy.scale.set(1,Math.max(.02,exCurH[i]),1);
+      dummy.rotation.y=0;dummy.updateMatrix();exMesh.setMatrixAt(i,dummy.matrix);
+      if(exMesh.setColorAt){
+        var base=ex.alive[i]?EXC[ex.region[i]]:DEADC;
+        if(now<exFlash[i])tmpCol.copy(base).lerp(FLASHC,.5+.5*Math.sin(now*.02));
+        else tmpCol.copy(base);
+        if(!exCol[i]||!exCol[i].equals(tmpCol)){
+          if(!exCol[i])exCol[i]=new THREE.Color();
+          exCol[i].copy(tmpCol);exMesh.setColorAt(i,tmpCol);exMesh.instanceColor.needsUpdate=true;}
+      }
+    }
+    exMesh.instanceMatrix.needsUpdate=true;
+  }
+  for(var pi=particles.length-1;pi>=0;pi--){
+    var p=particles[pi];p.t+=dt*p.sp;
+    if(p.t<0)continue;
+    if(p.t>=1){scene.remove(p.m);particles.splice(pi,1);continue;}
+    p.m.position.copy(bez(p.a,p.b,p.c,p.t));
+    p.m.material.opacity=.95*(1-Math.abs(p.t-.5)*.7);
+  }
+  var pulse=1+Math.sin(now*.003)*.12;beaconGlow.scale.set(2.2*pulse,2.2*pulse,1);
+  var r=stageRect();
+  function proj2(x,y,z,el,dy){
+    var wp=new THREE.Vector3(x,y,z).project(camera),vis=wp.z<1;
+    el.style.opacity=vis?1:0;
+    if(vis){el.style.left=(wp.x*.5+.5)*r.width+'px';el.style.top=(-wp.y*.5+.5)*r.height+'px';}
+  }
+  Object.keys(firmVisuals).forEach(function(id){
+    var v=firmVisuals[id];proj2(v.x,0.46+v.curH+.55,v.z,v.el);
+  });
+  proj2(BJp[0],2.6,BJp[1],bjLbl);
+  renderer.render(scene,camera);
+}
+fitStage();init();applyCam();animate();
+})();
+</script>
+</body>
+</html>
