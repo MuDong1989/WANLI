@@ -249,87 +249,174 @@
   #quote{position:fixed;right:calc(var(--dockR) + 14px);top:calc(var(--topH) + 14px);z-index:5;pointer-events:none;
     font:11px/1.9 var(--serif);letter-spacing:.2em;color:rgba(232,182,76,.35);writing-mode:vertical-rl}
 
-  /* ══════════════════════ LIGHT THEME ══════════════════════
-     RESTYLE-LIGHT 实验块（2026-08-13，build CC）。
-     回退 = 整块删除 + 重新出包，不留残迹；JS 侧只读 CSS 变量，无需改回。
-     ★ three.js 主视口刻意不翻：#c 的底色由 renderer.setClearColor(0x080c12) 决定，
-       不归 CSS 管，故视口保持深色。压在视口上的覆盖层（.lbl 地图标签、#quote 竖排题字）
-       也必须留在深底配色里——下面第一组就是把它们从翻转中钉回去。
+  /* ═══════════════════ ECONOMIST THEME ═══════════════════
+     RESTYLE-ECONOMIST（2026-08-13，build CC）——取代 RESTYLE-LIGHT。
+     回退 = 整块删除 + 重新出包；JS 侧只读 CSS 变量，无需改回。
+     ★ three.js 主视口刻意不翻：#c 底色由 renderer.setClearColor(0x080c12) 决定，
+       不归 CSS 管。浅色版面里的深色地图窗 = 刊物里的深色地图插图。
+       压在视口上的覆盖层（.lbl 地图标签、#quote 竖排题字、骗补红闪/救助金等
+       视口内特效）一律留在深底配色——下面第一组把它们从翻转里钉回去。
      ═══════════════════════════════════════════════════════ */
   :root{
-    --night:#f6f7f8; --panel:#ffffff; --line:rgba(22,32,46,.16);
-    --ink:#16202e; --dim:#5b6a7d;
-    --gold:#8a6000; --teal:#0f7a68; --red:#c0392b; --vio:#5240a8;
-    /* 事件类型色：白底上同色相压暗，保持八类仍可互相区分 */
-    --evt-policy:#8a6000; --evt-region:#5240a8; --evt-firm:#0d6e5c; --evt-fraud:#c0392b;
-    --evt-media:#b03a52; --evt-market:#55637a; --evt-wave:#96357e; --evt-sys:#0f7a68;
-    --base-line:#5b6a7d; --chip-all:#3a4757;
+    --page:#fbfaf8; --panel:#ffffff; --panel-2:#eef4f8; --grid:#ffffff;
+    --ink:#121212; --ink-2:#555550; --accent:#e3120b; --line:#d8d6d0;
+    /* 旧令牌重定向：金色强调让位给 accent，但"招商席赭金"等语义色仍需自己的色相 */
+    --night:#fbfaf8; --dim:#555550;
+    --gold:#8a6a1a;      /* 赭金：只做语义色（招商席/政策类），不再当强调色 */
+    --teal:#0f6b5c; --red:#7d4436; --vio:#4a3a8c;
+    /* 事件类型色：报纸要闻栏左缘窄色条，全部暗化到白底可读 */
+    --evt-policy:#8a6a1a; --evt-fraud:#a3231b; --evt-region:#4a3a8c; --evt-firm:#0f6b5c;
+    --evt-media:#a8305a;  --evt-market:#5a5a55; --evt-sys:#3f5a78;   --evt-wave:#8e3070;
+    --base-line:#8e8b84; --chip-all:#3a3a36;
+    --sans:"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
   }
-  /* ① 视口覆盖层回钉：这两条原本引用被翻转的变量，不钉住就会在深色画面上消失 */
+  /* ① 视口覆盖层回钉（引用了被翻转的变量，不钉就会在深色画面上消失）*/
   .lbl span{color:#9fb0c4}
   .lbl.prov b{color:#c3b6f5}
 
-  /* ② 骨架与面板 */
-  body{background:var(--night)}
-  #topbar{background:linear-gradient(180deg,#ffffff,#f2f4f6)}
-  #brand .zh{color:#1b2534;text-shadow:none}
-  #treeDock,#decision,#evtDock,#chartDock{background:var(--panel)}
-  #timeline{background:#eef0f3}
+  /* ② 版面骨架：报刊字体栈 + 数字等宽对齐 */
+  html,body{font-family:var(--sans);background:var(--page);color:var(--ink)}
+  .kpi b,.rrow small,#clock,.acard .act,.seatRow b,#evtBody p b,.tcell .yr,
+  .pcard .disc,#dtHead .pnl,#dtProv .phead .pnl{font-variant-numeric:tabular-nums}
+  #treeDock,#decision,#evtDock,#chartDock,#timeline{background:var(--panel)}
 
-  /* ③ 控件 */
-  .btn{background:#fff}
-  .btn:hover{background:#f0faf8}
-  .btn.primary{background:rgba(138,96,0,.08)}
+  /* ③ 顶栏：白底黑字 + 经济学人签名红块 */
+  #topbar{background:var(--panel);border-bottom:1px solid var(--line)}
+  #brand::before{content:'';display:inline-block;width:5px;height:19px;background:var(--accent);
+    margin-right:3px;transform:translateY(2px)}
+  #brand .zh{color:var(--ink);text-shadow:none;font-family:var(--sans);font-weight:700;letter-spacing:.10em}
+  #brand .en{color:var(--accent)}
+  #brand .sub{color:var(--ink-2);border-left-color:var(--line)}
+  #clock{color:var(--ink)}
+  #era{color:var(--ink-2);border-color:var(--line)}
+  .btn{background:#fff;color:var(--ink)}
+  .btn:hover{border-color:var(--ink);color:var(--ink)}
+  .btn.primary{border-color:var(--accent);color:var(--accent);background:rgba(227,18,11,.05)}
+  #apBox{color:var(--ink-2)}
+  #apBox i{background:rgba(227,18,11,.14);border-color:rgba(227,18,11,.5)}
+  #apBox i.on{background:var(--accent);box-shadow:none}
+
+  /* ④ 策略树列：报刊栏目题 + 红色激活态 */
+  .dhead{border-bottom-color:var(--line)}
+  .dhead h3{color:var(--ink);letter-spacing:.22em;font-weight:600}
+  .bhead{color:var(--ink-2);letter-spacing:.28em;font-weight:600;
+    border-top:1px solid var(--line);margin-top:6px;padding-top:7px}
+  #autopilotHint{border-left-color:var(--accent);background:rgba(227,18,11,.045);color:var(--ink-2)}
+  #autopilotHint b{color:var(--accent)}
+  .pnode{background:#fff;border-color:var(--line)}
+  .pnode.avail:hover{border-color:var(--ink);background:#faf9f7}
+  .pnode.active{border-color:var(--line);border-left:3px solid var(--accent);background:rgba(227,18,11,.045)}
+  .pnode .pips i{background:#e2e0da}
+  .pnode.active .pips i.on{background:var(--accent);box-shadow:none}
+  .pnode.locked,.pnode.blocked{opacity:1}
+  .pnode.locked .nname,.pnode.blocked .nname{color:#9d9a93}
   .pnode .ops b{background:#fff}
-  .pnode.active{background:rgba(138,96,0,.07)}
-  .acard{background:#fff}
-  .acard.sel{background:rgba(138,96,0,.10)}
-  .pcard{background:rgba(82,64,168,.05)}
-  .pcard.sel{background:rgba(82,64,168,.12)}
-  .pcard.rescue{background:rgba(138,96,0,.10)}
-  #apBox i{background:rgba(138,96,0,.16);border-color:rgba(138,96,0,.55)}
+  .pnode .ops b:hover{border-color:var(--accent);color:var(--accent)}
+  .pnode .lvtag{color:var(--ink-2)}
 
-  /* ④ 事件流（炸点①）：文字与左边框统一取加深后的同色相。
-        深色版里两者略有差异（文字更亮），白底上统一反而更清楚。 */
-  #evtBody p.market{color:var(--evt-market);border-color:var(--evt-market)}
-  #evtBody p.policy{color:var(--evt-policy);border-color:var(--evt-policy)}
-  #evtBody p.media {color:var(--evt-media); border-color:var(--evt-media)}
-  #evtBody p.fraud {color:var(--evt-fraud); border-color:var(--evt-fraud)}
-  #evtBody p.firm  {color:var(--evt-firm);  border-color:var(--evt-firm)}
-  #evtBody p.sys   {color:var(--evt-sys);   border-color:var(--evt-sys)}
-  #evtBody p.wave  {color:var(--evt-wave);  border-color:var(--evt-wave)}
-  #evtBody p.region{color:var(--evt-region);border-color:var(--evt-region)}
-  #evtBody p b{color:#6b7a8d}
-  #evtBody p.jump:hover{background:rgba(15,122,104,.10)}
-  #evtBody p.at{background:rgba(82,64,168,.13)}
-  /* 炸点②：chips 与事件条同源（都读 --evt-*），选中态改白字压在饱和底上 */
-  .chip{background:#fff}
+  /* ⑤ 决策链面板：白卡片细灰边；名角主题色降饱和后做色点 */
+  #dpHead{border-bottom-color:var(--line)}
+  #dpHead h3{color:var(--ink)}
+  #dpRound{color:var(--accent)}
+  #dpHint{color:var(--ink-2)}
+  #cardFlow{border-bottom-color:var(--line)}
+  .rgroup{border-right-color:var(--line)}
+  .rgroup .rlab{color:var(--ink-2)}
+  .acard{background:#fff;border-color:var(--line)}
+  .acard:hover{border-color:var(--ink)}
+  .acard.sel{border-color:var(--accent);background:rgba(227,18,11,.05)}
+  .acard .who{display:flex;align-items:center;gap:5px}
+  .acard .dot{width:7px;height:7px;border-radius:2px;flex:0 0 auto;
+    filter:saturate(.72) brightness(.68)}     /* 八名角主题色降饱和 ~28% 适配白底 */
+  .acard .act{color:var(--ink)}
+  .acard .rule{color:var(--ink-2)}
+  .seg{border-left-color:var(--line)}
+  .seg h5{color:var(--ink-2);letter-spacing:.24em;font-weight:600}
+  .seg h5 i{color:var(--accent)}
+  .seg ul li::before{color:var(--ink-2)}
+  .rulePill{background:#f3f2ef;border-color:var(--line);color:var(--ink)}
+  .segAct{color:var(--ink)}
+  .segMono p{border-left-color:var(--line)}
+  .segMono p b{color:var(--ink-2)}
+  #dtEmpty{color:var(--ink-2)}
+  #dtEmpty b{color:var(--ink)}
+  #dtHead small,#dtHead .pnl{color:var(--ink-2)}
+  #filmStrip{color:#9d9a93;border-bottom-color:var(--line)}
+  /* 内阁三席位：色相不变、明度压暗，三席仍一眼可辨且都不与 accent 红撞 */
+  .seatRow em{color:var(--ink-2)}
+  .seatRow .lev{background:#e6e4de}
+  .seatRow .lev::before{background:#c9c6bd}
+  .seatRow.zs b,.seatRow.zs .lev i{color:#8a6a1a;background:#8a6a1a}   /* 招商=赭金 */
+  .seatRow.cz b,.seatRow.cz .lev i{color:#1e3a6e;background:#1e3a6e}   /* 财政=藏蓝 */
+  .seatRow.jg b,.seatRow.jg .lev i{color:#7d4436;background:#7d4436}   /* 监管=暗砖红，刻意拉开与 accent 的色相/饱和距离，见验收 */
+  .pcard{background:#fff;border-color:var(--line)}
+  .pcard .who{color:var(--vio)}
+  .pcard .act{color:var(--ink)}
+  .pcard .disc{color:var(--ink-2)}
+  .pcard.sel{border-color:var(--vio);background:rgba(74,58,140,.07);box-shadow:none}
+  .pcard.rescue{border-color:rgba(227,18,11,.5);background:rgba(227,18,11,.07)}  /* 救助高亮改浅红 */
+  .pcard.rescue .who{color:var(--accent)}
+  .segRescue{border-left-color:var(--accent);background:rgba(227,18,11,.06);color:var(--ink)}
+  #dtProv .phead h4{color:var(--ink)}
+  #dtProv .phead small,#dtProv .phead .pnl{color:var(--ink-2)}
+
+  /* ⑥ 事件流：报纸要闻栏——白底 + 左缘窄色条标类型 */
+  #evtDock .dhead h3{color:var(--ink)}
+  #evtBody p{color:var(--ink);border-left-width:3px;padding-left:8px}
+  #evtBody p b{color:var(--ink-2)}
+  #evtBody p.market{border-color:var(--evt-market)} #evtBody p.policy{border-color:var(--evt-policy)}
+  #evtBody p.media {border-color:var(--evt-media)}  #evtBody p.fraud {border-color:var(--evt-fraud)}
+  #evtBody p.firm  {border-color:var(--evt-firm)}   #evtBody p.sys   {border-color:var(--evt-sys)}
+  #evtBody p.wave  {border-color:var(--evt-wave)}   #evtBody p.region{border-color:var(--evt-region)}
+  #evtBody p.jump:hover{background:#f5f4f1}
+  #evtBody p.at{background:rgba(227,18,11,.07)}
+  .chip{background:#fff;color:var(--ink-2);border-color:var(--line)}
+  .chip:hover{border-color:var(--ink);color:var(--ink)}
   .chip.on{color:#fff}
-  #evtHint,#filmStrip{color:var(--dim)}
+  #evtHint{color:#9d9a93}
 
-  /* ⑤ 炸点③：sparkline 与 KPI。画布底翻白，线色改读 --gold/--teal/--vio/--base-line，
-        基线宇宙的虚线单独压到 --base-line:#5b6a7d，白底上不会再消失。 */
-  canvas.spark{background:#fbfbfc;border-color:rgba(22,32,46,.16)}
+  /* ⑦ 图表列：Economist 图表规范（衬底淡蓝灰 + 粗白网格 + 右侧刻度，绘制在 JS）*/
+  #chartDock h3{color:var(--ink)}
+  .kpi{border-bottom:1px solid #f2f0ec;padding:5px 0}
+  .kpi em{color:var(--ink-2)}
+  .kpi b{font-size:15px;color:var(--ink);font-family:var(--sans);font-weight:700}
+  .kpi b.gold,.kpi b.teal{color:var(--ink)}      /* 全黑：accent 红只留给异常 */
+  .kpi b.red{color:var(--accent)}
+  .kpi small{color:#9d9a93}
+  .fig{margin-top:11px}
+  .fig h4{font-size:11.5px;font-weight:700;color:var(--ink);letter-spacing:.02em}
+  .fig .sub{font-size:9.5px;color:var(--ink-2);margin:1px 0 4px;line-height:1.45}
+  canvas.spark{width:100%;height:62px;display:block;border:none;border-radius:0;
+    background:var(--panel-2);margin-top:0}
+  #bandRows{border-top:1px solid var(--line);border-top-style:solid}
+  #bandRows .rrow b{color:var(--ink)!important}
+  #bandRows .bar{background:#e6e4de}
+  #bandRows .bar i{filter:brightness(.66) saturate(1.35)}
+  #bandRows small{color:var(--ink-2)}
+  #legend{color:var(--ink-2);border-top:1px solid var(--line);padding-top:7px}
 
-  /* ⑥ 炸点④：三席位杠杆条 + 制度带行。色相保留、明度压暗，立场仍一眼可辨。 */
-  .seatRow .lev{background:rgba(22,32,46,.10)}
-  .seatRow.cz b,.seatRow.cz .lev i{color:#1d6fb8;background:#1d6fb8}
-  #bandRows .rrow b{color:var(--ink)!important}   /* 带名颜色是内联的，只能 !important 压 */
-  #bandRows .bar{background:rgba(22,32,46,.10)}
-  #bandRows .bar i{filter:brightness(.70) saturate(1.4)}  /* 条形填充同样内联，用滤镜加深 */
+  /* ⑧ 时间线：白底、played 浅灰、cur 红、scrub 红描边 */
+  #timeline{border-top-color:var(--line)}
+  .tcell{background:#efeee9;border-color:#e2e0da}
+  .tcell.played{background:#d7d5cd;border-color:#c9c6bd}
+  .tcell.played:hover{background:#c2bfb5}
+  .tcell.cur{background:var(--accent);border-color:var(--accent);box-shadow:none}
+  .tcell.scrub{background:#fff;border:2px solid var(--accent)}
+  .tcell .yr{color:var(--ink-2)}
+  #tlLabel{color:var(--ink-2)}
+  #scrubBanner{border-color:var(--accent);color:var(--accent);background:var(--panel)}
 
-  /* ⑦ 时间线 */
-  .tcell{background:rgba(22,32,46,.07);border-color:rgba(22,32,46,.13)}
-  .tcell.played{background:rgba(15,122,104,.22);border-color:rgba(15,122,104,.40)}
-  .tcell.played:hover{background:rgba(15,122,104,.40)}
-  .tcell.cur{background:rgba(138,96,0,.40);border-color:var(--gold);box-shadow:0 0 8px rgba(138,96,0,.35)}
-  .tcell.scrub{background:rgba(82,64,168,.40);border-color:var(--vio)}
-  .tcell .yr{color:var(--dim)}
-
-  /* ⑧ 浮层：白底上没有明暗差可用，改靠投影分层 */
-  #nodeTip,#exTip,#finale,#scrubBanner{box-shadow:0 6px 26px rgba(20,30,45,.18)}
-  ::-webkit-scrollbar-thumb{background:rgba(22,32,46,.22)}
-  /* ══════════════════ LIGHT THEME 结束 ══════════════════ */
+  /* ⑨ 浮层：白底靠投影分层 */
+  #nodeTip,#exTip,#finale,#scrubBanner{box-shadow:0 8px 30px rgba(18,18,18,.16)}
+  #nodeTip{background:var(--panel);border-color:var(--line);color:var(--ink)}
+  #nodeTip h6{color:var(--accent)} #nodeTip .hist{color:var(--ink-2)} #nodeTip .why{color:var(--accent)}
+  #exTip{background:var(--panel);border-color:var(--line);color:var(--ink)}
+  #finale{background:var(--panel);border-color:var(--line)}
+  #finale h2{color:var(--ink);font-family:var(--sans);font-weight:700;letter-spacing:.16em}
+  #finale .row{border-bottom-color:#f2f0ec}
+  #finale .verdict{color:var(--ink-2)}
+  ::-webkit-scrollbar-thumb{background:#cfccc4}
+  /* ═════════════════ ECONOMIST THEME 结束 ═════════════════ */
 </style>
 </head>
 <body>
@@ -422,12 +509,16 @@
   <div class="kpi"><em>骗补流失</em><b class="red" id="kWaste">–</b><small id="kWasteBase"></small></div>
   <div class="kpi"><em>名角 / 长尾</em><b id="kAlive">–</b><small id="kAliveBase"></small></div>
   <div class="kpi"><em>公众舆情</em><b id="kOpinion">–</b></div>
-  <div class="chartCap">价格 · 成本</div><canvas class="spark" id="ch1" width="210" height="46"></canvas>
-  <div class="chartCap">需求 · 供给</div><canvas class="spark" id="ch2" width="210" height="46"></canvas>
-  <div class="chartCap">长尾存活数</div><canvas class="spark" id="ch3" width="210" height="46"></canvas>
-  <div class="chartCap">财政累计投入</div><canvas class="spark" id="ch4" width="210" height="46"></canvas>
+  <figure class="fig"><h4>价格与成本前沿</h4>
+    <p class="sub">元·W⁻¹｜黑=你的宇宙，灰虚线=史实基线成本</p><canvas class="spark" id="ch1"></canvas></figure>
+  <figure class="fig"><h4>需求与产能</h4>
+    <p class="sub">GW·半年⁻¹｜灰虚线=史实基线产能</p><canvas class="spark" id="ch2"></canvas></figure>
+  <figure class="fig"><h4>长尾厂商存活数</h4>
+    <p class="sub">家｜灰虚线=史实基线</p><canvas class="spark" id="ch3"></canvas></figure>
+  <figure class="fig"><h4>财政累计投入</h4>
+    <p class="sub">亿元｜灰虚线=史实基线</p><canvas class="spark" id="ch4"></canvas></figure>
   <div id="bandRows"></div>
-  <div id="legend">实线=你的宇宙 · 虚线=史实基线<br>省域亮度=当地实际核查 · 红闪=虚报<br>同一种子：两个宇宙唯一差异是政策</div>
+  <div id="legend"><b style="color:var(--ink)">黑实线</b>=你的宇宙 · <b style="color:var(--ink)">灰虚线</b>=史实基线 · <b style="color:var(--accent)">红点</b>=末期劣于基线<br>省域亮度=当地实际核查 · 红闪=虚报<br>同一种子：两个宇宙唯一差异是政策</div>
 </div>
 
 <!-- 底部通宽：时间线 -->
@@ -832,7 +923,8 @@ function pushFeed(){
   userSim.firms.forEach(function(f){
     if(!f.lastCard||f.lastCard.t!==userSim.t-1)return;
     var c=document.createElement('div');c.className='acard'+(selected===f.id?' sel':'');c.dataset.firm=f.id;
-    c.innerHTML='<div class="who">'+f.emoji+' '+f.name+'</div><div class="act">'+f.lastCard.act+'</div>'+
+    c.innerHTML='<div class="who"><i class="dot" style="background:'+f.css+'"></i>'+f.emoji+' '+f.name+'</div>'+
+      '<div class="act">'+f.lastCard.act+'</div>'+
       '<div class="rule">'+f.lastCard.rule+'</div>';
     g.appendChild(c);
   });
@@ -1071,28 +1163,81 @@ function refreshAll(){
   if(selProv)renderProvCard(selProv);
 }
 function series(sim,key){return sim.history.map(function(x){return x[key];});}
-function drawLine(ctx,data,color,dash,mn,mx,w,hh){
-  if(data.length<2)return;
-  ctx.strokeStyle=color;ctx.lineWidth=1.3;ctx.setLineDash(dash?[3,3]:[]);ctx.beginPath();
-  data.forEach(function(v,i){var x=4+(w-8)*i/19,y=hh-4-(hh-9)*(v-mn)/(mx-mn||1);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-  ctx.stroke();ctx.setLineDash([]);
+/* ── Economist 式图表（RESTYLE-ECONOMIST）──
+   规范四条：① 衬底淡蓝灰 + 粗白网格线（刊物签名做法，网格压在色块上而非画在白纸上）
+             ② y 轴刻度贴右侧、不画轴线
+             ③ 图外左对齐短标题 + 灰色描述性副标题（在 HTML 里）
+             ④ 你的宇宙=黑实线，史实基线=灰虚线，末点画点；你的宇宙劣于基线时标 accent 红
+   "劣"的方向逐图显式声明在 CHARTS.adverse，不是我临时判断的——可审。 */
+var SPARK_H=62;
+function fitSpark(cv){
+  var dpr=Math.min(window.devicePixelRatio||1,2), w=cv.clientWidth||210;
+  if(cv._fw!==w||cv._fd!==dpr){ cv.width=Math.round(w*dpr); cv.height=Math.round(SPARK_H*dpr);
+    cv._fw=w; cv._fd=dpr; }
+  return dpr;
 }
+function fmtTick(v){
+  var a=Math.abs(v);
+  return a>=1000?(v/1000).toFixed(1)+'k' : a>=100?v.toFixed(0) : a>=10?v.toFixed(0) : v.toFixed(1);
+}
+/* cmp = 与基线对照的那条序列；adverse = 你的宇宙朝哪个方向偏离算"劣" */
+var CHARTS=[
+  {id:'ch1', keys:['P','Cf'],      cmp:'Cf',          adverse:'up'},   /* 成本高于基线=劣 */
+  {id:'ch2', keys:['D','S'],       cmp:'S',           adverse:'up'},   /* 供给高于基线=产能过剩 */
+  {id:'ch3', keys:['exAlive'],     cmp:'exAlive',     adverse:'down'}, /* 长尾存活低于基线=劣 */
+  {id:'ch4', keys:['fiscalTotal'], cmp:'fiscalTotal', adverse:'up'}    /* 财政投入高于基线=劣 */
+];
 function drawCharts(){
-  var u=cur(),b=curBase();
-  var GC=cssv('--gold','#e8b64c'), TC=cssv('--teal','#7fd6c2'),
-      VC=cssv('--vio','#b9a8ef'),  BC=cssv('--base-line','#8b98ab');
-  [['ch1',[[series(u,'P'),GC,0],[series(u,'Cf'),TC,0],[series(b,'P'),BC,1]]],
-   ['ch2',[[series(u,'D'),TC,0],[series(u,'S'),GC,0],[series(b,'S'),BC,1]]],
-   ['ch3',[[series(u,'exAlive'),VC,0],[series(b,'exAlive'),BC,1]]],
-   ['ch4',[[series(u,'fiscalTotal'),GC,0],[series(b,'fiscalTotal'),BC,1]]]
-  ].forEach(function(d){
-    var cv=byId(d[0]),ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
-    var all=[];d[1].forEach(function(s){all=all.concat(s[0]);});
-    if(!all.length)return;
-    var mn=Math.min.apply(null,all),mx=Math.max.apply(null,all);
-    d[1].forEach(function(s){drawLine(ctx,s[0],s[1],s[2],mn,mx,cv.width,cv.height);});
+  var u=cur(), b=curBase();
+  var INK=cssv('--ink','#121212'), SUB=cssv('--ink-2','#555550'),
+      BASE=cssv('--base-line','#8e8b84'), BG=cssv('--panel-2','#eef4f8'),
+      ACC=cssv('--accent','#e3120b'), GRID=cssv('--grid','#ffffff');
+  CHARTS.forEach(function(C){
+    var cv=byId(C.id); if(!cv) return;
+    var dpr=fitSpark(cv), ctx=cv.getContext('2d');
+    if(ctx.setTransform) ctx.setTransform(dpr,0,0,dpr,0,0);
+    var W=cv.width/dpr, H=cv.height/dpr, padR=28, padT=6, padB=7, x0=1, x1=W-padR;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
+    var lines=[];
+    C.keys.forEach(function(k){ lines.push({d:series(u,k), c:INK, dash:0}); });
+    lines.push({d:series(b,C.cmp), c:BASE, dash:1});
+    var all=[]; lines.forEach(function(s){ all=all.concat(s.d); });
+    all=all.filter(function(v){ return typeof v==='number' && isFinite(v); });
+    if(all.length<2) return;
+    var mn=Math.min.apply(null,all), mx=Math.max.apply(null,all);
+    if(mx===mn) mx=mn+1;
+    function Y(v){ return padT+(H-padT-padB)*(1-(v-mn)/(mx-mn)); }
+    function X(i){ return x0+(x1-x0)*i/19; }
+    /* ① 粗白网格线 + ② 右侧刻度、无轴线 */
+    ctx.lineWidth=1.5; ctx.strokeStyle=GRID;
+    ctx.font='9px '+cssv('--mono','monospace');
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    [0,0.5,1].forEach(function(f){
+      var v=mn+(mx-mn)*f, y=Y(v);
+      ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+      ctx.fillStyle=SUB; ctx.fillText(fmtTick(v), x1+4, y);
+    });
+    /* ④ 线 */
+    lines.forEach(function(s){
+      if(!s.d || s.d.length<2) return;
+      ctx.strokeStyle=s.c; ctx.lineWidth=s.dash?1.2:1.7;
+      ctx.setLineDash(s.dash?[3,3]:[]);
+      ctx.beginPath();
+      s.d.forEach(function(v,i){ var x=X(i),y=Y(v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+      ctx.stroke(); ctx.setLineDash([]);
+    });
+    /* 末点标记：劣于基线时红点，否则黑点 */
+    var mine=series(u,C.cmp), base=series(b,C.cmp), n=Math.min(mine.length,base.length);
+    if(n && ctx.arc){
+      var i=n-1, mv=mine[i], bv=base[i];
+      var worse = C.adverse==='up' ? (mv>bv*1.02) : (mv<bv*0.98);
+      ctx.fillStyle = worse?ACC:INK;
+      ctx.beginPath(); ctx.arc(X(i), Y(mv), worse?3:2.2, 0, 6.2832); ctx.fill();
+    }
   });
 }
+
 function finale(){
   var u=userSim.history[19],b=baseSim.history[19];
   function row(nm,uv,bv,un){return '<div class="row"><span>'+nm+'</span><b>'+uv+un+
