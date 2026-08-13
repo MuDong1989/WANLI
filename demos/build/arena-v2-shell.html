@@ -169,8 +169,20 @@
   /* —— 右二整列：事件流 —— */
   #evtDock{position:fixed;right:var(--chartW);top:var(--topH);bottom:var(--tlH);width:var(--evtW);z-index:20;
     background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column}
+  #evtChips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .chip{font:9.5px var(--mono);letter-spacing:.05em;padding:2px 6px;border-radius:20px;cursor:pointer;
+    border:1px solid var(--line);color:var(--dim);background:rgba(8,12,18,.5);user-select:none;white-space:nowrap}
+  .chip:hover{border-color:var(--teal);color:var(--ink)}
+  .chip.on{color:#0a0e14;font-weight:700}
+  .chip.off{opacity:.45;text-decoration:line-through}
+  .chip i{font-style:normal;opacity:.7;margin-left:3px}
+  #evtHint{margin-top:5px;font:9.5px var(--mono);color:#5f6d80;letter-spacing:.04em}
   #evtBody{flex:1;overflow-y:auto;padding:6px 11px;font-size:11.5px;line-height:1.6}
   #evtBody p{margin:2px 0;color:var(--dim);border-left:2px solid transparent;padding-left:6px}
+  #evtBody p.jump{cursor:pointer;border-radius:0 4px 4px 0;transition:background .14s}
+  #evtBody p.jump:hover{background:rgba(127,214,194,.10)}
+  #evtBody p.jump:hover b::after{content:' ↗ 跳到该回合';color:var(--teal)}
+  #evtBody p.at{background:rgba(185,168,239,.14)}
   #evtBody p b{display:block;font:9.5px var(--mono);color:#74839a;letter-spacing:.06em}
   #evtBody p.market{color:#bcd0e8;border-color:#8b98ab}
   #evtBody p.policy{color:var(--gold);border-color:var(--gold)}
@@ -309,7 +321,10 @@
 
 <!-- 右二整列：事件流 -->
 <div id="evtDock">
-  <div class="dhead"><h3>事件流 · 世界在发生什么</h3></div>
+  <div class="dhead"><h3>事件流 · 世界在发生什么</h3>
+    <div id="evtChips"></div>
+    <div id="evtHint">点类型筛选 · 点任一事件跳到该回合</div>
+  </div>
   <div id="evtBody"></div>
 </div>
 
@@ -539,11 +554,69 @@ var playerCtrl=null;
 function cur(){return scrub.on?scrub.u:userSim;}
 function curBase(){return scrub.on?scrub.b:baseSim;}
 function curPolicy(){return scrub.on?roundRecs[scrub.k].policy:compilePolicy(activeNodes);}
-function log(cls,msg,t){var p=document.createElement('p');p.className=cls;
-  var s=cur();
-  p.innerHTML='<b>'+(t!==undefined?s.yearLabel(t):s.yearLabel(Math.max(0,s.t-1)))+'</b>'+msg;
+/* ---------- 事件流（右二整列，T-F3）----------
+   type 全集 = engine2 各 ev.push 的七类 + app 自产的 sys。
+   每条事件带 data-t（所属回合）与 data-type，供 chips 过滤与点击跳期。 */
+var EVT_TYPES=[['policy','政策'],['region','地方'],['firm','企业'],['fraud','骗补'],
+               ['media','媒体'],['market','市场'],['wave','潮涌'],['sys','系统']];
+var EVT_COL={policy:'#e8b64c',region:'#b9a8ef',firm:'#a8e6d5',fraud:'#ef5350',
+             media:'#f0a5a3',market:'#8b98ab',wave:'#e8b0d0',sys:'#7fd6c2'};
+var evtOn={}; EVT_TYPES.forEach(function(x){evtOn[x[0]]=true;});
+function log(cls,msg,t){
+  var s=cur(), k=(t!==undefined)?t:Math.max(0,s.t-1);
+  var p=document.createElement('p'); p.className=cls+(k<s.t?' jump':'');
+  p.innerHTML='<b>'+s.yearLabel(k)+'</b>'+msg;
+  p.dataset.t=k;                           /* 回合锚恒写；能否跳由 .jump 与点击时校验共同把关 */
+  if(evtOn[cls]===false) p.style.display='none';
   byId('evtBody').prepend(p);
-  while(byId('evtBody').children.length>200)byId('evtBody').lastChild.remove();}
+  while(byId('evtBody').children.length>200)byId('evtBody').lastChild.remove();
+  renderChips();
+}
+/* 政策类事件在 step() 之前入列（本回合尚未推演），推完后才变成可跳——每回合同步一次 */
+function syncEvtJumpable(){
+  var kids=byId('evtBody').children;
+  for(var i=0;i<kids.length;i++) kids[i].classList.toggle('jump', +kids[i].dataset.t<userSim.t);
+}
+function applyEvtFilter(){
+  var kids=byId('evtBody').children;
+  for(var i=0;i<kids.length;i++){
+    var ty=kids[i].className.split(/\s+/)[0];
+    kids[i].style.display=(evtOn[ty]===false)?'none':'';
+  }
+}
+function renderChips(){
+  var kids=byId('evtBody').children, cnt={}, tot=0;
+  for(var i=0;i<kids.length;i++){ var ty=kids[i].className.split(/\s+/)[0];
+    cnt[ty]=(cnt[ty]||0)+1; tot++; }
+  var allOn=EVT_TYPES.every(function(x){return evtOn[x[0]];});
+  var html='<span class="chip'+(allOn?' on':'')+'" data-ty="all"'+
+    (allOn?' style="background:#cfd8e6;border-color:#cfd8e6"':'')+'>全部<i>'+tot+'</i></span>';
+  EVT_TYPES.forEach(function(x){
+    var ty=x[0],on=evtOn[ty]!==false,c=EVT_COL[ty];
+    html+='<span class="chip '+(on?'on':'off')+'" data-ty="'+ty+'"'+
+      (on?' style="background:'+c+';border-color:'+c+'"':' style="border-color:'+c+'33;color:'+c+'"')+
+      '>'+x[1]+'<i>'+(cnt[ty]||0)+'</i></span>';
+  });
+  byId('evtChips').innerHTML=html;
+}
+byId('evtChips').addEventListener('click',function(e){
+  var c=e.target.closest('.chip'); if(!c)return;
+  var ty=c.dataset.ty;
+  if(ty==='all'){ var allOn=EVT_TYPES.every(function(x){return evtOn[x[0]];});
+    EVT_TYPES.forEach(function(x){ evtOn[x[0]]=!allOn; });   /* 全开 ⇄ 全关，一键对照 */ }
+  else evtOn[ty]=!evtOn[ty];
+  applyEvtFilter(); renderChips();
+});
+byId('evtBody').addEventListener('click',function(e){
+  var p=e.target.closest('p'); if(!p||p.dataset.t===undefined)return;
+  var k=+p.dataset.t;
+  if(!(k>=0)||k>=userSim.t)return;
+  markEvtAt(k); doScrub(k);
+});
+function markEvtAt(k){
+  var kids=byId('evtBody').children;
+  for(var i=0;i<kids.length;i++) kids[i].classList.toggle('at', +kids[i].dataset.t===k);
+}
 
 /* ---------- 政策树 UI ---------- */
 var treeBody=byId('treeBody'),nodeTip=byId('nodeTip');
@@ -553,16 +626,16 @@ function userOp(id,lv){
   if(scrub.on||gameOver)return;
   var n=PNODES.find(function(x){return x.id===id;});
   var cost=n.cost||1;
-  if(apRemaining<cost){log('sys','行动点不足——政策注意力是稀缺品（本回合还剩 '+apRemaining+' 点）。');return;}
+  if(apRemaining<cost){log('sys','行动点不足——政策注意力是稀缺品（本回合还剩 '+apRemaining+' 点）。',userSim.t);return;}
   var st=nodeState(n,activeNodes,userSim,apRemaining);
-  if(lv>0&&(st.s==='locked'||st.s==='blocked')){log('sys',n.name+'：'+st.why);return;}
+  if(lv>0&&(st.s==='locked'||st.s==='blocked')){log('sys',n.name+'：'+st.why,userSim.t);return;}
   apRemaining-=cost;
   if(lv>0)activeNodes[id]=lv;else delete activeNodes[id];
   pendingOps.push(['set',id,lv]);
   if(!takenOver){takenOver=true;
     byId('autopilotHint').innerHTML='<b>你已接管</b>——史实剧本停用，基线宇宙继续按史实运行供对照。';
-    log('sys','【接管】'+userSim.yearLabel()+'：你从这里改写政策组合。');}
-  log('policy','【拟定】'+opName(['set',id,lv])+'（下一期生效）');
+    log('sys','【接管】'+userSim.yearLabel()+'：你从这里改写政策组合。',userSim.t);}
+  log('policy','【拟定】'+opName(['set',id,lv])+'（下一期生效）',userSim.t);
   renderTree();updateAP();
 }
 function renderTree(){
@@ -625,7 +698,7 @@ for(var ci=0;ci<20;ci++){
 tl.addEventListener('click',function(e){
   var c=e.target.closest('.tcell');if(!c||!c.classList.contains('played'))return;
   var k=+c.dataset.k; if(k>=userSim.t-0)return;
-  doScrub(k);
+  markEvtAt(k); doScrub(k);
 });
 function refreshTimeline(){
   cells.forEach(function(c,k){
@@ -648,14 +721,14 @@ function doScrub(k){
   log('sys','【回看】'+u.yearLabel(k)+' 的世界快照——同种子重演，逐位还原。');
 }
 byId('btnBack').addEventListener('click',function(){
-  scrub.on=false;byId('scrubBanner').style.display='none';
+  scrub.on=false;byId('scrubBanner').style.display='none';markEvtAt(-1);
   byId('btnPlay').disabled=false;byId('btnStep').disabled=false;refreshAll();
 });
 byId('btnBranch').addEventListener('click',function(){
   userSim=scrub.u;baseSim=scrub.b;activeNodes=scrub.active;
   roundRecs=roundRecs.slice(0,scrub.k+1);
   takenOver=true;gameOver=false;pendingOps=[];apRemaining=AP_PER_ROUND;
-  scrub.on=false;byId('scrubBanner').style.display='none';
+  scrub.on=false;byId('scrubBanner').style.display='none';markEvtAt(-1);
   byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
   byId('autopilotHint').innerHTML='<b>已分叉</b>——你从 '+userSim.yearLabel(userSim.t-1)+' 之后接管历史。';
   log('sys','【分叉】丢弃 '+userSim.yearLabel(userSim.t)+' 之后的旧未来，从这里重新推演。');
@@ -811,7 +884,7 @@ function tick(){
     AUTOPILOT_OPS[userSim.t].forEach(function(o){
       if(o[2]>0)activeNodes[o[1]]=o[2];else delete activeNodes[o[1]];
       pendingOps.push(o);
-      log('policy','【史实】'+opName(o));
+      log('policy','【史实】'+opName(o),userSim.t);
     });
   }
   var pol=compilePolicy(activeNodes);
@@ -904,7 +977,7 @@ function refreshAll(){
     if(ex.fakeNow[i]>0)exFlash[i]=now+1400;
   }
   exMesh.count=n;
-  drawCharts();refreshTimeline();renderTree();
+  drawCharts();refreshTimeline();renderTree();syncEvtJumpable();
   if(selected)renderDetail(selected);
   if(selProv)renderProvCard(selProv);
 }
@@ -970,6 +1043,7 @@ function init(){
   byId('scrubBanner').style.display='none';
   byId('finale').style.display='none';byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
   byId('evtBody').innerHTML='';cardFlow.innerHTML='';
+  EVT_TYPES.forEach(function(x){evtOn[x[0]]=true;});renderChips();
   exCurH.length=0;exTH.length=0;exFlash.length=0;exCol.length=0;
   particles.forEach(function(p){scene.remove(p.m);});particles.length=0;
   byId('autopilotHint').innerHTML='<b>自动驾驶中</b>——史实政策正按时点自动点亮。点击任意节点即接管。';
