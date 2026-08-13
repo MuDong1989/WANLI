@@ -543,7 +543,7 @@
   <button class="btn primary" id="btnAgain" style="margin-top:13px">重开一局</button></div>
 <div id="quote">多算胜，少算不胜</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="./three-r128.min.js"></script>
 <script>
 /*__GEODECODE__*/
 /*__CHINA_GEO__*/
@@ -1494,13 +1494,78 @@ function buildReport(){
     renderer.render(scene,camera);                       // 必须紧接着取，否则缓冲区已被清
     shots+='<img class="shot" alt="终局地图" src="'+renderer.domElement.toDataURL('image/png')+'">';
   }catch(e){ shots+='<p class="dim">（地图快照不可用：'+esc(e.message)+'）</p>'; }
-  var sparks='';
-  ['ch1','ch2','ch3','ch4'].forEach(function(id,i){
-    try{ var cv=byId(id);
-      sparks+='<figure><figcaption>'+esc(['价格与成本前沿','需求与产能','长尾厂商存活数','财政累计投入'][i])+
-              '</figcaption><img src="'+cv.toDataURL('image/png')+'" alt=""></figure>';
-    }catch(e){}
-  });
+  /* 报告图表使用内联 SVG 重新绘制，不再放大产品右栏里的小画布截图。
+     SVG 只编码真实回合数据；红色标记政策操作，不表达价值判断。 */
+  function deltaText(a,b,dec){
+    if(typeof a!=='number'||typeof b!=='number') return '—';
+    var d=a-b, p=Math.abs(b)>1e-9?d/Math.abs(b)*100:null;
+    return (d>0?'+':'')+nf(d,dec)+(p===null?'':' · '+(p>0?'+':'')+nf(p,1)+'%');
+  }
+  function lineChart(title,sub,series,unit){
+    var W=960,H=286,L=54,R=28,T=48,B=38, vals=[];
+    series.forEach(function(s){s.data.forEach(function(v){if(typeof v==='number'&&isFinite(v))vals.push(v);});});
+    if(!vals.length)return '';
+    var lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals),span=hi-lo;
+    if(span<1e-9){lo-=1;hi+=1;}else{lo-=span*.08;hi+=span*.08;}
+    function x(i){return L+(W-L-R)*(series[0].data.length<2?0:i/(series[0].data.length-1));}
+    function y(v){return T+(H-T-B)*(hi-v)/(hi-lo);}
+    var svg='<section class="chart"><div class="chart-head"><div><h3>'+esc(title)+'</h3><p>'+esc(sub)+'</p></div><div class="chart-legend">';
+    series.forEach(function(s){svg+='<span><i style="background:'+s.color+'"></i>'+esc(s.name)+'</span>';});
+    svg+='</div></div><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(title)+'">';
+    for(var g=0;g<5;g++){
+      var gy=T+(H-T-B)*g/4, gv=hi-(hi-lo)*g/4;
+      svg+='<line class="gridline" x1="'+L+'" y1="'+gy+'" x2="'+(W-R)+'" y2="'+gy+'"/>'+
+        '<text class="axis" x="'+(L-9)+'" y="'+(gy+3)+'" text-anchor="end">'+esc(nf(gv,Math.abs(hi)<20?2:0))+'</text>';
+    }
+    recs.forEach(function(r,i){if((r.ops||[]).length&&i<series[0].data.length){
+      svg+='<line class="policy-mark" x1="'+x(i)+'" y1="'+T+'" x2="'+x(i)+'" y2="'+(H-B)+'"/>';
+    }});
+    series.forEach(function(s){
+      var pts=s.data.map(function(v,i){return x(i)+','+y(v);}).join(' ');
+      svg+='<polyline class="trace '+(s.dash?'baseline':'')+'" style="stroke:'+s.color+'" points="'+pts+'"/>';
+      s.data.forEach(function(v,i){svg+='<circle class="tick" style="fill:'+s.color+'" cx="'+x(i)+'" cy="'+y(v)+'" r="1.8"/>';});
+    });
+    var n=series[0].data.length;
+    for(var i=0;i<n;i+=Math.max(1,Math.ceil(n/6))){svg+='<text class="axis" x="'+x(i)+'" y="'+(H-12)+'" text-anchor="middle">'+esc(sim.yearLabel(i).replace('半年',''))+'</text>';}
+    svg+='<text class="unit" x="'+L+'" y="18">'+esc(unit)+'</text></svg></section>';
+    return svg;
+  }
+  var INK=cssv('--ink','#121212'), MUT=cssv('--ink-2','#555550'), ACC=cssv('--accent','#e3120b'), BASE=cssv('--base-line','#8e8b84');
+  function vals(src,key){return src.map(function(x){return +x[key]||0;});}
+  var charts='';
+  charts+=lineChart('市场价格与成本前沿','实线为本次推演，虚线为史实基线；竖向红线表示该回合存在政策操作。',[
+    {name:'推演价格',data:vals(sim.history,'P'),color:INK},{name:'推演成本',data:vals(sim.history,'Cf'),color:MUT},
+    {name:'基线价格',data:vals(base.history,'P'),color:BASE,dash:true},{name:'基线成本',data:vals(base.history,'Cf'),color:'#b9b6ae',dash:true}
+  ],'元 / W');
+  charts+=lineChart('市场需求与产业产能','使用同一纵轴呈现需求与供给规模，不对供需关系作自动判断。',[
+    {name:'推演需求',data:vals(sim.history,'D'),color:INK},{name:'推演产能',data:vals(sim.history,'S'),color:ACC},
+    {name:'基线需求',data:vals(base.history,'D'),color:BASE,dash:true},{name:'基线产能',data:vals(base.history,'S'),color:'#b9b6ae',dash:true}
+  ],'GW');
+  charts+=lineChart('长尾企业存活与累计退出','展示规则驱动长尾种群的存活数量及累计死亡数量。',[
+    {name:'推演存活',data:vals(sim.history,'exAlive'),color:INK},{name:'基线存活',data:vals(base.history,'exAlive'),color:BASE,dash:true},
+    {name:'累计死亡',data:vals(sim.history,'exDeadCum'),color:ACC}
+  ],'企业数');
+  charts+=lineChart('财政累计投入与骗补流失','金额为引擎逐回合累计值；颜色仅区分序列。',[
+    {name:'推演财政',data:vals(sim.history,'fiscalTotal'),color:INK},{name:'推演流失',data:vals(sim.history,'waste'),color:ACC},
+    {name:'基线财政',data:vals(base.history,'fiscalTotal'),color:BASE,dash:true},{name:'基线流失',data:vals(base.history,'waste'),color:'#b9b6ae',dash:true}
+  ],'亿元');
+
+  var metricCards=h&&hb?[
+    ['财政累计投入',h.fiscalTotal,hb.fiscalTotal,'亿元',0],['骗补流失',h.waste,hb.waste,'亿元',0],
+    ['名角存活',h.alive,hb.alive,'家',0],['长尾存活',h.exAlive,hb.exAlive,'家',0],
+    ['成本前沿',h.Cf,hb.Cf,'元/W',2],['市场价格',h.P,hb.P,'元/W',2],
+    ['市场需求',h.D,hb.D,'GW',2],['产业产能',h.S,hb.S,'GW',2],
+    ['公众舆情',h.opinion,hb.opinion,'/100',0]
+  ].map(function(m){return '<div class="metric"><span>'+esc(m[0])+'</span><strong>'+nf(m[1],m[4])+'</strong><em>'+esc(m[3])+'</em>'+
+    '<div><b>史实 '+nf(m[2],m[4])+'</b><i>差值 '+esc(deltaText(m[1],m[2],m[4]))+'</i></div></div>';}).join(''):'';
+
+  var policyStrip=recs.map(function(r,i){
+    var list=(r.ops||[]).map(function(o){return nodeLabel(o);});
+    var branch=branchLog.some(function(b){return b.t===i;});
+    return '<div class="policy-cell'+(list.length?' changed':'')+(branch?' branched':'')+'"><time>t'+i+' · '+esc(sim.yearLabel(i))+'</time>'+
+      '<strong>'+(branch?'分叉点':(list.length?'政策操作':'沿用'))+'</strong>'+
+      '<p>'+(list.length?list.map(esc).join('<br>'):esc(polText(r.policy)))+'</p></div>';
+  }).join('');
 
   return {name:'wanli-report-seed'+ENGINE.CFG.seed+'-t'+upto+'-'+S.date+'.html',
           jsonName:jsonName, json:JSON.stringify(repro,null,1),
@@ -1508,30 +1573,51 @@ function buildReport(){
   '<meta name="viewport" content="width=device-width,initial-scale=1">'+
   '<title>'+esc(TITLE)+'</title><style>\n'+
   '  :root{\n'+rptVars()+'\n  }\n'+
-  '  *{box-sizing:border-box} body{margin:0;padding:26px 30px 60px;background:var(--page);color:var(--ink);'+
+  '  *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--page);color:var(--ink);'+
   'font-family:var(--sans);font-size:13px;line-height:1.6}\n'+
-  '  .wrap{max-width:1080px;margin:0 auto}\n'+
-  '  h1{font-size:22px;letter-spacing:.06em;margin:0 0 4px;display:flex;align-items:center;gap:10px}\n'+
-  '  h1::before{content:"";width:6px;height:22px;background:var(--accent);flex:0 0 auto}\n'+
-  '  .lede{color:var(--ink-2);margin:0 0 20px;font-size:12px}\n'+
-  '  h2{font-size:14px;letter-spacing:.14em;margin:30px 0 8px;padding-top:9px;border-top:2px solid var(--ink)}\n'+
+  '  .wrap{max-width:1240px;margin:0 auto;padding:30px 34px 80px}\n'+
+  '  .mast{display:grid;grid-template-columns:1.1fr .9fr;gap:42px;padding:20px 0 30px;border-bottom:1px solid var(--ink)}\n'+
+  '  .brandline{font:700 11px var(--mono);letter-spacing:.28em;color:var(--accent);margin-bottom:50px}\n'+
+  '  h1{font-size:42px;line-height:1.08;letter-spacing:0;margin:0 0 14px;max-width:12em}\n'+
+  '  .lede{color:var(--ink-2);margin:0;max-width:54em;font-size:12px}\n'+
+  '  .map-frame{background:var(--panel-2);min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden}\n'+
+  '  .map-frame .shot{width:100%;height:auto;max-width:none;border:0;margin:0;mix-blend-mode:multiply}\n'+
+  '  .folio{display:flex;justify-content:space-between;gap:20px;margin-top:18px;font:10px var(--mono);color:var(--ink-2)}\n'+
+  '  nav{display:flex;flex-wrap:wrap;gap:6px 18px;padding:13px 0;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--page);z-index:4}\n'+
+  '  nav a{color:var(--ink-2);text-decoration:none;font:600 10px var(--mono)} nav a:hover{color:var(--accent)}\n'+
+  '  h2{font-size:18px;letter-spacing:0;margin:48px 0 14px;padding-top:12px;border-top:2px solid var(--ink)}\n'+
   '  h2 small{font-weight:400;letter-spacing:0;color:var(--ink-2);margin-left:8px;font-size:11px}\n'+
+  '  h3{letter-spacing:0}\n'+
   '  table{width:100%;border-collapse:collapse;font-size:11.5px}\n'+
+  '  .table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}\n'+
   '  th,td{padding:4px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}\n'+
   '  th{color:var(--ink-2);font-weight:600;font-size:10px;letter-spacing:.08em;border-bottom:1px solid var(--ink)}\n'+
   '  td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}\n'+
   '  td.mono{font-family:var(--mono);font-size:10.5px}\n'+
-  '  .dim{color:var(--ink-2)} td.up{color:var(--accent)} td.down{color:#0f6b5c}\n'+
+  '  .dim{color:var(--ink-2)} td.up,td.down{color:var(--ink)}\n'+
   '  .meta{display:grid;grid-template-columns:120px 1fr;gap:3px 14px;font-size:12px;'+
-  'background:var(--panel);border:1px solid var(--line);padding:12px 14px}\n'+
+  'border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0}\n'+
   '  .meta b{color:var(--ink-2);font-weight:600}\n'+
+  '  .metrics{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--ink);border-left:1px solid var(--line)}\n'+
+  '  .metric{min-height:145px;padding:17px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}\n'+
+  '  .metric>span{display:block;color:var(--ink-2);font-size:11px}.metric strong{font:800 34px var(--mono);display:inline-block;margin-top:15px}\n'+
+  '  .metric>em{font-style:normal;color:var(--ink-2);margin-left:6px}.metric>div{display:flex;justify-content:space-between;gap:8px;margin-top:14px;font:10px var(--mono)}\n'+
+  '  .metric>div b{font-weight:500;color:var(--ink-2)}.metric>div i{font-style:normal}\n'+
+  '  .chart{margin:0 0 20px;padding:17px 18px 10px;background:var(--panel);border-top:1px solid var(--ink)}\n'+
+  '  .chart-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.chart h3{font-size:14px;margin:0}.chart p{font-size:10.5px;color:var(--ink-2);margin:2px 0 0}\n'+
+  '  .chart-legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px;font:9.5px var(--mono);color:var(--ink-2)}.chart-legend i{display:inline-block;width:13px;height:2px;margin:0 5px 3px 0}\n'+
+  '  .chart svg{display:block;width:100%;height:auto;margin-top:8px}.gridline{stroke:var(--line);stroke-width:1}.policy-mark{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 4;opacity:.65}\n'+
+  '  .trace{fill:none;stroke-width:2;vector-effect:non-scaling-stroke}.trace.baseline{stroke-width:1.2;stroke-dasharray:5 5}.tick{opacity:.85}.axis,.unit{fill:var(--ink-2);font:9px var(--mono)}\n'+
+  '  .policy-strip{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink);border-left:1px solid var(--line)}\n'+
+  '  .policy-cell{min-height:116px;padding:11px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.policy-cell time{display:block;font:9px var(--mono);color:var(--ink-2)}\n'+
+  '  .policy-cell strong{display:block;font-size:11px;margin:8px 0 3px}.policy-cell p{font-size:10px;margin:0;color:var(--ink-2);word-break:break-word}.policy-cell.changed{border-top:3px solid var(--accent)}.policy-cell.branched{background:var(--panel-2)}\n'+
   '  .ev{border-left:3px solid var(--ink-2);padding:2px 0 2px 9px;margin:3px 0;font-size:11.5px}\n'+
   '  .ev b{display:block;font:10px var(--mono);color:var(--ink-2)}\n'+
   '  .ev.policy{border-color:var(--evt-policy)} .ev.fraud{border-color:var(--evt-fraud)}\n'+
   '  .ev.region{border-color:var(--evt-region)} .ev.firm{border-color:var(--evt-firm)}\n'+
   '  .ev.media{border-color:var(--evt-media)} .ev.market{border-color:var(--evt-market)}\n'+
   '  .ev.sys{border-color:var(--evt-sys)} .ev.wave{border-color:var(--evt-wave)}\n'+
-  '  .card{background:var(--panel);border:1px solid var(--line);padding:11px 13px;margin:9px 0}\n'+
+  '  .card{background:var(--panel);border-top:1px solid var(--ink);padding:14px 0 18px;margin:14px 0}\n'+
   '  .card h4{margin:0 0 7px;font-size:13px} .card h4 small{font-weight:400;color:var(--ink-2);font-size:10.5px}\n'+
   '  .segs{display:grid;grid-template-columns:1.1fr 1.1fr 1fr 1.2fr;gap:12px}\n'+
   '  .segs>div{border-left:1px solid var(--line);padding-left:9px}\n'+
@@ -1547,10 +1633,7 @@ function buildReport(){
   '  .seat.cz b,.seat.cz .lev i{color:#1e3a6e;background:#1e3a6e}\n'+
   '  .seat.jg b,.seat.jg .lev i{color:#7d4436;background:#7d4436}\n'+
   '  .seat b{text-align:right;font-family:var(--mono)} .seat em{font-style:normal;color:var(--ink-2)}\n'+
-  '  .shot{width:100%;max-width:620px;border:1px solid var(--line);display:block;margin:8px 0}\n'+
-  '  .sparks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px}\n'+
-  '  .sparks img{width:100%;border:1px solid var(--line);display:block}\n'+
-  '  .sparks figcaption{font-size:10.5px;font-weight:700;margin-bottom:2px}\n'+
+  '  .shot{width:100%;display:block}\n'+
   '  details{margin-top:10px;background:var(--panel);border:1px solid var(--line);padding:10px 13px}\n'+
   '  summary{cursor:pointer;font-weight:600;font-size:12px}\n'+
   '  pre{white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:9.5px;'+
@@ -1559,30 +1642,38 @@ function buildReport(){
   '  .btnbar a,.btnbar button{font-family:var(--sans);font-size:12px;padding:5px 12px;cursor:pointer;'+
   'border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none}\n'+
   '  .btnbar button{border-color:var(--accent);color:var(--accent)}\n'+
-  '  @media print{.btnbar{display:none} body{padding:0} .card,.meta,details{break-inside:avoid}}\n'+
+  '  @media(max-width:760px){.wrap{padding:18px 16px 55px}.mast{grid-template-columns:1fr;gap:20px}.brandline{margin-bottom:25px}h1{font-size:32px}.metrics{grid-template-columns:1fr 1fr}.policy-strip{grid-template-columns:1fr 1fr}.segs{grid-template-columns:1fr 1fr}.chart-head{display:block}.chart-legend{justify-content:flex-start;margin-top:8px}.btnbar{position:static;margin:10px 0}.btnbar a,.btnbar button{flex:1;text-align:center}}\n'+
+  '  @media print{.btnbar,nav{display:none} .wrap{max-width:none;padding:0}.mast{min-height:92vh;break-after:page}.chart,.card,.meta,details,.metric{break-inside:avoid}h2{break-after:avoid}.policy-strip{grid-template-columns:repeat(4,1fr)}.table-scroll{overflow:visible}}\n'+
   '</style></head><body><div class="wrap">'+
   '<div class="btnbar"><button onclick="window.print()">打印 / 存 PDF</button>'+
   '<a download="'+esc(jsonName)+'" href="'+jsonHref+'">下载复现数据 .json</a></div>'+
-  '<h1>万历 · 政企推演场 — 推演报告</h1>'+
-  '<p class="lede">'+esc(TITLE)+'　·　本文件自包含，断网可打开；所有数字来自本次推演的引擎输出，未经二次加工。</p>'+
-  shots+
-  '<h2>壹 · 元数据</h2><div class="meta">'+
+  '<header class="mast"><div><div class="brandline">WANLI / POLICY SIMULATION RECORD</div>'+
+  '<h1>万历政企推演场<br>推演全景记录</h1>'+
+  '<p class="lede">'+esc(TITLE)+'。本报告不生成政策结论；地图、指标、事件与主体行动均按本次推演记录呈现。</p>'+
+  '<div class="folio"><span>SEED '+ENGINE.CFG.seed+'</span><span>'+esc(sim.yearLabel(0))+' — '+esc(sim.yearLabel(Math.max(0,upto)))+'</span><span>'+sim.t+' ROUNDS</span></div></div>'+
+  '<div class="map-frame">'+shots+'</div></header>'+
+  '<nav><a href="#overview">推演信息</a><a href="#metrics">指标总览</a><a href="#trajectories">逐回合轨迹</a><a href="#policies">政策与分叉</a><a href="#actors">主体档案</a><a href="#events">事件全录</a><a href="#appendix">审计附录</a></nav>'+
+  '<h2 id="overview">壹 · 推演信息</h2><div class="meta">'+
     meta.map(function(m){return '<b>'+esc(m[0])+'</b><span>'+m[1]+'</span>';}).join('')+'</div>'+
-  '<h2>贰 · 终局 KPI ± 史实基线 <small>差值 = 你的宇宙 − 基线宇宙；同种子，唯一差异是政策</small></h2>'+
+  '<h2 id="metrics">贰 · 双宇宙指标总览 <small>仅呈现数值；差值 = 推演宇宙 − 史实基线</small></h2>'+
+  '<div class="metrics">'+metricCards+'</div>'+
+  '<h3 style="font-size:12px;margin:22px 0 5px">终局指标明细</h3>'+
   '<table><thead><tr><th>指标</th><th style="text-align:right">你的宇宙</th>'+
     '<th style="text-align:right">史实基线</th><th style="text-align:right">差值</th></tr></thead><tbody>'+kpi+'</tbody></table>'+
-  (sparks? '<div class="sparks">'+sparks+'</div>':'')+
-  '<h2>叁 · 逐回合全史 <small>共 '+sim.history.length+' 行</small></h2>'+
-  '<table><thead><tr><th>t</th><th>年份</th><th>价格</th><th>成本</th><th>需求</th><th>产能</th>'+
-    '<th>供需比</th><th>名角</th><th>长尾</th><th>累计死亡</th><th>财政</th><th>流失</th><th>舆情</th>'+
-    '<th>骗补起数</th><th>基线 财政/流失</th></tr></thead><tbody>'+hist+'</tbody></table>'+
-  '<h2>肆 · 政策操作时间线 <small>ops = 该回合拟定、下一期生效</small></h2>'+
+  '<h2 id="trajectories">叁 · 逐回合轨迹 <small>红色竖线只标记政策操作，不表示结果好坏</small></h2>'+charts+
+  '<h2 id="policies">肆 · 政策与分叉</h2><div class="policy-strip">'+policyStrip+'</div>'+
+  '<h3 style="font-size:12px;margin:22px 0 5px">政策操作明细</h3>'+
   '<table><thead><tr><th>t</th><th>年份</th><th>本回合政策操作</th><th>编译后生效政策</th></tr></thead><tbody>'+ops+'</tbody></table>'+
-  '<h2>伍 · 叙事层</h2>'+
-  '<h3 style="font-size:12px;margin:14px 0 4px">事件全录 <small class="dim">（来自事件流；上限 200 条，超出部分已在界面滚出）</small></h3>'+evs+
-  '<h3 style="font-size:12px;margin:18px 0 4px">八名角 · 终局五段决策卡</h3>'+firms+
-  '<h3 style="font-size:12px;margin:18px 0 4px">四省内阁 · 末期决策卡</h3>'+provs+
-  '<h2>陆 · 复现数据</h2>'+
+  '<h2 id="actors">伍 · 主体决策档案 <small>完整呈现 8 家企业名角与 4 个省级内阁的终局决策卡</small></h2>'+
+  '<h3 style="font-size:12px;margin:14px 0 4px">八名角 · 终局五段决策卡</h3>'+firms+
+  '<h3 style="font-size:12px;margin:24px 0 4px">四省内阁 · 末期决策卡</h3>'+provs+
+  '<h2 id="events">陆 · 事件全录 <small>按时间正序，来自产品事件流</small></h2>'+
+  '<p class="dim" style="font-size:11px">事件流当前最多保留 200 条；超过上限且已从产品界面滚出的早期记录不会出现在本节。</p>'+evs+
+  '<h2 id="appendix">柒 · 逐回合审计表 <small>共 '+sim.history.length+' 行</small></h2>'+
+  '<div class="table-scroll"><table><thead><tr><th>t</th><th>年份</th><th>价格</th><th>成本</th><th>需求</th><th>产能</th>'+
+    '<th>供需比</th><th>名角</th><th>长尾</th><th>累计死亡</th><th>财政</th><th>流失</th><th>舆情</th>'+
+    '<th>骗补起数</th><th>基线 财政/流失</th></tr></thead><tbody>'+hist+'</tbody></table></div>'+
+  '<h2>捌 · 复现数据</h2>'+
   '<details><summary>展开 JSON（seed + 逐回合 ops + 全史）</summary>'+
   '<p class="dim" style="font-size:11.5px">此数据 + <code>engine/engine2.js</code> 可逐位重放本次推演：'+
   '以 seed 新建 Sim，按 ops 逐回合 compilePolicy 后 step，得到的 history 应与此处逐位相同。'+

@@ -26,7 +26,7 @@
 html,body{margin:0;background:var(--ink);color:var(--ink);font-family:var(--sans)}
 body{overflow-x:hidden}
 button{font:inherit}
-.story{height:3260vh;position:relative;background:var(--paper)}
+.story{height:3040vh;position:relative;background:var(--paper)}
 .stage{position:sticky;top:0;height:100dvh;min-height:620px;overflow:hidden;isolation:isolate;background:var(--paper)}
 .backdrop{position:absolute;inset:0;z-index:-5;background-image:url('./assets/wanli-hero.webp');background-size:cover;background-position:center;transform:scale(1.035);filter:saturate(.62) contrast(.88) brightness(1.05)}
 .backdrop::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(239,237,231,.98) 0%,rgba(235,232,224,.94) 39%,rgba(225,223,216,.64) 60%,rgba(10,17,19,.14) 100%)}
@@ -53,6 +53,15 @@ button{font:inherit}
 .counter::after{transform:translate(6px,24px);opacity:.06}
 .times{font-size:clamp(22px,2.4vw,38px);line-height:1.2;margin-bottom:9px;color:var(--ink)}
 .promise{margin:30px 0 0;font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:#59615f}
+.interlude{position:absolute;inset:0;z-index:6;display:grid;place-items:center;padding:clamp(28px,7vw,110px);background:#0c1112;color:#ece8de;opacity:0;visibility:hidden;will-change:transform,opacity}
+.interlude::before{content:'';position:absolute;inset:0;opacity:.16;background-image:linear-gradient(rgba(210,185,135,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(210,185,135,.08) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(circle at center,#000,transparent 78%)}
+.interlude-inner{position:relative;width:min(1120px,86vw)}
+.interlude-kicker{margin:0 0 32px;font-family:var(--mono);font-size:10px;letter-spacing:.32em;color:#b98a43}
+.interlude-question{margin:0;font-size:clamp(36px,4.5vw,70px);font-weight:400;line-height:1.42;letter-spacing:0;text-wrap:balance}
+.interlude-line{display:block;opacity:0;transform:translateY(34px);will-change:transform,opacity,filter;filter:blur(8px)}
+.interlude-gold{color:#d3a14e}
+.interlude-rule{display:block;width:0;height:1px;margin-top:38px;background:#b47a2b}
+.interlude-index{position:absolute;right:32px;bottom:28px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:#756a58}
 .tower-caption{position:absolute;right:clamp(24px,4vw,72px);bottom:clamp(52px,7vh,82px);z-index:3;font-family:var(--mono);font-size:10px;letter-spacing:.26em;color:rgba(235,220,184,.64);writing-mode:vertical-rl}
 .scroll-cue{position:absolute;z-index:5;left:50%;bottom:30px;width:28px;height:48px;transform:translateX(-50%);color:#5c625f;will-change:transform,opacity}
 .scroll-cue span{position:absolute;left:13px;top:0;width:1px;height:34px;background:currentColor}
@@ -66,10 +75,13 @@ button{font:inherit}
 .beat h2{margin:0;font-size:clamp(40px,4.5vw,70px);font-weight:500;line-height:1.08;letter-spacing:0;text-wrap:balance}
 .beat-lead{margin:24px 0 0;max-width:34em;font-size:clamp(15px,1.2vw,18px);line-height:1.75;color:var(--ink-soft)}
 .beat-question{margin:28px 0 0;padding-top:15px;border-top:1px solid var(--line);font-size:clamp(17px,1.45vw,22px);font-weight:500}
-.intro-copy{top:46%;width:min(580px,42vw)}
-.intro-copy h2{font-size:clamp(50px,5.8vw,88px)}
-.intro-rule{display:block;width:74px;height:2px;margin:28px 0;background:var(--gold)}
-.intro-manifesto{font-family:var(--mono);font-size:clamp(13px,1.1vw,17px);letter-spacing:.08em;color:#59615f}
+.intro-copy{top:47%;width:min(650px,45vw)}
+.intro-copy h2{font-size:clamp(48px,5.35vw,82px)}
+.intro-title-line{display:block}.intro-accent{color:var(--gold)}
+.intro-explain{margin:26px 0 0;max-width:39em;font-size:clamp(15px,1.18vw,18px);line-height:1.8;color:var(--ink-soft)}
+.intro-rule{display:block;width:74px;height:2px;margin:25px 0 20px;background:var(--gold)}
+.intro-structure{margin:0;font-size:clamp(17px,1.42vw,22px);line-height:1.55;font-weight:500;color:#172022}
+.intro-manifesto{margin:18px 0 0;font-family:var(--mono);font-size:clamp(10px,.86vw,13px);line-height:1.65;letter-spacing:.06em;color:#69716e}
 .metric-strip{display:flex;gap:34px;margin-top:30px}
 .metric strong{display:block;font-family:var(--mono);font-size:clamp(38px,4vw,62px);font-weight:400;line-height:1;color:var(--gold)}
 .metric span{display:block;margin-top:8px;font-size:12px;color:var(--ink-soft)}
@@ -78,16 +90,15 @@ button{font:inherit}
 .chart-title{position:absolute;left:0;top:0;font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:#303b3a}
 .actor-map svg,.longtail-chart svg,.mechanism-map svg{width:100%;height:100%;overflow:visible}
 .actor-map{width:min(38vw,550px)}
-.actor-map svg{transform:translateX(2%)}
-.actor-map .node{fill:#f1eee5;stroke:#1d2c2c;stroke-width:1.4}
-.actor-map .node.key{fill:#c7831f;stroke:#8d5712}
-.actor-map .relation{fill:none;stroke:rgba(166,103,19,.78);stroke-width:1.35;stroke-dasharray:5 7}
-.actor-map .pulse{fill:#c7831f}
+.actor-map svg{transform:translateX(1%)}
+.actor-map .ledger-line{stroke:rgba(38,53,52,.2);stroke-width:1}
+.actor-map .ledger-rule{stroke:rgba(38,53,52,.48);stroke-width:1}
+.actor-map .dimension-dot{fill:#263534;opacity:.72}
+.actor-map .dimension-dot.gold{fill:#b47a2b;opacity:1}
+.actor-map .group-mark{fill:#b47a2b}
 .actor-map text,.longtail-chart text,.mechanism-map text{font-family:var(--mono);fill:#4f5856;letter-spacing:.06em}
-.actor-map .label-main{font-family:var(--sans);font-size:15px;letter-spacing:0;fill:#172022}
-.actor-map .label-small{font-size:8px}
-.relation-tags{position:absolute;left:50%;bottom:8%;display:flex;gap:8px;transform:translateX(-50%)}
-.relation-tags span{padding:6px 8px;border-top:1px solid rgba(180,122,43,.55);font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:#6d5a3d}
+.actor-map .label-main{font-family:var(--sans);font-size:13px;letter-spacing:0;fill:#172022}
+.actor-map .label-small{font-size:7px}.actor-map .actor-role{font-size:7px;fill:#777f7c}.actor-map .dimension-head{font-size:6.5px;fill:#756443}
 .longtail-chart{height:min(58vh,500px)}
 .longtail-chart svg{transform:translateX(2%)}
 .longtail-chart .axis{stroke:#263534;stroke-width:1.3}
@@ -99,29 +110,32 @@ button{font:inherit}
 .parameter-row{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap}
 .parameter-row span{padding:7px 10px;border-top:1px solid var(--line);font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:#626b68}
 .mechanism-map{height:min(62vh,530px)}
+.beat-mechanism .beat-copy{width:min(515px,38vw)}
+.beat-mechanism h2{font-size:clamp(38px,4.15vw,64px)}
+.mechanism-conclusion{display:block;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:clamp(17px,1.4vw,21px);font-weight:500;color:var(--ink)}
 .mechanism-map .rail{stroke:rgba(27,44,43,.52);stroke-width:1.2}
 .mechanism-map .flow{fill:none;stroke:#c7831f;stroke-width:2.4;stroke-dasharray:7 7}
 .mechanism-map .rail-head{font-family:var(--sans);font-size:16px;letter-spacing:0;fill:#172022}
 .mechanism-map .rail-en{font-size:8px;fill:#8a7659}
 .mechanism-map .item{font-family:var(--sans);font-size:12px;letter-spacing:0;fill:#263534}
 .mechanism-map .operator{font-size:23px;fill:#b47a2b}
-.interface-visual{display:grid;align-content:center;gap:0;padding:4vh 0}
-.io-line{display:grid;grid-template-columns:1fr 42px 1fr;align-items:center;min-height:74px;border-top:1px solid var(--line)}
-.io-line:last-of-type{border-bottom:1px solid var(--line)}
+.interface-visual{display:grid;align-content:center;gap:0;padding:3vh 0}
+.io-line{display:grid;grid-template-columns:82px 32px 1fr;align-items:center;min-height:66px;border-top:1px solid var(--line)}
 .io-label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:#69716e}
-.io-value{font-size:18px;color:#172022}
+.io-value{font-size:17px;color:#172022}
 .io-arrow{text-align:center;color:var(--gold)}
-.decision-switch{display:grid;grid-template-columns:1fr 1fr;margin:24px 0;border:1px solid rgba(44,53,52,.28)}
-.decision-switch div{padding:18px}.decision-switch div+div{border-left:1px solid rgba(44,53,52,.28)}
-.decision-switch small{display:block;font-family:var(--mono);font-size:8px;letter-spacing:.17em;color:#7d8582}
-.decision-switch strong{display:block;margin-top:8px;font-size:18px;font-weight:500}
-.decision-switch .active{background:#172022;color:#eee9dd}.decision-switch .active small{color:#c9ad78}
-.foundation-lock{display:flex;justify-content:space-between;padding-top:12px;border-top:2px solid var(--gold);font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:#5c6562}
-.finale{text-align:left}.finale .beat-copy{width:min(630px,44vw)}
-.finale-lines{display:grid;gap:12px;margin-top:34px}
-.finale-line{display:grid;grid-template-columns:70px 1fr;align-items:baseline;padding-top:11px;border-top:1px solid var(--line)}
-.finale-line strong{font-size:20px;font-weight:500}.finale-line span{font-size:15px;color:var(--ink-soft)}
-.finale-note{margin-top:30px;font-family:var(--mono);font-size:12px;line-height:1.8;letter-spacing:.08em;color:#72582f}
+.agent-decision{position:relative;margin:12px 0 16px;padding:20px 22px 18px 114px;border:1px solid rgba(44,53,52,.28);background:rgba(238,234,224,.34)}
+.agent-decision::before{content:'DECISION';position:absolute;left:18px;top:22px;font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:#69716e}
+.agent-decision strong{display:block;font-size:21px;font-weight:500;color:#172022}
+.agent-decision strong span{color:var(--gold)}
+.agent-decision small{display:block;margin-top:7px;font-size:12px;line-height:1.55;color:var(--ink-soft)}
+.agent-actions{padding:14px 0 16px;border-top:1px solid var(--line)}
+.agent-actions .io-value{display:block;margin-top:7px;font-size:13px;color:var(--ink-soft)}
+.depth-scope{border-top:2px solid var(--gold)}
+.depth-row{display:grid;grid-template-columns:58px 1fr auto;align-items:center;min-height:34px;border-bottom:1px solid var(--line)}
+.depth-row strong{font-size:12px;font-weight:600;color:#172022}.depth-row span{font-size:11px;color:var(--ink-soft)}
+.depth-row em{font-family:var(--mono);font-size:8px;font-style:normal;letter-spacing:.14em;color:#767d79}
+.depth-row:first-child em{color:var(--gold)}
 .evidence-chapter{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;visibility:hidden;background:rgba(233,230,222,.78);will-change:opacity}
 .evidence-beat{position:absolute;inset:0;opacity:0;visibility:hidden;will-change:transform,opacity}
 .evidence-head{position:absolute;left:clamp(24px,5.5vw,94px);top:clamp(28px,6vh,66px);max-width:min(820px,62vw)}
@@ -132,6 +146,20 @@ button{font:inherit}
 .evidence-rings{position:absolute;right:5vw;top:50%;width:min(49vw,720px);aspect-ratio:1.2;transform:translateY(-47%)}
 .evidence-rings svg{width:100%;height:100%;overflow:visible}.evidence-rings ellipse{fill:none;stroke:rgba(42,54,52,.28);stroke-width:1}.evidence-rings .active{stroke:var(--gold);stroke-width:1.5;stroke-dasharray:5 10}.evidence-rings path{fill:none;stroke:var(--gold);stroke-width:1.2;stroke-dasharray:4 9}.evidence-rings text{font-family:var(--mono);font-size:9px;letter-spacing:.14em;fill:#535d59}
 .dive-note{margin-top:32px;padding-top:15px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;line-height:1.8;letter-spacing:.08em;color:#6d5a3d}
+.evidence-foundation{background:rgba(240,239,235,.94)}
+.foundation-head{position:absolute;left:5.5vw;right:5.5vw;top:5.2vh;display:grid;grid-template-columns:minmax(360px,.75fr) minmax(560px,1.25fr);gap:5vw;align-items:end}
+.foundation-title .evidence-kicker{margin-bottom:10px}.foundation-title h2{margin:0;font-size:clamp(42px,4.5vw,70px);font-weight:500;line-height:1.02;letter-spacing:0}.foundation-title p{margin:12px 0 0;max-width:39em;font-size:13px;line-height:1.6;color:#5e6663}
+.theory-rail{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #aaa9a2;border-bottom:1px solid #cfcec7}
+.theory-item{position:relative;min-height:86px;padding:14px 15px 12px 20px}.theory-item+.theory-item{border-left:1px solid #cfcec7}.theory-item::before{content:'';position:absolute;left:0;top:17px;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+.theory-item small{display:block;font-family:var(--mono);font-size:7px;letter-spacing:.14em;color:#8c672e}.theory-item strong{display:block;margin-top:7px;font-size:14px;font-weight:600}.theory-item span{display:block;margin-top:5px;font-size:9px;line-height:1.45;color:#747a77}
+.source-board{position:absolute;left:5.5vw;right:5.5vw;top:28.5vh;bottom:6.5vh;display:grid;grid-template-columns:1.06fr 1.12fr 1.08fr 1.06fr;border-top:1px solid #8f8e88;border-bottom:1px solid #bdbcb5;background:rgba(240,239,235,.46)}
+.source-track{position:relative;min-width:0;padding:15px 18px 72px}.source-track+.source-track{border-left:1px solid #cfcec7}.source-track.focus{background:rgba(28,28,26,.035)}
+.track-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #cfcec7}.track-head span{font-family:var(--mono);font-size:7px;letter-spacing:.18em;color:#9a6928}.track-head h3{margin:0;font-size:19px;font-weight:600}.track-head em{font-family:var(--mono);font-size:7px;font-style:normal;letter-spacing:.1em;color:#747a77}
+.source-records{margin:0;padding:0;list-style:none}.source-record{position:relative;padding:9px 0 9px 14px;border-bottom:1px solid #deddd6}.source-record::before{content:'';position:absolute;left:0;top:15px;width:4px;height:4px;border-radius:50%;background:#1c1c1a}.source-record.partial::before{background:transparent;border:1px solid #8f8e88}
+.source-record b{display:block;font-size:11px;font-weight:600;line-height:1.35;color:#242927}.source-record span{display:block;margin-top:3px;font-size:8px;line-height:1.45;color:#717773}.source-record mark{padding:0;background:transparent;color:#9a6928;font-family:var(--mono);font-size:9px;font-weight:700}
+.source-foot{position:absolute;left:18px;right:18px;bottom:13px;padding-top:9px;border-top:1px solid #aaa9a2}.source-foot small{font-family:var(--mono);font-size:6px;letter-spacing:.15em;color:#8f8e88}.source-foot strong{display:block;margin-top:5px;font-family:var(--mono);font-size:8px;font-weight:500;line-height:1.5;color:#343a37}.source-foot::after{content:'';position:absolute;right:0;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.fiscal-compare{height:70px;margin:7px 0 2px}.fiscal-compare svg{width:100%;height:100%;overflow:visible}.fiscal-compare .compare-rail{stroke:#d2d1ca;stroke-width:.8}.fiscal-compare .compare-link{stroke:#8f8e88;stroke-width:.7}.fiscal-compare .compare-before{fill:#f0efeb;stroke:#1c1c1a;stroke-width:1.2}.fiscal-compare .compare-after{fill:#b47a2b}.fiscal-compare .compare-bead{fill:#8f8e88}.fiscal-compare text{font-family:var(--mono);fill:#676d69;font-size:6px}.fiscal-compare .compare-value{font-size:10px;font-weight:700;fill:#1c1c1a}.fiscal-compare .compare-value.after{fill:#9a6928}
+.source-disclosure{position:absolute;right:5.5vw;bottom:2.7vh;margin:0;font-family:var(--mono);font-size:7px;letter-spacing:.1em;color:#777d79}.source-disclosure i{display:inline-block;width:5px;height:5px;margin:0 6px 0 15px;border-radius:50%;background:#1c1c1a}.source-disclosure i.hollow{background:transparent;border:1px solid #8f8e88}
 .provenance-layout{position:absolute;left:5.5vw;right:5.5vw;top:29%;bottom:8%;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.9fr);gap:6vw;align-items:center}
 .source-ledger{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
 .source-column{align-self:start}.source-no{font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:var(--gold)}.source-column h3{margin:10px 0 16px;font-size:21px;font-weight:500}.source-column ul{margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}.source-column li{position:relative;padding:12px 0 12px 18px;border-bottom:1px solid rgba(48,57,55,.12);font-size:13px;line-height:1.45;color:#4f5956}.source-column li::before{content:'';position:absolute;left:0;top:18px;width:6px;height:6px;border:1px solid #7a827f;border-radius:50%}.source-column li.verified::before{border-color:var(--gold);background:var(--gold)}
@@ -146,19 +174,29 @@ button{font:inherit}
 .evidence-index{position:absolute;right:24px;bottom:30px;font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:#737a77}
 .map-chapter{position:absolute;inset:0;z-index:6;opacity:0;visibility:hidden;overflow:hidden;pointer-events:none;background:#e9e6de;color:#11191b;will-change:background-color,opacity}
 #mapCanvas{position:absolute;inset:0;width:100%;height:100%;outline:none;z-index:0}
+.map-status{position:absolute;left:50%;top:50%;z-index:4;transform:translate(-50%,-50%);font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:#737b78;opacity:0;visibility:hidden}.map-chapter[data-map-status="loading"] .map-status{opacity:1;visibility:visible}.map-chapter[data-map-status="error"] .map-status{opacity:1;visibility:visible;color:#8b6631}.map-chapter[data-map-status="error"] .map-status::after{content:' · MAP ASSET UNAVAILABLE'}
 .map-vignette{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(circle at 62% 52%,transparent 22%,rgba(8,13,16,.06) 68%,rgba(8,13,16,.22));opacity:0}
 .map-beat{position:absolute;inset:0;z-index:2;opacity:0;visibility:hidden;will-change:transform,opacity}
 .map-copy{position:absolute;left:clamp(24px,5.5vw,94px);top:50%;width:min(540px,38vw);transform:translateY(-50%)}
 .map-kicker{margin:0 0 18px;font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--gold)}
 .map-copy h2{margin:0;font-size:clamp(44px,5vw,78px);font-weight:500;line-height:1.08;letter-spacing:0;text-wrap:balance}
 .map-copy p{margin:22px 0 0;max-width:34em;font-size:clamp(15px,1.2vw,18px);line-height:1.75;color:#505957}
-.policy-stamp{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px}.policy-stamp span{padding:9px 11px;border-top:1px solid rgba(48,57,55,.35);font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:#59615f}
-.region-equation{margin-top:30px;padding:16px 0;border-top:1px solid rgba(48,57,55,.3);border-bottom:1px solid rgba(48,57,55,.3);font-family:var(--mono);font-size:clamp(12px,1.05vw,16px);line-height:1.7;color:#77613d}
-.map-region-list{position:absolute;right:5.2vw;top:50%;width:min(260px,21vw);transform:translateY(-50%);display:grid;gap:1px;background:rgba(48,57,55,.18);border:1px solid rgba(48,57,55,.18)}
-.map-region-list div{display:flex;justify-content:space-between;padding:13px 15px;background:rgba(233,230,222,.92);font-size:13px}.map-region-list b{font-family:var(--mono);font-weight:400;color:#9a6928}
+.map-flat .map-copy{top:48%;width:min(690px,47vw)}
+.map-flat .map-copy h2{font-size:clamp(42px,4.65vw,72px)}
+.policy-file{margin-top:24px;border-top:1px solid rgba(48,57,55,.46);border-bottom:1px solid rgba(48,57,55,.24);background:rgba(239,237,230,.72)}
+.policy-file-head{display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid rgba(48,57,55,.17)}
+.policy-file-head strong{font-size:15px;font-weight:600}.policy-file-head span{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:#77613d}
+.policy-facts{display:grid;grid-template-columns:repeat(4,1fr)}
+.policy-fact{min-width:0;padding:13px 10px 12px 0}.policy-fact+.policy-fact{padding-left:12px;border-left:1px solid rgba(48,57,55,.14)}
+.policy-fact small{display:block;font-family:var(--mono);font-size:7px;letter-spacing:.13em;color:#777f7c}.policy-fact strong{display:block;margin-top:7px;font-size:13px;font-weight:500;line-height:1.35;color:#172022}.policy-fact strong em{font-family:var(--mono);font-size:17px;font-style:normal;color:#9a6928}
+.policy-reading{margin:13px 0 0!important;font-size:14px!important;line-height:1.6!important;color:#333d3b!important}.policy-reading b{font-weight:600;color:#172022}
+.model-map{display:flex;align-items:center;gap:9px;margin-top:12px;font-family:var(--mono);font-size:8px;letter-spacing:.08em;color:#68706d}.model-map::before{content:'SYSTEM MAP';color:#9a6928}.model-map span{padding-left:9px;border-left:1px solid rgba(48,57,55,.3)}
+.local-causes{display:grid;grid-template-columns:repeat(3,1fr);margin-top:14px;border-top:1px solid rgba(48,57,55,.3);border-bottom:1px solid rgba(48,57,55,.22)}
+.local-cause{padding:9px 10px 9px 0}.local-cause+.local-cause{padding-left:12px;border-left:1px solid rgba(48,57,55,.14)}.local-cause small{display:block;font-family:var(--mono);font-size:6px;letter-spacing:.12em;color:#8a7659}.local-cause strong{display:block;margin-top:4px;font-size:11px;font-weight:500;color:#27302e}
+.policy-dilution{margin-top:11px;font-family:var(--mono);font-size:9px;line-height:1.55;color:#77613d}.policy-dilution b{font-weight:500;color:#172022}.policy-dilution span{color:#9a6928}
+.map-regions{pointer-events:none}
 .map-stage-note{position:absolute;left:5.5vw;bottom:5.5vh;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:#7b827f}
-.map-tilt .map-copy::before{content:'';position:absolute;z-index:-1;inset:-40px -110px -44px -46px;background:linear-gradient(90deg,rgba(17,25,27,.92) 0%,rgba(17,25,27,.72) 58%,rgba(17,25,27,0) 100%);pointer-events:none}
-.map-rise .map-copy{top:auto;bottom:7vh;transform:none}.map-rise .map-copy h2{font-size:clamp(34px,3.9vw,60px)}
+.map-rise .map-copy{top:auto;bottom:7vh;z-index:3;width:min(500px,35vw);transform:none}.map-rise .map-copy h2{font-size:clamp(34px,3.7vw,56px)}
 .rise-metrics{display:flex;gap:28px;margin-top:22px}.rise-metrics strong{display:block;font-family:var(--mono);font-size:32px;font-weight:400;color:#d6a34e}.rise-metrics span{display:block;margin-top:5px;font-size:10px;color:#9da6a8}
 .map-handoff{display:grid;place-items:center;text-align:center;color:#eef1f2;pointer-events:auto}.map-handoff::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(17,25,27,.9) 0%,rgba(17,25,27,.75) 24%,rgba(17,25,27,.18) 64%,rgba(17,25,27,0) 82%);pointer-events:none}.handoff-inner{position:relative;transform:translateY(4vh)}.handoff-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.32em;color:#d6a34e}.handoff-inner h2{margin:20px 0 12px;font-size:clamp(54px,7.2vw,112px);font-weight:500;line-height:1;letter-spacing:0}.handoff-inner p{margin:0;font-size:clamp(14px,1.2vw,18px);color:#aeb7b9}.arena-link{pointer-events:auto;display:inline-flex;align-items:center;gap:18px;margin-top:34px;padding:15px 0;border:0;border-bottom:1px solid #d6a34e;background:transparent;color:#f0eadc;text-decoration:none;font-family:var(--mono);font-size:11px;letter-spacing:.18em;cursor:pointer}.arena-link::after{content:'\2192';font-size:20px;color:#d6a34e;transition:transform .25s ease}.arena-link:hover::after{transform:translateX(7px)}
 .map-year{position:absolute;left:5.5vw;top:5.5vh;z-index:3;display:flex;align-items:baseline;gap:14px;color:#ad792d}.map-year strong{font-family:var(--mono);font-size:clamp(44px,5vw,74px);font-weight:400;line-height:1}.map-year span{font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:currentColor}
@@ -206,20 +244,23 @@ button{font:inherit}
   .rule{margin:18px 0 20px;width:86px;height:2px}
   .slogan{font-size:clamp(17px,4.6vw,23px);white-space:normal;text-wrap:balance}
   .counter-row{height:80px}.counter{font-size:clamp(62px,17vw,90px)}.times{font-size:22px;margin-bottom:5px}.promise{margin-top:20px;font-size:9px}
+  .interlude{padding:28px 22px}.interlude-inner{width:100%}.interlude-kicker{margin-bottom:22px;font-size:8px}.interlude-question{font-size:clamp(29px,8.2vw,40px);line-height:1.5}.interlude-rule{margin-top:25px}.interlude-index{right:18px;bottom:18px}
   .beat-copy,.intro-copy{left:22px;right:22px;top:auto;bottom:45px;width:auto;transform:none}
   .beat-copy::before{content:'';position:absolute;z-index:-1;inset:-34px -22px -45px;background:linear-gradient(180deg,rgba(233,230,222,0),rgba(233,230,222,.9) 18%,rgba(233,230,222,.97) 42%)}
   .beat h2,.intro-copy h2{font-size:clamp(30px,9vw,42px)}.beat-lead{margin-top:12px;font-size:13px;line-height:1.55;max-width:31em}.beat-question{margin-top:12px;padding-top:9px;font-size:15px}
-  .intro-copy{bottom:56px}.intro-rule{margin:14px 0}.intro-manifesto{font-size:10px}.metric-strip{gap:22px;margin-top:15px}.metric strong{font-size:34px}.metric span{font-size:10px}
+  .intro-copy{bottom:38px}.intro-explain{margin-top:11px;font-size:12px;line-height:1.55}.intro-rule{margin:10px 0}.intro-structure{font-size:14px}.intro-manifesto{margin-top:8px;font-size:8px}.metric-strip{gap:22px;margin-top:15px}.metric strong{font-size:34px}.metric span{font-size:10px}
   .visual{right:14px;left:14px;top:14px;width:auto;height:43vh;transform:none}.visual::before{inset:-4%}.chart-title{top:8px}.relation-tags{display:none}
   .beat-actors .beat-copy,.beat-tail .beat-copy,.beat-mechanism .beat-copy,.beat-interface .beat-copy{bottom:35px}
+  .beat-mechanism .beat-copy{width:auto}.beat-mechanism h2{font-size:clamp(28px,8.5vw,39px)}.mechanism-conclusion{margin-top:10px;padding-top:8px;font-size:14px}
   .beat-actors .visual,.beat-tail .visual,.beat-mechanism .visual,.beat-interface .visual{opacity:.7}
-  .parameter-row{display:none}.decision-switch{margin:8px 0}.decision-switch div{padding:9px}.decision-switch strong{font-size:14px}.io-line{min-height:42px}.io-value{font-size:13px}
-  .finale .beat-copy{width:auto}.finale-lines{gap:6px;margin-top:16px}.finale-line{grid-template-columns:58px 1fr;padding-top:7px}.finale-line strong{font-size:16px}.finale-line span{font-size:12px}.finale-note{margin-top:14px;font-size:9px}
+  .parameter-row{display:none}.io-line{grid-template-columns:58px 24px 1fr;min-height:38px}.io-label{font-size:7px}.io-value{font-size:12px}.agent-decision{margin:6px 0 8px;padding:10px 10px 9px 82px}.agent-decision::before{left:10px;top:12px;font-size:6px}.agent-decision strong{font-size:14px}.agent-decision small{margin-top:3px;font-size:8px}.agent-actions{padding:7px 0 8px}.agent-actions .io-value{margin-top:3px;font-size:8px}.depth-row{grid-template-columns:42px 1fr auto;min-height:22px}.depth-row strong{font-size:9px}.depth-row span{font-size:8px}.depth-row em{font-size:6px}
   .evidence-head{left:22px;right:22px;top:24px;max-width:none}.evidence-head h2{font-size:clamp(30px,9vw,42px)}.evidence-sub{margin-top:9px;font-size:12px}.dive-copy{top:25%;width:auto;transform:none}.evidence-rings{right:-27%;top:57%;width:120vw;opacity:.72}
+  .foundation-head{left:18px;right:18px;top:18px;display:block}.foundation-title h2{font-size:30px}.foundation-title p{margin-top:6px;font-size:9px}.theory-rail{margin-top:10px}.theory-item{min-height:54px;padding:8px 5px 7px 11px}.theory-item::before{top:11px;width:3px;height:3px}.theory-item small{font-size:5px}.theory-item strong{margin-top:4px;font-size:9px}.theory-item span{margin-top:3px;font-size:6px}
+  .source-board{left:18px;right:18px;top:23.5%;bottom:5.5%;grid-template-columns:1fr 1fr}.source-track{padding:8px 9px 35px}.source-track:nth-child(3){border-left:0;border-top:1px solid #cfcec7}.source-track:nth-child(4){border-top:1px solid #cfcec7}.track-head{padding-bottom:5px}.track-head span,.track-head em{font-size:4px}.track-head h3{font-size:12px}.source-record{padding:4px 0 4px 8px}.source-record::before{top:8px;width:3px;height:3px}.source-record b{font-size:7px}.source-record span{margin-top:1px;font-size:5.5px;line-height:1.3}.source-record mark{font-size:6px}.source-foot{left:9px;right:9px;bottom:5px;padding-top:4px}.source-foot small{font-size:4px}.source-foot strong{margin-top:2px;font-size:5px;line-height:1.25}.source-foot::after{width:4px;height:4px;top:-2px}.fiscal-compare{height:34px;margin:2px 0}.fiscal-compare text{font-size:4px}.fiscal-compare .compare-value{font-size:7px}.source-disclosure{display:none}
   .provenance-layout{left:22px;right:22px;top:25%;bottom:5%;display:block}.source-ledger{grid-template-columns:1fr 1fr;gap:12px 18px}.source-column:first-child{grid-column:1/-1}.source-column h3{margin:5px 0 7px;font-size:15px}.source-column ul{display:grid;grid-template-columns:1fr 1fr}.source-column li{padding:6px 3px 6px 13px;font-size:10px}.source-column li::before{top:10px}.source-status{display:none}.provenance-gate{position:absolute;right:-24px;bottom:-35px;width:155px;opacity:.72}.gate-core strong{font-size:12px}.gate-legend{display:none}
   .registry-wrap{left:22px;right:22px;top:27%;bottom:5%}.registry-table{grid-template-columns:38px 1.25fr .9fr .72fr}.registry-cell{min-height:57px;padding:7px 5px;font-size:9px}.registry-table .registry-cell:nth-child(6n+3),.registry-table .registry-cell:nth-child(6n+6){display:none}.registry-header .registry-cell{font-size:6px}.registry-title{font-size:12px}.registry-meta{font-size:6px}.registry-code,.registry-status,.registry-id{font-size:7px}.registry-legend{margin-top:10px;font-size:7px}.registry-claim{display:none}
   .probe-grid{left:22px;right:22px;top:27%;bottom:22%;grid-template-columns:1fr;gap:9px}.probe{display:grid;grid-template-columns:112px 1fr;grid-template-rows:auto auto;align-items:center;border-top:1px solid var(--line);padding-top:6px}.probe-label{font-size:7px}.probe-value{margin-top:4px}.probe-value strong{font-size:32px}.probe-value span{font-size:11px}.probe svg{grid-column:2;grid-row:1/3;height:82px;margin:0}.probe-note{display:none}.evidence-close{left:22px;right:22px;bottom:5%;padding-top:10px;gap:15px}.evidence-close p{font-size:16px;max-width:14em}.year-gateway{gap:8px}.year-gateway::before{width:20px}.year-gateway strong{font-size:38px}.evidence-index{display:none}
-  .map-copy{left:22px;right:22px;top:auto;bottom:42px;width:auto;transform:none;padding-top:72px;background:linear-gradient(180deg,rgba(233,230,222,0),rgba(233,230,222,.92) 32%)}.map-copy h2{font-size:clamp(31px,9vw,43px)}.map-copy p{margin-top:10px;font-size:12px;line-height:1.55}.policy-stamp{margin-top:12px;gap:6px}.policy-stamp span{padding:6px;font-size:7px}.region-equation{margin-top:12px;padding:8px 0;font-size:9px}.map-region-list{right:18px;top:24%;width:150px}.map-region-list div{padding:7px 9px;font-size:9px}.map-stage-note{display:none}.map-tilt .map-copy,.map-rise .map-copy{background:linear-gradient(180deg,rgba(17,25,27,0),rgba(17,25,27,.9) 32%)}.map-tilt .map-copy::before{display:none}.map-rise .map-copy{bottom:35px}.map-rise .map-copy h2{font-size:28px}.rise-metrics{gap:18px;margin-top:10px}.rise-metrics strong{font-size:23px}.rise-metrics span{font-size:8px}.map-year{left:22px;top:22px}.map-year strong{font-size:38px}.map-index{display:none}.map-handoff::before{background:radial-gradient(ellipse at center,rgba(17,25,27,.94) 0%,rgba(17,25,27,.8) 38%,rgba(17,25,27,.12) 78%)}.handoff-inner{padding:22px;transform:none}.handoff-inner h2{font-size:15vw}.arena-link{margin-top:24px}
+  .map-copy,.map-flat .map-copy{left:22px;right:22px;top:auto;bottom:28px;width:auto;transform:none;padding-top:66px;background:linear-gradient(180deg,rgba(233,230,222,0),rgba(233,230,222,.92) 25%)}.map-copy h2,.map-flat .map-copy h2{font-size:clamp(29px,8.5vw,40px)}.map-copy p{margin-top:9px;font-size:11px;line-height:1.5}.policy-file{margin-top:10px}.policy-file-head{padding:7px 0}.policy-file-head strong{font-size:11px}.policy-file-head span{font-size:6px}.policy-facts{grid-template-columns:repeat(2,1fr)}.policy-fact{padding:7px 5px 6px 0}.policy-fact:nth-child(3){border-left:0;border-top:1px solid rgba(48,57,55,.14);padding-left:0}.policy-fact:nth-child(4){border-top:1px solid rgba(48,57,55,.14)}.policy-fact small{font-size:5px}.policy-fact strong{margin-top:3px;font-size:9px}.policy-fact strong em{font-size:12px}.policy-reading{margin-top:7px!important;font-size:9px!important}.local-causes{margin-top:7px}.local-cause{padding:5px 4px 5px 0}.local-cause+.local-cause{padding-left:6px}.local-cause small{font-size:4px}.local-cause strong{font-size:7px}.policy-dilution{margin-top:6px;font-size:6px}.map-stage-note{display:none}.map-rise .map-copy{left:22px;right:auto;bottom:35px;width:52vw;padding:0;background:none}.map-rise .map-copy h2{font-size:27px}.rise-metrics{gap:18px;margin-top:10px}.rise-metrics strong{font-size:23px}.rise-metrics span{font-size:8px}.map-year{left:22px;top:22px}.map-year strong{font-size:38px}.map-index{display:none}.map-handoff::before{background:radial-gradient(ellipse at center,rgba(17,25,27,.94) 0%,rgba(17,25,27,.8) 38%,rgba(17,25,27,.12) 78%)}.handoff-inner{padding:22px;transform:none}.handoff-inner h2{font-size:15vw}.arena-link{margin-top:24px}
   .epi-copy{left:22px;right:22px;top:25px;width:auto;transform:none}.epi-copy h2{font-size:34px}.epi-copy>p:not(.epi-kicker){margin-top:10px;font-size:11px}.run-badge{margin-top:10px}.outcome-panel{left:22px;right:22px;top:auto;bottom:38px;width:auto;transform:none}.outcome-lines{height:105px}.tradeoff{padding:12px 7px 10px 0}.tradeoff+.tradeoff{padding-left:8px}.tradeoff strong{font-size:19px}.tradeoff span{font-size:8px}.verdict-inner h2{font-size:11vw}.verdict-rule{height:48px}.aircraft-layout{display:block;padding:25px 22px}.aircraft-copy h2{font-size:40px}.scenario-swap{margin-top:18px;grid-template-columns:1fr 30px 1fr}.scenario-swap strong{font-size:12px}.factor-rail{left:22px;right:22px;bottom:40px;width:auto;grid-template-columns:1fr}.factor-rail span{padding:6px 0}.factor-rail span+span{border-left:0;border-top:1px solid rgba(153,169,169,.12)}.epi-users{padding:25px 22px}.users-title{display:block}.users-title h2{font-size:38px}.users-title p{width:auto;margin-top:12px;font-size:11px}.user-rails{left:22px;right:22px;bottom:35px;grid-template-columns:1fr}.user-rail{min-height:0;padding:13px 0 10px}.user-rail+.user-rail{padding-left:0;border-left:0;border-top:1px solid rgba(153,169,169,.18)}.user-rail h3{display:inline;margin:0 10px;font-size:17px}.user-rail p{display:inline;font-size:10px}.closing-brand{font-size:20vw}.closing-en{font-size:6vw}.closing-slogan{margin-top:35px;font-size:16px}.closing-count strong{font-size:20vw}.closing-maxim{margin-top:25px;font-size:16px}.epi-index{display:none}
   .beat-index{display:none}.tower-caption{display:none}.progress{right:12px}.scroll-cue{bottom:20px}
 }
@@ -254,13 +295,29 @@ button{font:inherit}
         <p class="promise">可运行 · 可观察 · 可解释 · 可干预 · 可比较</p>
       </div>
 
+      <section class="interlude" id="policyQuestion" aria-label="光伏政策反事实问题">
+        <div class="interlude-inner">
+          <p class="interlude-kicker">A COUNTERFACTUAL / 2013</p>
+          <h2 class="interlude-question">
+            <span class="interlude-line"><b class="interlude-gold">2013年</b>，光伏产业骗补高发。</span>
+            <span class="interlude-line">如果把当年的核查力度再提升 <b class="interlude-gold">3倍</b>，</span>
+            <span class="interlude-line"><b class="interlude-gold">骗补会不会消失？</b></span>
+            <span class="interlude-line">这个产业，会不会更健康？</span>
+          </h2>
+          <i class="interlude-rule" aria-hidden="true"></i>
+        </div>
+        <span class="interlude-index">QUESTION 01 / POLICY WIND TUNNEL</span>
+      </section>
+
       <div class="chapter" id="chapter">
         <section class="beat beat-intro" data-beat="intro">
           <div class="beat-copy intro-copy">
-            <p class="beat-kicker">00 / AGENT DEPTH PYRAMID</p>
-            <h2>同一套机制底座，<br>不同深度的 Agent</h2>
+            <p class="beat-kicker intro-reveal">00 / POLICY WIND TUNNEL · THREE-LAYER SYSTEM</p>
+            <h2><span class="intro-title-line intro-title-a">让政策先在</span><span class="intro-title-line intro-title-b"><b class="intro-accent">风洞</b>里跑一遍</span></h2>
+            <p class="intro-explain intro-reveal">政策风洞，让政策在可控环境中充分测试与推演，让反事实成为可能，让历史拥有重来的机会。</p>
             <span class="intro-rule"></span>
-            <p class="intro-manifesto">顺着一座塔，看清谁在决策、产业如何演化、因果由什么锁定。</p>
+            <p class="intro-structure intro-reveal">在万历中，整个风洞被建成一座三层塔。</p>
+            <p class="intro-manifesto intro-reveal">塔尖解释关键主体 · 塔身托住群体演化 · 塔基锁定因果规则</p>
           </div>
         </section>
 
@@ -272,26 +329,46 @@ button{font:inherit}
               <div class="metric"><strong>8</strong><span>企业名角</span></div>
               <div class="metric"><strong>4</strong><span>省级内阁</span></div>
             </div>
-            <p class="beat-lead">政企两侧逐个建模，保留身份、资产状态、行为 Skill、记忆与组织惯性。</p>
-            <p class="beat-question">关键主体为什么这样决策？</p>
+            <p class="beat-lead">在万历的光伏推演中，我们选择 8 家关键企业与 4 个省级内阁，政企两侧逐个建模。每个主体都有独立的身份、资产状态、行为 Skill、记忆与组织惯性。</p>
+            <p class="beat-question">不是用一条平均规则解释所有人。</p>
           </div>
-          <div class="visual actor-map" aria-label="政府与企业关键主体关系网络">
-            <span class="chart-title">GOVERNMENT × ENTERPRISE / 12 KEY ACTORS</span>
+          <div class="visual actor-map" aria-label="十二个关键主体及其五项建模维度">
+            <span class="chart-title">12 ACTOR FILES / 5 MODELING DIMENSIONS</span>
             <svg viewBox="0 0 620 520" role="img">
-              <g class="relations">
-                <path class="relation" d="M126 140C235 106 350 118 486 154"/><path class="relation" d="M126 216C260 214 351 202 486 154"/>
-                <path class="relation" d="M126 292C260 270 355 257 486 234"/><path class="relation" d="M126 368C250 390 362 361 486 314"/>
-                <path class="relation" d="M126 140C252 166 360 286 486 394"/><path class="relation" d="M126 292C252 323 350 391 486 394"/>
+              <line class="ledger-rule" x1="28" y1="72" x2="592" y2="72"/>
+              <text class="label-small" x="28" y="48">ACTOR / ROLE</text>
+              <text class="dimension-head" x="412" y="48" text-anchor="middle">身份</text><text class="dimension-head" x="452" y="48" text-anchor="middle">资产</text><text class="dimension-head" x="492" y="48" text-anchor="middle">SKILL</text><text class="dimension-head" x="532" y="48" text-anchor="middle">记忆</text><text class="dimension-head" x="572" y="48" text-anchor="middle">惯性</text>
+              <g class="actor-ledger">
+                <g class="actor-row"><circle class="group-mark" cx="31" cy="96" r="3"/><text class="label-main" x="45" y="101">辽宁内阁</text><text class="actor-role" x="155" y="101">执行折扣</text><path class="ledger-line" d="M28 116H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="137">江西内阁</text><text class="actor-role" x="155" y="137">软预算约束</text><path class="ledger-line" d="M28 152H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="173">江苏内阁</text><text class="actor-role" x="155" y="173">监管强化</text><path class="ledger-line" d="M28 188H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="209">河北内阁</text><text class="actor-role" x="155" y="209">产业竞争</text><path class="ledger-rule" d="M28 226H592"/></g>
+                <g class="actor-row"><circle class="group-mark" cx="31" cy="250" r="3"/><text class="label-main" x="45" y="255">隆盛科技</text><text class="actor-role" x="155" y="255">技术长期主义</text><path class="ledger-line" d="M28 270H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="291">天阳能源</text><text class="actor-role" x="155" y="291">激进扩张</text><path class="ledger-line" d="M28 306H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="327">汉光集团</text><text class="actor-role" x="155" y="327">资本故事</text><path class="ledger-line" d="M28 342H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="363">跨界新能</text><text class="actor-role" x="155" y="363">追风进入</text><path class="ledger-line" d="M28 378H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="399">小盛作坊</text><text class="actor-role" x="155" y="399">骗补套利</text><path class="ledger-line" d="M28 414H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="435">稳达代工</text><text class="actor-role" x="155" y="435">现金稳健</text><path class="ledger-line" d="M28 450H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="471">维赛新能</text><text class="actor-role" x="155" y="471">政企绑定</text><path class="ledger-line" d="M28 486H592"/></g>
+                <g class="actor-row"><text class="label-main" x="45" y="507">国晶新能</text><text class="actor-role" x="155" y="507">国资逆周期</text></g>
               </g>
-              <g><circle class="node key" cx="126" cy="140" r="10"/><circle class="node" cx="126" cy="216" r="8"/><circle class="node key" cx="126" cy="292" r="10"/><circle class="node" cx="126" cy="368" r="8"/></g>
-              <g><circle class="node key" cx="486" cy="154" r="11"/><circle class="node" cx="486" cy="234" r="8"/><circle class="node key" cx="486" cy="314" r="10"/><circle class="node" cx="486" cy="394" r="8"/></g>
-              <g class="labels">
-                <text class="label-small" x="80" y="102">GOVERNMENT</text><text class="label-main" text-anchor="end" x="105" y="145">辽宁内阁</text><text class="label-main" text-anchor="end" x="105" y="221">江西内阁</text><text class="label-main" text-anchor="end" x="105" y="297">江苏内阁</text><text class="label-main" text-anchor="end" x="105" y="373">浙江内阁</text>
-                <text class="label-small" x="465" y="112">ENTERPRISE</text><text class="label-main" x="507" y="159">天阳</text><text class="label-main" x="507" y="239">小盛</text><text class="label-main" x="507" y="319">维赛</text><text class="label-main" x="507" y="399">+5 名角</text>
+              <g class="dimension-marks">
+                <g fill="#263534" opacity=".72">
+                  <circle cx="412" cy="96" r="3"/><circle cx="452" cy="96" r="3"/><circle cx="492" cy="96" r="3"/><circle cx="532" cy="96" r="3"/><circle cx="572" cy="96" r="3"/>
+                  <circle cx="412" cy="132" r="3"/><circle cx="452" cy="132" r="3"/><circle cx="492" cy="132" r="3"/><circle cx="532" cy="132" r="3"/><circle cx="572" cy="132" r="3"/>
+                  <circle cx="412" cy="168" r="3"/><circle cx="452" cy="168" r="3"/><circle cx="492" cy="168" r="3"/><circle cx="532" cy="168" r="3"/><circle cx="572" cy="168" r="3"/>
+                  <circle cx="412" cy="204" r="3"/><circle cx="452" cy="204" r="3"/><circle cx="492" cy="204" r="3"/><circle cx="532" cy="204" r="3"/><circle cx="572" cy="204" r="3"/>
+                  <circle cx="412" cy="250" r="3"/><circle cx="452" cy="250" r="3"/><circle cx="492" cy="250" r="3"/><circle cx="532" cy="250" r="3"/><circle cx="572" cy="250" r="3"/>
+                  <circle cx="412" cy="286" r="3"/><circle cx="452" cy="286" r="3"/><circle cx="492" cy="286" r="3"/><circle cx="532" cy="286" r="3"/><circle cx="572" cy="286" r="3"/>
+                  <circle cx="412" cy="322" r="3"/><circle cx="452" cy="322" r="3"/><circle cx="492" cy="322" r="3"/><circle cx="532" cy="322" r="3"/><circle cx="572" cy="322" r="3"/>
+                  <circle cx="412" cy="358" r="3"/><circle cx="452" cy="358" r="3"/><circle cx="492" cy="358" r="3"/><circle cx="532" cy="358" r="3"/><circle cx="572" cy="358" r="3"/>
+                  <circle cx="412" cy="394" r="3"/><circle cx="452" cy="394" r="3"/><circle cx="492" cy="394" r="3"/><circle cx="532" cy="394" r="3"/><circle cx="572" cy="394" r="3"/>
+                  <circle cx="412" cy="430" r="3"/><circle cx="452" cy="430" r="3"/><circle cx="492" cy="430" r="3"/><circle cx="532" cy="430" r="3"/><circle cx="572" cy="430" r="3"/>
+                  <circle cx="412" cy="466" r="3"/><circle cx="452" cy="466" r="3"/><circle cx="492" cy="466" r="3"/><circle cx="532" cy="466" r="3"/><circle cx="572" cy="466" r="3"/>
+                  <circle cx="412" cy="502" r="3"/><circle cx="452" cy="502" r="3"/><circle cx="492" cy="502" r="3"/><circle cx="532" cy="502" r="3"/><circle cx="572" cy="502" r="3"/>
+                </g>
               </g>
-              <g class="pulses"><circle class="pulse" cx="275" cy="129" r="3"/><circle class="pulse" cx="342" cy="249" r="3"/><circle class="pulse" cx="401" cy="367" r="3"/></g>
             </svg>
-            <div class="relation-tags"><span>招商</span><span>监管</span><span>扩产</span><span>骗补</span><span>救助</span></div>
           </div>
         </section>
 
@@ -317,9 +394,8 @@ button{font:inherit}
         <section class="beat beat-mechanism" data-beat="mechanism">
           <div class="beat-copy">
             <p class="beat-kicker">03 / 塔基 · CAUSAL FOUNDATION</p>
-            <h2>所有主体站在<br>同一套规则之上</h2>
-            <p class="beat-lead">塔基规定政府能用什么政策、主体能采取什么行动，以及行动如何进入市场和财政结算。</p>
-            <p class="beat-question">政策和行动通过什么机制产生结果？</p>
+            <h2>塔基，是这个世界的<br>物理法则</h2>
+            <p class="beat-lead">它规定政府能出什么牌、企业能做什么动作，以及每个动作怎么结算——市场会出清，财政会痛，企业会真的破产。<strong class="mechanism-conclusion">让他们同处一个会算账的世界。</strong></p>
           </div>
           <div class="visual mechanism-map" aria-label="政策因子、行为Skill和环境结算的因果路径">
             <span class="chart-title">POLICY × SKILL → SETTLEMENT</span>
@@ -340,34 +416,25 @@ button{font:inherit}
 
         <section class="beat beat-interface" data-beat="interface">
           <div class="beat-copy">
-            <p class="beat-kicker">04 / 塔尖 · AGENT INTERFACE</p>
-            <h2>替换决策器，<br>不重写整个系统</h2>
-            <p class="beat-lead">Agent 接口已经定义。规则或 LLM 都必须读取同一份观测，并输出相同的结构化行动。</p>
-            <p class="beat-question">真实 Agent 接入塔尖，因果底座保持不变。</p>
+            <p class="beat-kicker">04 / 塔尖 · DEEP AGENTS</p>
+            <h2>只让塔尖，<br>成为真正的 Agent</h2>
+            <p class="beat-lead">我们只为塔尖的关键主体接入 Agent。它们继承各自的身份、利益、状态与记忆，在行为 Skill 和共同规则的约束下，扮演自己的角色，参与受现实约束的推演。</p>
+            <p class="beat-question">Agent 负责决定做什么，塔基负责把每笔账算清。</p>
           </div>
-          <div class="visual interface-visual" aria-label="LLM Agent决策器接入接口">
-            <span class="chart-title">DECISION ADAPTER / SWAPPABLE</span>
-            <div class="io-line"><span class="io-label">INPUT</span><span class="io-arrow">→</span><span class="io-value">观测 + 状态 + 记忆</span></div>
-            <div class="decision-switch"><div><small>当前 / PROTOTYPE</small><strong>Rule + Skill</strong></div><div class="active"><small>增强 / AGENT READY</small><strong>LLM + Skill</strong></div></div>
-            <div class="io-line"><span class="io-label">OUTPUT</span><span class="io-arrow">→</span><span class="io-value">结构化行动</span></div>
-            <div class="foundation-lock"><span>DETERMINISTIC FOUNDATION</span><span>LOCKED</span></div>
-          </div>
-        </section>
-
-        <section class="beat finale" data-beat="finale">
-          <div class="beat-copy">
-            <p class="beat-kicker">05 / ONE FOUNDATION · VARIABLE DEPTH</p>
-            <h2>把计算深度放在<br>最有解释价值的地方</h2>
-            <div class="finale-lines">
-              <div class="finale-line"><strong>塔尖</strong><span>解释关键机制</span></div>
-              <div class="finale-line"><strong>塔身</strong><span>产生群体结果</span></div>
-              <div class="finale-line"><strong>塔基</strong><span>保证因果可比</span></div>
+          <div class="visual interface-visual" aria-label="塔尖深度Agent的输入、决策与行动接口">
+            <span class="chart-title">SELECTIVE DEPTH / ROLE-BOUND AGENTS</span>
+            <div class="io-line agent-input"><span class="io-label">INPUT</span><span class="io-arrow">→</span><span class="io-value">身份 + 利益 + 状态 + 记忆</span></div>
+            <div class="agent-decision"><strong>Agent <span>×</span> Behavior Skill</strong><small>在共同规则的边界内推理、协商与行动</small></div>
+            <div class="agent-actions"><span class="io-label">OUTPUT / 结构化行动</span><span class="io-value">扩产 / 研发 / 骗补 / 监管 / 救助 / 退出</span></div>
+            <div class="depth-scope" aria-label="不同层级的计算深度">
+              <div class="depth-row"><strong>塔尖</strong><span>12 个深度 Agent</span><em>ACTIVE</em></div>
+              <div class="depth-row"><strong>塔身</strong><span>约 230 个轻量异质主体</span><em>SCALED</em></div>
+              <div class="depth-row"><strong>塔基</strong><span>确定性环境结算</span><em>LOCKED</em></div>
             </div>
-            <p class="finale-note">NOT EVERY AGENT NEEDS THE SAME INTELLIGENCE.<br>EVERY AGENT NEEDS THE SAME REALITY.</p>
           </div>
         </section>
 
-        <div class="beat-index" aria-hidden="true"><span id="beatNumber">00 / 05</span><i></i><span id="beatName">AGENT DEPTH PYRAMID</span></div>
+        <div class="beat-index" aria-hidden="true"><span id="beatNumber">00 / 05</span><i></i><span id="beatName">POLICY WIND TUNNEL</span></div>
       </div>
 
       <div class="evidence-chapter" id="evidenceChapter" aria-label="证据如何进入万历的机制底座">
@@ -387,104 +454,118 @@ button{font:inherit}
           </div>
         </section>
 
-        <section class="evidence-beat evidence-provenance" data-evidence="provenance">
-          <div class="evidence-head">
-            <p class="evidence-kicker">07 / REAL-WORLD PROVENANCE</p>
-            <h2>现实取样，不凭空造数</h2>
-            <p class="evidence-sub">每条进入引擎的数据保留来源、口径、时间与验证状态。</p>
-          </div>
-          <div class="provenance-layout">
-            <div class="source-ledger">
-              <article class="source-column"><span class="source-no">01 / POLICY</span><h3>政策原文</h3><ul>
-                <li class="verified">财建〔2009〕397号<span class="source-status ok">原文已核</span></li><li class="verified">补助总投资 50%<span class="source-status ok">同量纲入表</span></li><li class="verified">政策生效与退出时间<span class="source-status ok">时间线已核</span></li><li class="verified">核查与规范条件<span class="source-status ok">条款已核</span></li>
-              </ul></article>
-              <article class="source-column"><span class="source-no">02 / SUBJECT</span><h3>主体样本</h3><ul>
-                <li class="verified">头部企业现实原型<span class="source-status ok">名角已建模</span></li><li>A 股聚类 → 类型配比<span class="source-status">标定路径</span></li><li>行业普查 → 总量与尾形<span class="source-status">标定路径</span></li>
-              </ul></article>
-              <article class="source-column"><span class="source-no">03 / INSTITUTION</span><h3>地方制度</h3><ul>
-                <li class="verified">财政自给率<span class="source-status ok">四省已对表</span></li><li>城投利差<span class="source-status">序数已核 / 量值未核</span></li><li>执行折扣<span class="source-status">公开口径未成立</span></li>
-              </ul></article>
+        <section class="evidence-beat evidence-foundation" data-evidence="foundation">
+          <header class="foundation-head">
+            <div class="foundation-title">
+              <p class="evidence-kicker">07 / REAL-WORLD PROVENANCE</p>
+              <h2>现实取样，理论约束</h2>
+              <p>从政策原文、地方财政与企业档案中取样；理论只决定观察什么、如何进入模型。</p>
             </div>
-            <div class="provenance-gate" aria-label="来源闸门，区分已核与未核数据">
-              <i class="gate-ring r1"></i><i class="gate-ring r2"></i><i class="gate-ring r3"></i>
-              <div class="gate-core"><div><small>PROVENANCE GATE</small><strong>来源闸门</strong></div></div>
-              <div class="gate-legend"><span class="ok"><i></i>已核</span><span><i></i>未核</span></div>
+            <div class="theory-rail" aria-label="三项理论约束">
+              <div class="theory-item"><small>01 / CENTRAL—LOCAL</small><strong>中央与地方的委托关系</strong><span>政策出台不等于政策落地 → 执行折扣</span></div>
+              <div class="theory-item"><small>02 / SOFT BUDGET</small><strong>地方救助与退出困难</strong><span>亏损企业未必自然退出 → 担保与救助</span></div>
+              <div class="theory-item"><small>03 / ACTOR STRUCTURE</small><strong>关键主体与长尾结构</strong><span>少数主体推动方向 → 名角与群演分层</span></div>
             </div>
+          </header>
+
+          <div class="source-board" aria-label="现实数据来源与模型落点">
+            <article class="source-track">
+              <header class="track-head"><span>01 / POLICY</span><h3>政策原文</h3><em>4 DOCUMENTS</em></header>
+              <ul class="source-records">
+                <li class="source-record"><b>财政部等三部门 · 2009</b><span>财建〔2009〕397号 · 金太阳工程</span><span>投资补助 <mark>50% / 70%</mark> · 单省原则上 ≤20MW</span></li>
+                <li class="source-record"><b>国家发展改革委 · 2013</b><span>发改价格〔2013〕1638号</span><span>分区标杆电价 <mark>0.90 / 0.95 / 1.00</mark> 元/度</span></li>
+                <li class="source-record"><b>工业和信息化部 · 2013</b><span>第47号公告 · 光伏制造行业规范条件</span><span>产能、能耗、研发与质量门槛</span></li>
+                <li class="source-record"><b>财政部 · 金太阳项目清算</b><span><mark>310</mark> 个项目清算 · <mark>109</mark> 个追回补贴</span></li>
+              </ul>
+              <footer class="source-foot"><small>ENTERS THE MODEL</small><strong>政策时点 / 补贴方式 / 电价档位 / 准入条件</strong></footer>
+            </article>
+
+            <article class="source-track focus">
+              <header class="track-head"><span>02 / LOCAL FISCAL</span><h3>地方财政</h3><em>4 PROVINCES</em></header>
+              <ul class="source-records">
+                <li class="source-record"><b>四省财政厅 / 统计局 · 2014—2015</b><span>一般公共预算收入 ÷ 一般公共预算支出</span><span>江苏 <mark>.829</mark> · 河北 <mark>.528</mark> · 江西 <mark>.490</mark> · 辽宁 <mark>.460</mark></span></li>
+              </ul>
+              <div class="fiscal-compare" aria-label="辽宁财政自给率报表值与挤水分后数值对比">
+                <svg viewBox="0 0 320 72" role="img">
+                  <text x="0" y="10">LIAONING / SELF-FINANCING RATIO</text>
+                  <line class="compare-rail" x1="16" y1="38" x2="300" y2="38"/>
+                  <line class="compare-link" x1="202" y1="38" x2="251" y2="38"/>
+                  <circle class="compare-after" cx="202" cy="38" r="5"/><circle class="compare-before" cx="251" cy="38" r="5"/>
+                  <circle class="compare-bead" cx="214" cy="38" r="1.5"/><circle class="compare-bead" cx="226" cy="38" r="1.5"/><circle class="compare-bead" cx="238" cy="38" r="1.5"/>
+                  <text class="compare-value after" x="192" y="29" text-anchor="end">0.460</text><text class="compare-value" x="261" y="29">0.628</text>
+                  <text x="192" y="55" text-anchor="end">2015 · 挤水分后</text><text x="261" y="55">2014 · 报表值</text>
+                </svg>
+              </div>
+              <ul class="source-records">
+                <li class="source-record"><b>辽宁省政府工作报告 / 新华网 · 2017</b><span>官方确认 2011—2014 财政数据造假</span><span>2014 年虚增比例约 <mark>23%</mark> · 2015 收入下降 <mark>33.4%</mark></span></li>
+              </ul>
+              <footer class="source-foot"><small>ENTERS THE MODEL</small><strong>财政自给率 / 地方救助能力 / 财政席立场</strong></footer>
+            </article>
+
+            <article class="source-track">
+              <header class="track-head"><span>03 / FIRMS</span><h3>企业与产业</h3><em>PARTLY ANCHORED</em></header>
+              <ul class="source-records">
+                <li class="source-record"><b>企业年报 / 破产公告 / 重整资料</b><span>尚德破产、赛维救助与关键事件时点</span></li>
+                <li class="source-record partial"><b>A股光伏企业财务与经营指标</b><span>类型、规模与行为特征聚类 · 部分已锚</span></li>
+                <li class="source-record partial"><b>行业统计与项目清算资料</b><span>行业总量、进入退出节奏与长尾形状 · 待补样本表</span></li>
+                <li class="source-record"><b>欧美双反政策资料 · 2012</b><span>外需冲击的发生时点与作用窗口</span></li>
+              </ul>
+              <footer class="source-foot"><small>ENTERS THE MODEL</small><strong>资产 / 产能 / 现金 / 技术 / 企业类型 / 进入退出</strong></footer>
+            </article>
+
+            <article class="source-track">
+              <header class="track-head"><span>04 / AUDIT</span><h3>审计与信用</h3><em>DISCLOSED GAPS</em></header>
+              <ul class="source-records">
+                <li class="source-record"><b>财政部专项检查 · 2016</b><span>检查 <mark>90</mark> 家企业 · 涉及 <mark>40.1万</mark> 辆</span><span>抽查 <mark>13.3万</mark> 辆运营状态 · 公开5个典型案例</span></li>
+                <li class="source-record"><b>金太阳清算公开资料</b><span>识别补贴核查、追回与退出机制</span></li>
+                <li class="source-record partial"><b>区域城投信用梯队</b><span>江苏一 / 江西二 / 河北三 / 辽宁四</span><span>2012—2015 分省利差量值未取得</span></li>
+                <li class="source-record partial"><b>公开骗补案例</b><span>缺少省级产业分母，不据此伪造执行折扣</span></li>
+              </ul>
+              <footer class="source-foot"><small>ENTERS THE MODEL</small><strong>执行折扣 / 承诺信誉 / 骗补行为</strong></footer>
+            </article>
           </div>
+          <p class="source-disclosure">LUPI EDITORIAL · TYPE COLONNADE + DUMBBELL QUEUE <i></i>已核 <i class="hollow"></i>部分已核 / 数据不可得</p>
         </section>
 
-        <section class="evidence-beat evidence-registry" data-evidence="registry">
-          <div class="evidence-head">
-            <p class="evidence-kicker">08 / ASSUMPTION REGISTRY</p>
-            <h2>假设先申报，再进入引擎</h2>
-            <p class="evidence-sub">理论必须有代码落点，参数必须有身份标签；找不到的数字保持空白。</p>
-          </div>
-          <div class="registry-wrap">
-            <div class="registry-table" role="table" aria-label="理论与假设注册表节选">
-              <div class="registry-row registry-header" role="row"><div class="registry-cell">ID</div><div class="registry-cell">MECHANISM / THEORY</div><div class="registry-cell">EVIDENCE</div><div class="registry-cell">STATUS</div><div class="registry-cell">CODE</div><div class="registry-cell">RESULT</div></div>
-              <div class="registry-row" role="row"><div class="registry-cell registry-id">T10</div><div class="registry-cell"><span><b class="registry-title">委托—代理</b><small class="registry-meta">中央核查 × 地方执行折扣</small></span></div><div class="registry-cell">地方执行与中央巡查资料</div><div class="registry-cell registry-status ok">THEORY ANCHORED</div><div class="registry-cell registry-code">effA()</div><div class="registry-cell">实核</div></div>
-              <div class="registry-row" role="row"><div class="registry-cell registry-id">T04</div><div class="registry-cell"><span><b class="registry-title">软预算约束</b><small class="registry-meta">救助延迟退出，而非消灭失败</small></span></div><div class="registry-cell">赛维式地方救助案例</div><div class="registry-cell registry-status ok">MECHANISM TESTED</div><div class="registry-cell registry-code">bound.skill</div><div class="registry-cell">续命 3 回合</div></div>
-              <div class="registry-row" role="row"><div class="registry-cell registry-id">A07</div><div class="registry-cell"><span><b class="registry-title">财政自给率</b><small class="registry-meta">地方优惠能力直接指标</small></span></div><div class="registry-cell">四省预算收入 ÷ 支出</div><div class="registry-cell registry-status ok">DIRECTION VERIFIED</div><div class="registry-cell registry-code">selfFin</div><div class="registry-cell">排序同序</div></div>
-              <div class="registry-row" role="row"><div class="registry-cell registry-id">A09</div><div class="registry-cell"><span><b class="registry-title">巡查折扣乘子</b><small class="registry-meta">地方打折能力削减 60%</small></span></div><div class="registry-cell">缺少同量纲政策条款</div><div class="registry-cell registry-status open">UNVERIFIED</div><div class="registry-cell registry-code">discountMul=.4</div><div class="registry-cell">空心标记</div></div>
-              <div class="registry-row" role="row"><div class="registry-cell registry-id">A23</div><div class="registry-cell"><span><b class="registry-title">核查剂量域</b><small class="registry-meta">树内最大值 80，不偷换成 100</small></span></div><div class="registry-cell">政策树契约与剂量实验</div><div class="registry-cell registry-status ok">BOUND LOCKED</div><div class="registry-cell registry-code">audit[20,80]</div><div class="registry-cell">禁止越界</div></div>
-            </div>
-            <div class="registry-legend"><span class="ok">已核 / 可复现</span><span>未核 / 不填猜测值</span><b class="registry-claim">万历不消灭假设，它让假设无处藏身。</b></div>
-          </div>
-        </section>
-
-        <section class="evidence-beat evidence-probes" data-evidence="probes">
-          <div class="evidence-head">
-            <p class="evidence-kicker">09 / FALSIFICATION LAB</p>
-            <h2>实验负责推翻我们</h2>
-            <p class="evidence-sub">不只输出一个答案，而是寻找结论成立的边界与翻转点。</p>
-          </div>
-          <div class="probe-grid">
-            <article class="probe"><div><span class="probe-label">HISTORICAL REGRESSION</span><div class="probe-value"><strong>9/9</strong><span>黄金回归</span></div></div><svg viewBox="0 0 390 150" role="img"><line class="axis" x1="18" y1="76" x2="372" y2="76"/><line class="signal" x1="18" y1="76" x2="372" y2="76"/><g class="gold-dot"><circle cx="18" cy="76" r="5"/><circle cx="62" cy="76" r="5"/><circle cx="106" cy="76" r="5"/><circle cx="150" cy="76" r="5"/><circle cx="194" cy="76" r="5"/><circle cx="238" cy="76" r="5"/><circle cx="282" cy="76" r="5"/><circle cx="326" cy="76" r="5"/><circle cx="372" cy="76" r="5"/></g><text x="18" y="116">2013 H1 · 天阳破产点锚</text><text x="18" y="137">133 · 长尾死亡潮</text></svg><p class="probe-note">同种子、同政策的两个宇宙逐位一致。</p></article>
-            <article class="probe"><div><span class="probe-label">DECISION FLIP PROBE</span><div class="probe-value"><strong>55</strong><span>实核翻转点</span></div></div><svg viewBox="0 0 390 150" role="img"><line class="axis" x1="18" y1="112" x2="372" y2="112"/><path class="signal" d="M18 92C108 92 145 90 195 87V36C258 33 310 33 372 33"/><line class="guide" x1="195" y1="18" x2="195" y2="125"/><circle cx="195" cy="61" r="8" fill="#e9e6de" stroke="#b47a2b" stroke-width="3"/><text x="18" y="140">0</text><text x="185" y="140">55</text><text x="351" y="140">100</text></svg><p class="probe-note">注入近期被查记忆后，0—100 全域收手。</p></article>
-            <article class="probe"><div><span class="probe-label">MULTI-SEED ATTRIBUTION</span><div class="probe-value"><strong>10</strong><span>SEEDS</span></div></div><svg viewBox="0 0 390 150" role="img"><line class="axis" x1="18" y1="86" x2="372" y2="86"/><line class="guide" x1="18" y1="66" x2="372" y2="66"/><g class="dot"><circle cx="28" cy="96" r="4"/><circle cx="66" cy="58" r="4"/><circle cx="104" cy="103" r="4"/><circle cx="142" cy="43" r="4"/><circle cx="180" cy="76" r="4"/><circle cx="218" cy="35" r="4"/><circle cx="256" cy="90" r="4"/><circle cx="294" cy="52" r="4"/><circle cx="332" cy="101" r="4"/><circle cx="370" cy="70" r="4"/></g><text x="18" y="130">单种子贡献可翻符号</text></svg><p class="probe-note">因此归因必须跨种子报告，并先定义反事实语义。</p></article>
-          </div>
-          <div class="evidence-close"><p>现实提供边界，理论提供机制，<br>实验负责推翻我们。</p><div class="year-gateway"><div><strong>2009</strong><span>LOAD PHOTOVOLTAIC / EXHIBIT A</span></div></div></div>
-        </section>
-        <div class="evidence-index">EVIDENCE FOUNDATION / 06—09</div>
+        <div class="evidence-index">EVIDENCE FOUNDATION / 06—07</div>
       </div>
 
       <div class="map-chapter" id="mapChapter" aria-label="从全国统一政策进入三维产业推演地图">
         <canvas id="mapCanvas" aria-label="从二维俯视生长为三维产业城市的中国地图"></canvas>
+        <div class="map-status" id="mapStatus" role="status">正在载入制度地形</div>
         <div class="map-vignette" aria-hidden="true"></div>
         <div class="map-year"><strong>2009</strong><span>PHOTOVOLTAIC / EXHIBIT A</span></div>
 
         <section class="map-beat map-flat" data-map-beat="map">
           <div class="map-copy">
-            <p class="map-kicker">10 / ONE POLICY · MANY PLACES</p>
-            <h2>同一项政策，<br>落在不同的中国</h2>
-            <p>政策写在一张纸上，结果却长在不同的地方。我们从全国统一条件出发，观察它如何穿过地方财政、执行能力与政企关系。</p>
-            <div class="policy-stamp"><span>装机补贴 50%</span><span>中央核查 20</span><span>全国统一政策</span></div>
+            <p class="map-kicker">10 / POLICY · REGION · AUDIT</p>
+            <h2>政策 / 地区 / 核查</h2>
+            <div class="policy-file" aria-label="金太阳工程政策原文要点">
+              <div class="policy-file-head"><strong>金太阳示范工程</strong><span>财建〔2009〕397号 · 2009-07-16</span></div>
+              <div class="policy-facts">
+                <div class="policy-fact"><small>补助对象</small><strong>建成的光伏系统</strong></div>
+                <div class="policy-fact"><small>并网项目</small><strong>总投资 <em>50%</em></strong></div>
+                <div class="policy-fact"><small>预算拨付</small><strong><em>70%</em> 先行下达</strong></div>
+                <div class="policy-fact"><small>最终清算</small><strong>竣工后核定</strong></div>
+              </div>
+            </div>
+            <p class="policy-reading"><b>钱在发电结果出现前拨出，</b>核查发生在建设与清算环节；同一中央指令进入地方后，还要经过三重现实约束。</p>
+            <div class="local-causes" aria-label="政策地区差异的三项来源">
+              <div class="local-cause"><small>01 / FISCAL</small><strong>财政压力不同</strong></div>
+              <div class="local-cause"><small>02 / GROWTH</small><strong>招商目标不同</strong></div>
+              <div class="local-cause"><small>03 / ENFORCEMENT</small><strong>监管激励不同</strong></div>
+            </div>
+            <div class="policy-dilution"><b>落地核查</b> = 中央核查 ×（1 − 地方执行折扣）<br><span>统一信号，在地区间被不同程度地稀释。</span></div>
           </div>
-          <div class="map-stage-note">TOP VIEW / POLICY ARRIVAL</div>
+          <div class="map-stage-note">POLICY SOURCE → LOCAL EXECUTION → MODEL REPRESENTATION</div>
         </section>
 
-        <section class="map-beat map-regions" data-map-beat="regions">
-          <div class="map-copy">
-            <p class="map-kicker">11 / LOCAL EXECUTION</p>
-            <h2>统一政策，经过地方以后不再统一</h2>
-            <p>地方不是政策的被动容器。财政压力、招商目标与监管激励，会共同改变中央政策真正落地的剂量。</p>
-            <div class="region-equation">实际核查 = 中央核查 ×（1 − 地方执行折扣）</div>
-          </div>
-          <div class="map-region-list" aria-label="四省差异示意"><div><span>江苏</span><b>产业集聚</b></div><div><span>江西</span><b>政企绑定</b></div><div><span>河北</span><b>招商竞争</b></div><div><span>辽宁</span><b>执行折扣</b></div></div>
-        </section>
-
-        <section class="map-beat map-tilt" data-map-beat="tilt">
-          <div class="map-copy">
-            <p class="map-kicker">12 / FROM MAP TO WORLD</p>
-            <h2>地图不是背景，<br>它是环境本身</h2>
-            <p>二维政策分布开始获得高度、时滞与约束。镜头进入制度地形，准备看见主体如何从环境中生长。</p>
-          </div>
-        </section>
+        <section class="map-beat map-regions" data-map-beat="regions" aria-label="中央政策指令在不同地区逐步稀释"></section>
 
         <section class="map-beat map-rise" data-map-beat="rise">
           <div class="map-copy">
-            <p class="map-kicker">13 / AGENTS EMERGE</p>
-            <h2>政策开始塑造企业，<br>也开始塑造产业结构</h2>
+            <p class="map-kicker">12 / AGENTS EMERGE</p>
+            <h2>政策开始<br>在地区间塑造企业，<br>也塑造产业结构</h2>
             <div class="rise-metrics"><div><strong>4</strong><span>省级内阁</span></div><div><strong>8</strong><span>企业名角</span></div><div><strong>≈230</strong><span>长尾企业</span></div></div>
           </div>
         </section>
@@ -494,7 +575,7 @@ button{font:inherit}
             <div class="handoff-kicker">WANLI / POLICY WIND TUNNEL</div>
             <h2>现在，接管 2009</h2>
             <p>从解释模型进入可干预的政企推演现场。</p>
-            <a class="arena-link" href="../demos/wanli-arena-v2.html">进入政策风洞</a>
+            <a class="arena-link" href="./product/">进入政策风洞</a>
           </div>
         </section>
         <div class="map-index">POLICY GEOGRAPHY / 10—14</div>
@@ -572,14 +653,17 @@ button{font:inherit}
   mapRenderer.toneMapping=THREE.ACESFilmicToneMapping;
   mapRenderer.toneMappingExposure=1.04;
   var mapRoot=new THREE.Group(),mapLand=new THREE.Group(),mapLines=new THREE.Group();
-  var mapGovs=new THREE.Group(),mapFirms=new THREE.Group(),mapTail=new THREE.Group(),mapFlows=new THREE.Group();
-  mapRoot.add(mapLand,mapLines,mapGovs,mapFirms,mapTail,mapFlows);mapScene.add(mapRoot);
+  var mapGovs=new THREE.Group(),mapFirms=new THREE.Group(),mapTail=new THREE.Group(),mapFlows=new THREE.Group(),mapCommand=new THREE.Group();
+  mapRoot.add(mapLand,mapLines,mapGovs,mapFirms,mapTail,mapFlows,mapCommand);mapScene.add(mapRoot);
   mapScene.add(new THREE.HemisphereLight(0xf4efe3,0x18252b,1.35));
   var mapKey=new THREE.DirectionalLight(0xffe1a8,1.45);mapKey.position.set(-12,28,16);mapKey.castShadow=true;mapScene.add(mapKey);
   var mapRim=new THREE.DirectionalLight(0x7aa6ae,.85);mapRim.position.set(18,10,-15);mapScene.add(mapRim);
   var mapView={x:0,y:39,z:.01,lx:0,ly:0,lz:.6};
+  var mapChapter=document.getElementById('mapChapter'),mapStatus=document.getElementById('mapStatus');
+  mapChapter.dataset.mapStatus='loading';
   var mapMats={},mapFocus=['江苏','江西','河北','辽宁'];
-  var mapFocusColors={江苏:0x2e7770,江西:0xb58a39,河北:0x6c7893,辽宁:0x4d6088};
+  var mapFocusColors={江苏:0x286d68,江西:0x65978d,河北:0x65978d,辽宁:0xa9beb4};
+  var mapSignalStrength={江苏:.9,江西:.75,河北:.75,辽宁:.55};
   var mapCentres={北京:[116.4,39.9],江苏:[119.77,33.04],江西:[115.89,27.66],河北:[115.5,38.6],辽宁:[122.6,41.3]};
   function decodeMapRing(str,offsets,scale){
     var out=[],px=offsets[0],py=offsets[1];
@@ -613,13 +697,20 @@ button{font:inherit}
     var cap=new THREE.Mesh(new THREE.SphereGeometry(r*.48,10,8),new THREE.MeshBasicMaterial({color:0xe7b85b}));cap.position.y=h+.12;g.add(cap);
     g.scale.y=.001;(parent||mapGovs).add(g);return g;
   }
-  var mapGovNodes=[],mapFirmNodes=[],mapTailMesh=null;
-  var mapState={depth:.035,focus:0,flows:0,gov:0,firms:0,tail:0};
+  var mapGovNodes=[],mapFirmNodes=[],mapTailMesh=null,mapPulseRings=[],mapCommandCore=null;
+  var mapState={depth:.035,focus:0,flows:0,signal:0,gov:0,firms:0,tail:0};
   function applyMapCamera(){mapCamera.position.set(mapView.x,mapView.y,mapView.z);mapCamera.lookAt(mapView.lx,mapView.ly,mapView.lz)}
   function updateMapState(){
     mapLand.scale.y=mapState.depth;mapLines.position.y=.02+.38*mapState.depth;
-    Object.keys(mapMats).forEach(function(name){var active=mapFocus.indexOf(name)>-1?mapState.focus:0;mapMats[name].emissiveIntensity=active*.28});
-    mapFlows.children.forEach(function(line){line.material.opacity=mapState.flows*.88});
+    Object.keys(mapMats).forEach(function(name){var active=mapFocus.indexOf(name)>-1?mapState.focus:0,strength=mapSignalStrength[name]||0;mapMats[name].emissiveIntensity=active*(.08+.34*strength)*mapState.signal});
+    mapFlows.children.forEach(function(segment){
+      var strength=segment.userData.strength||1,index=segment.userData.index||0,total=segment.userData.total||1;
+      var arrival=index/total,local=Math.max(0,Math.min(1,(mapState.signal-arrival)*total*.72));
+      segment.visible=mapState.flows>.002&&local>.002;
+      segment.material.opacity=mapState.flows*local*(.28+.72*strength)*(1-index/total*.48);
+    });
+    mapPulseRings.forEach(function(r,i){var phase=Math.max(0,Math.min(1,mapState.signal*1.35-i*.18)),s=.42+phase*(1.75+i*.34);r.scale.setScalar(s);r.material.opacity=(1-phase)*mapState.flows*.92});
+    if(mapCommandCore){mapCommandCore.scale.setScalar(.32+1.08*mapState.signal);mapCommandCore.material.opacity=mapState.flows*(.58+.42*mapState.signal)}
     mapGovs.visible=mapState.gov>.002;mapFirms.visible=mapState.firms>.002;mapTail.visible=mapState.tail>.002;
     mapGovNodes.forEach(function(g){g.scale.y=Math.max(.001,mapState.gov)});
     mapFirmNodes.forEach(function(g){g.scale.y=Math.max(.001,mapState.firms)});
@@ -644,7 +735,7 @@ button{font:inherit}
         var land=new THREE.Mesh(geo3,[cap,side]);land.rotation.x=-Math.PI/2;land.receiveShadow=true;mapLand.add(land);
         if(outer.length>7){
           var lg=new THREE.BufferGeometry().setFromPoints(outer.map(function(v){return new THREE.Vector3(v.x,.41,v.y)}));
-          mapLines.add(new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:focus?0xc69b4c:0x687474,transparent:true,opacity:focus?.78:.28})));
+          mapLines.add(new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:focus?0xb88935:0x596563,transparent:true,opacity:focus?.9:.42})));
         }
       });
     });
@@ -664,11 +755,25 @@ button{font:inherit}
       mapTailMesh.userData.heights=mapTailMesh.userData.heights||[];mapTailMesh.userData.positions=mapTailMesh.userData.positions||[];mapTailMesh.userData.heights[i]=hh;mapTailMesh.userData.positions[i]=p;
     }
     mapTailMesh.instanceMatrix.needsUpdate=true;if(mapTailMesh.instanceColor)mapTailMesh.instanceColor.needsUpdate=true;mapTail.add(mapTailMesh);
-    var flowMat=new THREE.LineDashedMaterial({color:0xd3a14d,dashSize:.28,gapSize:.2,transparent:true,opacity:0});
-    var bp=mapProj(bj[0],bj[1]);mapFocus.forEach(function(name){var c=mapCentres[name],q=mapProj(c[0],c[1]);var curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(bp[0],.7,bp[1]),new THREE.Vector3((bp[0]+q[0])/2,2.5,(bp[1]+q[1])/2),new THREE.Vector3(q[0],.65,q[1]));var line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(40)),flowMat.clone());line.computeLineDistances();mapFlows.add(line)});
+    var bp=mapProj(bj[0],bj[1]);
+    mapCommandCore=new THREE.Mesh(new THREE.CircleGeometry(.21,32),new THREE.MeshBasicMaterial({color:0xc98a28,transparent:true,opacity:0,side:THREE.DoubleSide,depthTest:false}));mapCommandCore.rotation.x=-Math.PI/2;mapCommandCore.position.set(bp[0],.82,bp[1]);mapCommandCore.scale.setScalar(.01);mapCommand.add(mapCommandCore);
+    for(var pr=0;pr<3;pr++){var ring=new THREE.Mesh(new THREE.RingGeometry(.34,.39,48),new THREE.MeshBasicMaterial({color:0xc98a28,transparent:true,opacity:0,side:THREE.DoubleSide,depthTest:false}));ring.rotation.x=-Math.PI/2;ring.position.set(bp[0],.8,bp[1]);ring.scale.setScalar(.01);mapCommand.add(ring);mapPulseRings.push(ring)}
+    mapFocus.forEach(function(name){
+      var c=mapCentres[name],q=mapProj(c[0],c[1]),strength=mapSignalStrength[name];
+      var curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(bp[0],.7,bp[1]),new THREE.Vector3((bp[0]+q[0])/2,2.5,(bp[1]+q[1])/2),new THREE.Vector3(q[0],.65,q[1]));
+      var total=26,start=new THREE.Color(0xd3a14d),end=new THREE.Color(mapFocusColors[name]);
+      for(var si=0;si<total;si++){
+        var t0=si/total,t1=(si+1)/total,p0=curve.getPoint(t0),pm=curve.getPoint((t0+t1)/2),p1=curve.getPoint(t1);
+        var segmentCurve=new THREE.QuadraticBezierCurve3(p0,pm,p1);
+        var segmentColor=start.clone().lerp(end,t1);
+        var segment=new THREE.Mesh(new THREE.TubeGeometry(segmentCurve,3,.055,6,false),new THREE.MeshBasicMaterial({color:segmentColor,transparent:true,opacity:0,depthWrite:false}));
+        segment.visible=false;segment.userData.index=si;segment.userData.total=total;segment.userData.strength=strength;mapFlows.add(segment);
+      }
+    });
     updateMapState();applyMapCamera();
+    mapChapter.dataset.mapStatus='ready';mapStatus.textContent='制度地形已载入';
   }
-  fetch('../engine/china.json').then(function(r){if(!r.ok)throw new Error('map data');return r.json()}).then(decodeMapGeo).then(buildMap).catch(function(){document.getElementById('mapChapter').dataset.mapError='true'});
+  fetch('./assets/china.json').then(function(r){if(!r.ok)throw new Error('map data HTTP '+r.status);return r.json()}).then(decodeMapGeo).then(buildMap).catch(function(error){mapChapter.dataset.mapStatus='error';mapStatus.textContent='地图数据载入失败';console.error('WANLI map initialization failed',error)});
 
   var epiCanvas=document.getElementById('epilogueCanvas');
   var epiScene=new THREE.Scene(),epiCamera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,120);
@@ -679,19 +784,27 @@ button{font:inherit}
   epiRoot.add(epiRings,epiTrails,epiPackets,epiStars);epiScene.add(epiRoot);
   epiScene.add(new THREE.AmbientLight(0x8aa0a3,.62));var epiLight=new THREE.PointLight(0xd6a34e,2.2,34);epiLight.position.set(0,0,4);epiScene.add(epiLight);
   epiCamera.position.set(0,0,18);
-  var epiState={split:0,ring:0,packets:0,converge:0};
+  var epiState={split:0,ring:0,packets:0,converge:0,trails:.12};
   function epiCurve(points,color,opacity){var curve=new THREE.CatmullRomCurve3(points),geo=new THREE.TubeGeometry(curve,100,.025,6,false),mat=new THREE.MeshBasicMaterial({color:color,transparent:true,opacity:opacity});var mesh=new THREE.Mesh(geo,mat);epiTrails.add(mesh);return mesh}
   var epiBase=epiCurve([new THREE.Vector3(-9,0,0),new THREE.Vector3(-4,0,0),new THREE.Vector3(0,0,0),new THREE.Vector3(4,.45,0),new THREE.Vector3(9,.25,0)],0x73878b,.7);
   var epiMine=epiCurve([new THREE.Vector3(-9,0,.1),new THREE.Vector3(-4,0,.1),new THREE.Vector3(0,0,.1),new THREE.Vector3(4,-2.1,.1),new THREE.Vector3(9,-1.35,.1)],0xd6a34e,1);
   for(var er=0;er<9;er++){var ring=new THREE.Mesh(new THREE.TorusGeometry(2.1+er*.28,.018,6,100),new THREE.MeshBasicMaterial({color:er%3?0x5f777a:0xd6a34e,transparent:true,opacity:.18+(er%3===0?.18:0)}));ring.rotation.y=Math.PI/2;ring.position.x=-1.2+er*.35;ring.scale.setScalar(.001);epiRings.add(ring)}
-  var packetColors=[0xd6a34e,0x71b8ad,0x8e9fbd,0xa7a687,0xd2d7d2];
-  for(var ep=0;ep<5;ep++){var packet=new THREE.Mesh(new THREE.BoxGeometry(.95,.55,.08),new THREE.MeshStandardMaterial({color:packetColors[ep],emissive:packetColors[ep],emissiveIntensity:.25,roughness:.46,metalness:.2,transparent:true,opacity:.9}));packet.position.set(7+ep*1.4,(ep-2)*.72,-.5);packet.scale.setScalar(.001);epiPackets.add(packet)}
+  var packetColors=[0x91a4aa,0x72a59e,0xa8af91,0xd0d5d2,0xd6a34e];
+  var planeTexture=new THREE.TextureLoader().load('./assets/paper-plane-outline.svg');
+  planeTexture.encoding=THREE.sRGBEncoding;
+  for(var ep=0;ep<5;ep++){
+    var packet=new THREE.Mesh(
+      new THREE.PlaneGeometry(.648,.648),
+      new THREE.MeshBasicMaterial({map:planeTexture,color:packetColors[ep],transparent:true,opacity:.94,alphaTest:.08,depthWrite:false,side:THREE.DoubleSide})
+    );
+    packet.position.set(7+ep*1.4,(ep-2)*.72,-.5);packet.scale.setScalar(.001);epiPackets.add(packet);
+  }
   var starPos=[];for(var es=0;es<420;es++){var a=es*12.9898,b=Math.sin(a)*43758.5453,r=b-Math.floor(b),c=Math.sin(a+9.7)*24634.63,q=c-Math.floor(c);starPos.push((r-.5)*28,(q-.5)*15,-4-(es%9)*.35)}
   var starGeo=new THREE.BufferGeometry();starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));epiStars.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0x789194,size:.025,transparent:true,opacity:.42})));
   function updateEpiState(){
-    epiMine.scale.y=Math.max(.001,epiState.split);epiMine.material.opacity=.2+.8*epiState.split;
+    epiMine.scale.y=Math.max(.001,epiState.split);epiMine.material.opacity=epiState.trails*(.28+.72*epiState.split);epiBase.material.opacity=epiState.trails;
     epiRings.children.forEach(function(r,i){var s=Math.max(.001,epiState.ring*(.86+i*.018));r.scale.setScalar(s);r.rotation.z=i*.09*epiState.ring});
-    epiPackets.children.forEach(function(p,i){var s=Math.max(.001,epiState.packets);p.scale.setScalar(s);p.position.x=7-i*2.05*epiState.packets;p.rotation.y=.15*i*epiState.packets});
+    epiPackets.children.forEach(function(p,i){var s=Math.max(.001,epiState.packets);p.scale.setScalar(s);p.position.x=7-i*2.05*epiState.packets;p.rotation.y=.11*(i-2)*epiState.packets});
     epiTrails.position.x=-2.4*epiState.converge;epiTrails.scale.y=1-.82*epiState.converge;epiRings.rotation.x=.16*epiState.converge;
   }
   function readRunResult(){
@@ -942,6 +1055,9 @@ button{font:inherit}
       gsap.set(focusRings.map(function(r){return r.material}),{opacity:0});
       gsap.set('.beat',{autoAlpha:0,y:28});
       gsap.set('.beat .visual',{autoAlpha:0,x:38});
+      gsap.set('#policyQuestion',{autoAlpha:0});
+      gsap.set('.interlude-line',{autoAlpha:0,y:34,filter:'blur(8px)'});
+      gsap.set('.interlude-rule',{width:0});
       gsap.set('#evidenceChapter',{autoAlpha:0});
       gsap.set('.evidence-beat',{autoAlpha:0,y:30});
       gsap.set('.evidence-rings ellipse,.evidence-rings path',{strokeDashoffset:120});
@@ -951,10 +1067,10 @@ button{font:inherit}
       gsap.set('.epi-beat',{autoAlpha:0,y:28});
       mapView.x=0;mapView.y=isDesktop?51:56;mapView.z=.01;mapView.lx=0;mapView.ly=0;mapView.lz=.6;
       mapCamera.fov=isDesktop?26:33;mapCamera.updateProjectionMatrix();
-      mapState.depth=.035;mapState.focus=0;mapState.flows=0;mapState.gov=0;mapState.firms=0;mapState.tail=0;
-      epiState.split=0;epiState.ring=0;epiState.packets=0;epiState.converge=0;epiRoot.scale.setScalar(isDesktop?1:.72);epiRoot.position.set(isDesktop?2.5:0,isDesktop?0:1.8,0);
+      mapState.depth=.035;mapState.focus=0;mapState.flows=0;mapState.signal=0;mapState.gov=0;mapState.firms=0;mapState.tail=0;
+      epiState.split=0;epiState.ring=0;epiState.packets=0;epiState.converge=0;epiState.trails=.12;epiRoot.scale.setScalar(isDesktop?.78:.62);epiRoot.position.set(isDesktop?4.6:0,isDesktop?0:1.8,0);
       var beatNumber=document.getElementById('beatNumber'),beatName=document.getElementById('beatName');
-      var beatLabels=[['00 / 05','AGENT DEPTH PYRAMID'],['01 / 05','KEY ACTORS'],['02 / 05','LONG-TAIL POPULATION'],['03 / 05','CAUSAL FOUNDATION'],['04 / 05','AGENT INTERFACE'],['05 / 05','ONE FOUNDATION']];
+      var beatLabels=[['00 / 05','POLICY WIND TUNNEL'],['01 / 05','KEY ACTORS'],['02 / 05','LONG-TAIL POPULATION'],['03 / 05','CAUSAL FOUNDATION'],['04 / 05','AGENT INTERFACE'],['05 / 05','ONE FOUNDATION']];
       function setBeat(index){beatNumber.textContent=beatLabels[index][0];beatName.textContent=beatLabels[index][1]}
       var tl=gsap.timeline({
         defaults:{ease:'none'},
@@ -972,9 +1088,31 @@ button{font:inherit}
         .to(towerRoot.position,{x:isDesktop?2.45:.55,y:isDesktop?.02:-.2,duration:.65},.28)
         .to(towerRoot.rotation,{y:.12,x:-.02,duration:.75},.28)
         .to(towerRoot.scale,{x:isDesktop?.8:.54,y:isDesktop?.8:.54,z:isDesktop?.8:.54,duration:.65},.28)
-        .to('#chapter',{autoAlpha:1,duration:.24},.52)
-        .to('.beat-intro',{autoAlpha:1,y:0,duration:.28},.62)
-        .addLabel('intro',.62)
+
+        // A full-black counterfactual pause between the promise and the system.
+        // Each line is bound to scroll progress so the question is read in beats.
+        .to('#policyQuestion',{autoAlpha:1,duration:.34},.55)
+        .to('#towerCanvas',{autoAlpha:0,duration:.32},'<')
+        .to('.interlude-line',{autoAlpha:1,y:0,filter:'blur(0px)',duration:.34,stagger:.22},'>-.06')
+        .to('.interlude-rule',{width:isDesktop?240:120,duration:.38},'<.28')
+        .addLabel('question')
+        .to({}, {duration:.82})
+        .to('.interlude-inner',{y:-54,autoAlpha:0,duration:.32})
+        .to('#policyQuestion',{autoAlpha:0,duration:.28},'<.08')
+        .to('#towerCanvas',{autoAlpha:1,duration:.34},'<.06')
+        .to('#chapter',{autoAlpha:1,duration:.24},'<.08')
+        .to('.beat-intro',{autoAlpha:1,y:0,duration:.28},'<.1')
+        .from('.beat-intro .beat-kicker',{autoAlpha:0,y:10,duration:.2},'<.02')
+        .from('.intro-title-a',{autoAlpha:0,y:24,duration:.28},'<.04')
+        .from('.intro-title-b',{autoAlpha:0,y:34,duration:.34},'>-.08')
+        .from('.intro-accent',{color:'#11191b',duration:.32},'<.08')
+        .from('.intro-explain',{autoAlpha:0,y:18,duration:.28},'>-.04')
+        .from('.intro-rule',{scaleX:0,transformOrigin:'left',duration:.3},'<.04')
+        .from('.intro-structure',{autoAlpha:0,y:14,duration:.26},'>-.03')
+        .from('.intro-manifesto',{autoAlpha:0,y:10,duration:.24},'<.08')
+        .to(towerRoot.position,{x:isDesktop?2.28:.5,duration:.7},'<-.42')
+        .to(towerRoot.rotation,{y:.24,duration:.7},'<')
+        .addLabel('intro')
         .to({}, {duration:.9})
 
         // Tower crown: deepen the key actors without losing the common structure below.
@@ -989,8 +1127,8 @@ button{font:inherit}
         .to(topFocus.scale,{x:1.08,y:1.08,z:1.08,duration:.34},'<')
         .to(focusRings[0].material,{opacity:.85,duration:.24},'<')
         .to('.actor-map',{autoAlpha:1,x:0,duration:.34},'>.12')
-        .from('.actor-map .relation',{strokeDashoffset:100,duration:.42,stagger:.025},'<.08')
-        .from('.actor-map .node',{scale:0,transformOrigin:'center',duration:.28,stagger:.025},'<.06')
+        .from('.actor-map .ledger-line',{scaleX:0,transformOrigin:'left',duration:.42,stagger:.025},'<.08')
+        .from('.actor-map .dimension-dot,.actor-map .group-mark',{scale:0,transformOrigin:'center',duration:.28,stagger:.012},'<.06')
         .addLabel('actors')
         .to({}, {duration:1.12})
 
@@ -1029,7 +1167,7 @@ button{font:inherit}
         .addLabel('mechanism')
         .to({}, {duration:1.2})
 
-        // Only the decision adapter changes; deterministic settlement remains locked.
+        // Selective depth: only crown actors receive deep agent reasoning.
         .to('.beat-mechanism',{autoAlpha:0,y:-24,duration:.22})
         .to('.beat-interface',{autoAlpha:1,y:0,duration:.3},'<.12')
         .to(towerRoot.position,{x:isDesktop?.18:.15,y:isDesktop?-2.05:-2.18,duration:.46},'<')
@@ -1043,12 +1181,13 @@ button{font:inherit}
         .to(focusRings[0].material,{opacity:1,duration:.24},'<')
         .to('.interface-visual',{autoAlpha:1,x:0,duration:.36},'>.14')
         .from('.interface-visual',{clipPath:'inset(0 100% 0 0)',duration:.52},'<')
+        .from('.agent-input,.agent-decision,.agent-actions,.depth-row',{autoAlpha:0,x:18,duration:.28,stagger:.07},'<.12')
         .addLabel('interface')
         .to({}, {duration:1.2})
 
         // Reassemble into one inspectable system before moving to the next chapter.
         .to('.beat-interface',{autoAlpha:0,y:-24,duration:.22})
-        .to('.finale',{autoAlpha:1,y:0,duration:.3},'<.12')
+        .to('.beat-index',{autoAlpha:0,duration:.2},'<')
         .to(towerRoot.position,{x:isDesktop?2.55:.82,y:isDesktop?.05:-.22,duration:.56},'<')
         .to(towerRoot.scale,{x:isDesktop?.81:.55,y:isDesktop?.81:.55,z:isDesktop?.81:.55,duration:.56},'<')
         .to(towerRoot.rotation,{y:-.34,x:.01,duration:.56},'<')
@@ -1056,12 +1195,10 @@ button{font:inherit}
         .to([towerTop.rotation,towerMid.rotation,towerBase.rotation],{x:0,y:0,z:0,duration:.5},'<')
         .to(focusRings.map(function(r){return r.material}),{opacity:0,duration:.28},'<')
         .addLabel('finale')
-        .to({}, {duration:1.35})
 
         // Continue through the physical base. The model becomes the evidence gate,
         // keeping the move spatial rather than cutting to a new slide.
-        .to('.finale',{autoAlpha:0,y:-30,duration:.28})
-        .to('#chapter',{autoAlpha:0,duration:.24},'<.08')
+        .to('#chapter',{autoAlpha:0,duration:.24})
         .to('#evidenceChapter',{autoAlpha:1,duration:.28},'<')
         .to('.evidence-dive',{autoAlpha:1,y:0,duration:.32},'<.1')
         .to(towerTop.position,{y:9,duration:.65},'<')
@@ -1079,81 +1216,63 @@ button{font:inherit}
         .addLabel('evidenceDive')
         .to({}, {duration:1.0})
 
-        // Real-world records stream through a provenance gate. Filled and hollow
-        // dots intentionally distinguish verified inputs from calibration paths.
+        // One dense provenance plate replaces the former source, registry and
+        // probe sequence. Lieflat L12 structures the records; F12 carries the
+        // single before/after correction that deserves a chart.
         .to('.evidence-dive',{autoAlpha:0,y:-24,duration:.24})
         .to('#towerCanvas',{autoAlpha:.16,duration:.3},'<')
-        .to('.evidence-provenance',{autoAlpha:1,y:0,duration:.32},'<.1')
-        .from('.source-column',{autoAlpha:0,x:-28,duration:.38,stagger:.1},'<.12')
-        .from('.source-column li',{autoAlpha:0,x:-12,duration:.3,stagger:.025},'<.08')
-        .from('.gate-ring',{scale:.4,autoAlpha:0,transformOrigin:'center',duration:.5,stagger:.09},'<.08')
-        .from('.gate-core',{scale:.25,autoAlpha:0,transformOrigin:'center',duration:.42},'<.16')
-        .addLabel('provenance')
-        .to({}, {duration:1.12})
-
-        // The ledger scans row by row, making uncertainty a first-class field.
-        .to('.evidence-provenance',{autoAlpha:0,y:-24,duration:.24})
-        .to('#towerCanvas',{autoAlpha:0,duration:.24},'<')
-        .to('.evidence-registry',{autoAlpha:1,y:0,duration:.32},'<.1')
-        .from('.registry-row:not(.registry-header) .registry-cell',{autoAlpha:0,y:12,duration:.34,stagger:.014},'<.1')
-        .from('.registry-legend',{autoAlpha:0,y:10,duration:.3},'>-.04')
-        .addLabel('registry')
-        .to({}, {duration:1.16})
-
-        // Three compact probes carry actual engine results, not decorative KPIs.
-        .to('.evidence-registry',{autoAlpha:0,y:-24,duration:.24})
-        .to('.evidence-probes',{autoAlpha:1,y:0,duration:.32},'<.1')
-        .from('.probe',{autoAlpha:0,y:22,duration:.38,stagger:.12},'<.12')
-        .from('.probe .signal,.probe .guide,.probe .axis',{strokeDasharray:420,strokeDashoffset:420,duration:.64,stagger:.05},'<.08')
-        .from('.probe circle',{scale:0,transformOrigin:'center',duration:.3,stagger:.018},'<.16')
-        .from('.evidence-close',{autoAlpha:0,y:18,duration:.36},'>-.02')
-        .addLabel('probes')
-        .to({}, {duration:1.3})
+        .to('.evidence-foundation',{autoAlpha:1,y:0,duration:.34},'<.1')
+        .from('.foundation-title>*',{autoAlpha:0,y:16,duration:.32,stagger:.06},'<.08')
+        .from('.theory-item',{autoAlpha:0,y:12,duration:.34,stagger:.08},'<.08')
+        .from('.source-track',{autoAlpha:0,y:24,duration:.42,stagger:.08},'<.1')
+        .from('.source-record',{autoAlpha:0,x:-10,duration:.28,stagger:.018},'<.12')
+        .from('.fiscal-compare .compare-link',{scaleX:0,transformOrigin:'left',duration:.48},'<.08')
+        .from('.fiscal-compare circle',{scale:0,transformOrigin:'center',duration:.24,stagger:.035},'<.12')
+        .from('.source-foot,.source-disclosure',{autoAlpha:0,y:8,duration:.3,stagger:.04},'<.12')
+        .addLabel('foundation')
+        .to({}, {duration:1.34})
 
         // 2009 leaves the evidence ledger and becomes a geographic experiment.
-        .to('.evidence-probes',{autoAlpha:0,y:-24,duration:.28})
+        .to('.evidence-foundation',{autoAlpha:0,y:-24,duration:.28})
         .to('#evidenceChapter',{autoAlpha:0,duration:.34},'<.08')
         .to('#mapChapter',{autoAlpha:1,duration:.42},'<')
         .to('.map-flat',{autoAlpha:1,y:0,duration:.38},'<.12')
         .from('.map-year',{autoAlpha:0,x:45,duration:.42},'<')
-        .from('.policy-stamp span',{autoAlpha:0,y:12,duration:.34,stagger:.08},'<.15')
+        .from('.policy-file',{autoAlpha:0,y:16,duration:.38},'<.15')
+        .from('.policy-fact',{autoAlpha:0,y:8,duration:.28,stagger:.06},'<.1')
+        .from('.policy-reading,.model-map',{autoAlpha:0,y:8,duration:.3,stagger:.08},'<.08')
         .addLabel('map')
         .to({}, {duration:1.12})
 
-        // A single national signal splits after it passes through local execution.
-        .to('.map-flat',{autoAlpha:0,y:-22,duration:.24})
-        .to('.map-regions',{autoAlpha:1,y:0,duration:.34},'<.1')
-        .to(mapState,{focus:1,flows:1,duration:.72},'<')
-        .from('.map-region-list div',{autoAlpha:0,x:24,duration:.36,stagger:.09},'<.16')
-        .from('.region-equation',{clipPath:'inset(0 100% 0 0)',duration:.58},'<.05')
+        // The next beat contains no explanatory UI. A command leaves Beijing,
+        // fans out across the flat map and weakens by each region's execution rate.
+        .to('.map-flat',{autoAlpha:0,y:-22,duration:.3})
+        .to('.map-year',{autoAlpha:0,duration:.24},'<')
+        .to('.map-regions',{autoAlpha:1,y:0,duration:.2},'<.08')
+        .to(mapState,{focus:1,flows:1,duration:.38},'<')
+        .to(mapState,{signal:1,duration:1.08,ease:'power1.inOut'},'<.06')
         .addLabel('regions')
-        .to({}, {duration:1.12})
+        .to({}, {duration:.68})
 
-        // The projection gains depth while the visual world grades into the arena.
+        // The regional comparison flows straight into the 3D agent world. The
+        // former explanatory stop was redundant, so depth and emergence overlap.
         .to('.map-regions',{autoAlpha:0,y:-24,duration:.26})
-        .to('.map-tilt',{autoAlpha:1,y:0,duration:.34},'<.08')
+        .to('.map-rise',{autoAlpha:1,y:0,duration:.34},'<.08')
         .to('#mapChapter',{backgroundColor:'#11191b',color:'#eef1f2',duration:1.12},'<')
         .to('.map-vignette',{autoAlpha:1,duration:.8},'<')
-        .to('.map-tilt h2',{color:'#eef1f2',duration:.7},'<')
-        .to('.map-tilt p',{color:'#aeb7b9',duration:.7},'<')
-        .to('.map-year',{color:'#d6a34e',duration:.7},'<')
+        .to('.map-rise h2',{color:'#eef1f2',duration:.7},'<')
+        .to('.map-rise .map-kicker',{color:'#d6a34e',duration:.7},'<')
+        .to('.map-year',{autoAlpha:1,color:'#d6a34e',duration:.7},'<')
+        .to(mapState,{signal:.08,flows:.12,duration:.62},'<')
         .to(mapState,{depth:1,duration:1.12},'<')
         .to(mapView,{x:isDesktop?0:-1,y:isDesktop?16.7:20,z:isDesktop?25.7:30,lx:0,ly:0,lz:.8,duration:1.12},'<')
         .to(mapCamera,{fov:45,duration:1.12,onUpdate:function(){mapCamera.updateProjectionMatrix()}},'<')
-        .addLabel('tilt')
-        .to({}, {duration:1.0})
-
-        // Governments rise first, then named firms, then the statistical long tail.
-        .to('.map-tilt',{autoAlpha:0,y:-22,duration:.24})
-        .to('.map-rise',{autoAlpha:1,y:0,duration:.34},'<.08')
-        .to('.map-rise h2',{color:'#eef1f2',duration:.34},'<')
-        .to('.map-rise .map-kicker',{color:'#d6a34e',duration:.34},'<')
-        .to(mapState,{gov:1,duration:.48},'<.06')
+        .to(mapState,{gov:1,duration:.48},'<.38')
         .to(mapState,{firms:1,duration:.58},'>-.12')
         .to(mapState,{tail:1,duration:.78},'>-.14')
-        .to(mapView,{x:isDesktop?1.8:0,y:isDesktop?16.7:20,z:isDesktop?25.7:30,duration:1.28},'<-.85')
+        .to(mapView,{x:isDesktop?3.4:1.4,y:isDesktop?16.7:20,z:isDesktop?25.7:30,lx:isDesktop?-3.8:-2.1,duration:1.28},'<-.85')
         .addLabel('rise')
-        .to({}, {duration:1.18})
+        .to({}, {duration:1.12})
 
         // Clear the narration and preserve the arena-like frame for the HTML handoff.
         .to('.map-rise',{autoAlpha:0,y:-24,duration:.3})
@@ -1169,7 +1288,7 @@ button{font:inherit}
         .to('#mapChapter',{autoAlpha:0,duration:.36},'<')
         .to('#epilogue',{autoAlpha:1,duration:.42},'<.08')
         .to('.epi-outcome',{autoAlpha:1,y:0,duration:.4},'<.12')
-        .to(epiState,{split:1,duration:.9},'<')
+        .to(epiState,{split:1,trails:.2,duration:.9},'<')
         .from('.outcome-panel',{autoAlpha:0,x:40,duration:.46},'<.14')
         .from('.tradeoff',{autoAlpha:0,y:18,duration:.34,stagger:.1},'<.22')
         .addLabel('outcome')
@@ -1178,7 +1297,7 @@ button{font:inherit}
         // Numbers recede; the product's role remains.
         .to('.epi-outcome',{autoAlpha:0,y:-22,duration:.28})
         .to('.epi-verdict',{autoAlpha:1,y:0,duration:.4},'<.1')
-        .to(epiState,{split:.28,duration:.7},'<')
+        .to(epiState,{split:.28,trails:.06,duration:.7},'<')
         .from('.verdict-rule',{scaleY:0,transformOrigin:'top',duration:.48},'<.1')
         .from('.verdict-inner h2',{autoAlpha:0,y:28,duration:.48},'<.12')
         .addLabel('verdict')
@@ -1187,7 +1306,7 @@ button{font:inherit}
         // The same deterministic core accepts a second scenario package.
         .to('.epi-verdict',{autoAlpha:0,y:-24,duration:.28})
         .to('.epi-aircraft',{autoAlpha:1,y:0,duration:.4},'<.1')
-        .to(epiState,{split:0,ring:1,packets:1,duration:.9},'<')
+        .to(epiState,{split:0,ring:1,packets:1,trails:.04,duration:.9},'<')
         .to(epiRoot.position,{x:isDesktop?2.7:0,y:isDesktop?0:2.1,duration:.9},'<')
         .from('.scenario-swap',{autoAlpha:0,x:-30,duration:.46},'<.12')
         .from('.factor-rail span',{autoAlpha:0,y:22,duration:.38,stagger:.08},'<.18')
@@ -1225,11 +1344,13 @@ button{font:inherit}
           if(!tl||!tl.scrollTrigger)return;
           tl.scrollTrigger.disable(false);
           scrollTo(0,0);
-          var frameMap={intro:'intro',actors:'actors',tail:'tail',mechanism:'mechanism',interface:'interface',finale:'finale',dive:'evidenceDive',provenance:'provenance',registry:'registry',probes:'probes',map:'map',regions:'regions',tilt:'tilt',rise:'rise',handoff:'handoff',outcome:'outcome',verdict:'verdict',aircraft:'aircraft',users:'users',closing:'closing','2':'tail','3':'provenance'};
+          var frameMap={question:'question',intro:'intro',actors:'actors',tail:'tail',mechanism:'mechanism',interface:'interface',finale:'finale',dive:'evidenceDive',provenance:'provenance',registry:'registry',probes:'probes',map:'map',regions:'regions',tilt:'tilt',rise:'rise',handoff:'handoff',outcome:'outcome',verdict:'verdict',aircraft:'aircraft',users:'users',closing:'closing','2':'tail','3':'provenance'};
           var previewLabel=frameMap[previewFrame]||'intro';
           tl.seek(previewLabel,false);
           var previewIndex=['intro','actors','tail','mechanism','interface','finale'].indexOf(previewLabel);
-          setBeat(Math.max(0,previewIndex));
+          var previewLabels=[['00 / 05','POLICY WIND TUNNEL'],['01 / 05','KEY ACTORS'],['02 / 05','LONG-TAIL POPULATION'],['03 / 05','CAUSAL FOUNDATION'],['04 / 05','AGENT INTERFACE'],['05 / 05','ONE FOUNDATION']];
+          var previewBeat=previewLabels[Math.max(0,previewIndex)];
+          document.getElementById('beatNumber').textContent=previewBeat[0];document.getElementById('beatName').textContent=previewBeat[1];
         })});
       }
     },{once:true});

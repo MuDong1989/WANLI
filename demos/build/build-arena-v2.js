@@ -21,6 +21,8 @@ var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');            // 仓库根
 var SHELL = path.join(__dirname, 'arena-v2-shell.html');
 var OUT = process.argv[2] || path.join(ROOT, 'demos/wanli-arena-v2.html');
+var OUT_JS = OUT.replace(/\.html$/i, '.js');
+var OUT_THREE = path.join(path.dirname(OUT), 'three-r128.min.js');
 
 function rd(p) { return fs.readFileSync(path.join(ROOT, p), 'utf8'); }
 var geo   = rd('engine/geodecode.js');
@@ -51,6 +53,19 @@ put('/*__CHINA_GEO__*/',  'var CHINA_GEO=' + china + ';');
 put('/*__ENGINE2__*/',    eng);
 put('/*__POLICYTREE__*/', tree);
 
+/* 发布件使用外部脚本。部分安全预览器会删除 <script> 标签但错误保留其文本；
+   单文件内联时，这会把完整引擎源码直接排进页面。拆分后即使脚本被禁用，
+   HTML 也只呈现静态界面，不会泄漏代码文本。壳仍保留内联源码，便于维护。 */
+var inlineRe = /<script>\s*([\s\S]*?)<\/script>\s*<\/body>/i;
+var match = shell.match(inlineRe);
+if (!match) throw new Error('壳文件缺少主程序内联脚本，无法拆分发布件');
+var app = match[1].replace(/^\s+|\s+$/g, '') + '\n';
+shell = shell.replace(inlineRe, '<script src="./' + path.basename(OUT_JS) + '"></script>\n</body>');
+
 fs.writeFileSync(OUT, shell);
+fs.writeFileSync(OUT_JS, app);
+fs.copyFileSync(path.join(ROOT, 'pitch/vendor/three-r128.min.js'), OUT_THREE);
 console.log('written:', OUT, (shell.length / 1024).toFixed(0) + 'KB');
+console.log('written:', OUT_JS, (app.length / 1024).toFixed(0) + 'KB');
+console.log('copied:', OUT_THREE);
 console.log('policy nodes packed:', (tree.match(/\{id:'/g) || []).length);

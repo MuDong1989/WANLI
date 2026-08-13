@@ -31,6 +31,8 @@ jobs:
           cp -R pitch/assets pitch/vendor _site/
           mkdir _site/product
           cp demos/wanli-arena-v2.html _site/product/index.html
+          cp demos/wanli-arena-v2.js _site/product/wanli-arena-v2.js
+          cp demos/three-r128.min.js _site/product/three-r128.min.js
           touch _site/.nojekyll
 
       - name: Configure GitHub Pages
