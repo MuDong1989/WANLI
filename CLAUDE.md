@@ -46,7 +46,7 @@ node experiments/shapley.js     # 及其余四个实验，evidence.md 每条附�
 
 ## 拷打指引（grill-me）
 
-主靶 = `specs/v3.1-consolidated-design.md`（决策带推翻条件）；弹药带 = `specs/assumption-registry.md`（软肋自供）；护甲 = `specs/decision-log.md`（已审决策防重犁，推翻须给出新论据）；防御 = `specs/evidence.md`（每条主张附复现命令，先跑再打）。最深预置答辩：**"GR 既是拟合目标又是验证标准"** → 见 v3.1 §9 的 out-of-fit 反事实剂量反应论证。
+主靶 = `specs/v3.1-consolidated-design.md`（决策带推翻条件）；弹药带 = `specs/assumption-registry.md`（软肋自供）；护甲 = `specs/decision-log.md`（已审决策防重犁，推翻须给出新论据）；防御 = `specs/evidence.md`（每条主张附复现命令，先跑再打）。最深预置答辩：**"GR 既是拟合目标又是验证标准"** → 见 v3.1 §9 的 out-of-fit 反事实剂量反应论证。参考谱系答辩弹药 = reference-manifest.md 末两节：REL 查表相关性是确定性纪律下的优势（embedding 不可复现）；mesa 3.x 官方弃调度器类与我方显式顺序算子同向；abides 优先队列是确定性调度的业界先例 [A26]。
 
 ## 参考仓库（P0-R 卡：克隆到**项目外**的平级目录 `../references/`，勿放进本仓库——避免污染 Claude Code 上下文与 git 嵌套）
 
