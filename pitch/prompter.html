@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a1028">
+<title>万历 · 提词器</title>
+<style>
+/* Editorial Fintech tokens（001 内联，暗底舞台版）*/
+:root{
+  --bg:#0a1028; --bg-2:#0f1638; --paper:#f5efe2;
+  --gold:#f5a623; --gold-bright:#ffc774; --ok:#3ad17a; --warn:#ff7a59;
+  --muted:#7b829a; --line:rgba(255,255,255,.08);
+  --ink-soft:rgba(248,243,227,.78); --ink-muted:rgba(248,243,227,.4);
+  --font-serif:'Noto Serif SC',Georgia,'Songti SC',SimSun,serif;
+  --font-sans:'Noto Sans SC',-apple-system,'Microsoft YaHei',sans-serif;
+  --font-mono:'SF Mono',Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--paper);font-family:var(--font-sans);overflow:hidden;
+  -webkit-user-select:none;user-select:none}
+/* 顶栏 */
+.top{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+  padding:12px 16px calc(10px + env(safe-area-inset-top)/2);padding-top:calc(12px + env(safe-area-inset-top));
+  background:linear-gradient(180deg,var(--bg) 70%,transparent);font-family:var(--font-mono)}
+.clock{font-size:26px;letter-spacing:.05em}
+.drift{font-size:13px;margin-left:10px}
+.drift.late{color:var(--warn)} .drift.early{color:var(--ok)}
+.beatno{font-size:11px;letter-spacing:.16em;color:var(--muted)}
+.beatno b{color:var(--gold);font-weight:500}
+/* 正文 */
+.stage{position:absolute;inset:0;padding:86px 22px 150px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.beat{margin-bottom:34px;opacity:.22;transition:opacity .25s}
+.beat.cur{opacity:1}
+.beat.next{opacity:.5}
+.tag{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;color:var(--gold);margin-bottom:8px}
+.tag .demo{background:rgba(245,166,35,.16);border:1px solid rgba(245,166,35,.4);border-radius:6px;padding:2px 8px;margin-left:8px}
+.txt{font-family:var(--font-serif);font-weight:500;line-height:1.72;font-size:var(--fs,26px)}
+.txt em{font-style:normal;color:var(--gold)}
+.txt .p{display:block;margin-bottom:.6em}
+/* 底部控制 */
+.ctrl{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:10px;align-items:center;
+  padding:12px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(0deg,var(--bg) 72%,transparent)}
+button{font-family:var(--font-mono);font-size:14px;letter-spacing:.08em;color:var(--paper);
+  background:var(--bg-2);border:1px solid var(--line);border-radius:999px;padding:12px 18px}
+button.gold{background:linear-gradient(180deg,rgba(245,166,35,.25),rgba(245,166,35,.08));border-color:rgba(245,166,35,.5);color:var(--gold-bright)}
+button:active{transform:scale(.96)}
+.spacer{flex:1}
+/* 点按翻拍区（正文左右 1/2）*/
+.tapzone{position:fixed;top:80px;bottom:90px;width:50%;z-index:4}
+#prev{left:0} #next{right:0}
+.hint{position:fixed;bottom:calc(74px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;z-index:3;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;color:var(--ink-muted)}
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="beatno" id="beatno"><b>B0</b> · 目标 @0:00</span>
+  <span><span class="clock" id="clock">00:00</span><span class="drift" id="drift"></span></span>
+</div>
+
+<div class="stage" id="stage"></div>
+<div class="tapzone" id="prev"></div>
+<div class="tapzone" id="next"></div>
+<div class="hint">右半屏=下一拍 · 左半屏=上一拍</div>
+<div class="ctrl">
+  <button class="gold" id="start">▶ 起表</button>
+  <button id="reset">归零</button>
+  <span class="spacer"></span>
+  <button id="minus">A−</button>
+  <button id="plus">A+</button>
+</div>
+
+<script>
+/* 讲稿与 pitch/script.md 同源（v1 2026-08-13）；数字均为引擎实测/已核文号 */
+var BEATS=[
+{t:0,   tag:'B0 · 0:00 开场（黑屏出「万历」）',demo:false,ps:[
+ '产业政策有用还是有害？林毅夫和张维迎吵了十年，谁也说服不了谁——因为<em>历史只跑了一次</em>，没法做对照实验。',
+ '我们造了一个能做对照实验的地方。万历，一个政企互动推演场：给我一张因子表，我还你<em>一万条平行历史</em>。',
+ '第一架吹过风洞的飞机：光伏，2009 到 2018。']},
+{t:30,  tag:'B1 · 0:30 史实自动驾驶',demo:true,ps:[
+ '2009，金太阳工程——财建 397 号文，补助总投资的 <em>50%</em>。看：装机补贴一开，新厂商六家、六家地跨界涌入，这是潮涌。',
+ '骗补也同时出现——装机就给钱，验收的人不会上屋顶数板子。',
+ '2012，欧美双反落地，海外需求腰斩，当期 <em>50 家</em>中小厂倒闭；2013 上半年再倒 <em>46 家</em>——然后这盏灯熄了：天阳能源。现实里它叫尚德，2013 年 3 月。',
+ '<em>我们没有写死这个剧本</em>：引擎只拿到政策时间线，破产是自己长出来的。']},
+{t:90,  tag:'B2 · 1:30 暂停 · 决策卡',demo:false,ps:[
+ '暂停。每个主体每次决策都有五段卡：观测、记忆、依据、行动、独白。',
+ '小盛作坊，骗补投机者。它的<em>翻转因子 = 实核 55</em>：低于 55 就虚报，高于就收手——而且一旦有两期内被查的记忆，全域收手。<em>决策的主导层是记忆，不是观测</em>。',
+ '再看政府侧：辽宁内阁三席位票决，招商席 1.3 压过监管席 0.8，票面永远是「维持折扣 0.45」。<em>监管洼地不是写死的参数，是票决的均衡</em>。']},
+{t:130, tag:'B3 · 2:10 悔棋分叉',demo:true,ps:[
+ '现在悔棋。拖回 2011，把核查拧到树内顶格 80——A 区 B 区骗补清零，<em>C 区还剩四十多起</em>。',
+ '为什么？中央核查要过地方执行折扣：80 乘 (1−0.45)，落地只有 <em>44</em>。这就是委托代理。',
+ '政策解不是继续加码，是<em>上巡查组</em>——直插地方、绕过内阁——归零。',
+ '还有一张卡必须看：江西财政席，<em>二十期全程投反对，救助照发两次</em>。软预算约束的政治经济学，一张决策卡讲完。救助买了三个回合，没改变结局——<em>续命不改命</em>，这就是赛维的弧线。']},
+{t:190, tag:'B4 · 3:10 校验页',demo:false,ps:[
+ '你们会问：这是校准出来的，还是真的？三层回答。',
+ '一，九项黄金回归全绿，天阳破产点锚 2013 上半年，对上尚德。',
+ '二，out-of-fit：校准只锁史实一条轨迹；剂量反应、提前切换度电，检验的是<em>没被拟合过的行为</em>。',
+ '三，数字有出处：397 号补助 50%、1638 号三区标杆 0.90 / 0.95 / 1.00——写在注册表里，可以逐条查。查不到的标「未核」，拍脑袋的标「占位」——<em>26 条假设全部自供在案</em>。']},
+{t:230, tag:'B5 · 3:50 通用性 + 自我拷问',demo:false,ps:[
+ '换个产业要多久？引擎和场景解耦：政策树编译与史实剧本<em>逐位等价</em>，这是测试测出来的。换产业 = 换五张因子表。',
+ '我们甚至把拷问自己的报告放在仓库里：22 个问题、5 枚探针，答不上来的、被推翻的，全在 grill-report。',
+ '风洞里的飞机不是真飞机——但<em>没人敢不吹风洞就上天</em>。']},
+{t:260, tag:'B6 · 4:20 收尾',demo:false,ps:[
+ '三个出口：政策研究者的沙盘，企业的战略压力测试，政经课堂的实验台。',
+ '引擎叫 Ceteris——经济学家假设的 ceteris paribus，其余条件不变，我们把它实现了。',
+ '历史只跑了一次，我们让它跑<em>一万次</em>。',
+ '万历。<em>多算胜，少算不胜</em>。']}
+];
+var cur=0, t0=null, fs=26;
+var stage=document.getElementById('stage');
+function fmt(s){s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function render(){
+  stage.innerHTML=BEATS.map(function(b,i){
+    return '<div class="beat'+(i===cur?' cur':(i===cur+1?' next':''))+'" id="bt'+i+'">'
+      +'<div class="tag">'+b.tag+(b.demo?'<span class="demo">DEMO 切窗</span>':'')+'</div>'
+      +'<div class="txt" style="--fs:'+fs+'px">'+b.ps.map(function(p){return '<span class="p">'+p+'</span>';}).join('')+'</div></div>';
+  }).join('');
+  var b=BEATS[cur];
+  document.getElementById('beatno').innerHTML='<b>B'+cur+'</b> · 目标 @'+fmt(b.t);
+  var el=document.getElementById('bt'+cur);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+setInterval(function(){
+  var el=t0===null?0:(Date.now()-t0)/1000;
+  document.getElementById('clock').textContent=fmt(el);
+  var d=el-BEATS[cur].t, dr=document.getElementById('drift');
+  if(t0===null||Math.abs(d)<8){dr.textContent='';dr.className='drift';}
+  else if(d>0){dr.textContent='+'+Math.round(d)+'s';dr.className='drift late';}
+  else{dr.textContent='−'+Math.round(-d)+'s';dr.className='drift early';}
+},500);
+function go(i){cur=Math.max(0,Math.min(BEATS.length-1,i));if(t0===null&&cur>0)t0=Date.now();render();}
+document.getElementById('next').addEventListener('click',function(){go(cur+1);});
+document.getElementById('prev').addEventListener('click',function(){go(cur-1);});
+document.getElementById('start').addEventListener('click',function(){t0=Date.now();cur=0;render();});
+document.getElementById('reset').addEventListener('click',function(){t0=null;cur=0;render();});
+document.getElementById('plus').addEventListener('click',function(){fs=Math.min(40,fs+2);render();});
+document.getElementById('minus').addEventListener('click',function(){fs=Math.max(18,fs-2);render();});
+/* 防熄屏（不支持则静默失败） */
+try{ navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){}); }catch(e){}
+document.addEventListener('visibilitychange',function(){ if(!document.hidden){ try{ navigator.wakeLock&&navigator.wakeLock.request('screen').catch(function(){}); }catch(e){} } });
+render();
+</script>
+</body>
+</html>
