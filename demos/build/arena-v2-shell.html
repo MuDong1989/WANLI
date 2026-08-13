@@ -437,6 +437,7 @@
   <button class="btn primary" id="btnPlay">▶ 播放</button>
   <button class="btn" id="btnStep">单步</button>
   <button class="btn" id="btnReset">重置</button>
+  <button class="btn" id="btnExport" disabled>导出</button>
   <div id="spacer"></div>
   <div id="apBox">行动点 <i></i><i></i><i></i></div>
   <select class="btn" id="speed">
@@ -750,6 +751,7 @@ cvs.addEventListener('wheel',function(e){e.preventDefault();lastPointer=performa
 var userSim,baseSim,activeNodes,apRemaining,pendingOps,roundRecs,takenOver,gameOver,selected,playTimer=null;
 var scrub={on:false,k:-1,u:null,b:null,active:null};
 var selProv=null;   /* T-F2：当前选中的名角省（provs[].id），与 selected 互斥 */
+var branchLog=[];  /* 分叉留档：导出报告要标分叉点与当时的政策差异 */
 /* 企业镜头预留通道（§3）：{firmId:{dK,rd,fake,move,note}}；本版不开 UI，接口不封死 */
 var playerCtrl=null;
 function cur(){return scrub.on?scrub.u:userSim;}
@@ -926,6 +928,8 @@ byId('btnBack').addEventListener('click',function(){
   byId('btnPlay').disabled=false;byId('btnStep').disabled=false;refreshAll();
 });
 byId('btnBranch').addEventListener('click',function(){
+  branchLog.push({t:scrub.k, label:scrub.u.yearLabel(scrub.k),
+    mine:(roundRecs[scrub.k]||{}).policy, hist:ENGINE.scriptPolicy(scrub.k)});
   userSim=scrub.u;baseSim=scrub.b;activeNodes=scrub.active;
   roundRecs=roundRecs.slice(0,scrub.k+1);
   takenOver=true;gameOver=false;pendingOps=[];apRemaining=AP_PER_ROUND;
@@ -1178,7 +1182,7 @@ function refreshAll(){
     if(ex.fakeNow[i]>0)exFlash[i]=now+1400;
   }
   exMesh.count=n;
-  drawCharts();refreshTimeline();renderTree();syncEvtJumpable();
+  drawCharts();refreshTimeline();renderTree();syncEvtJumpable();syncExportBtn();
   if(selected)renderDetail(selected);
   if(selProv)renderProvCard(selProv);
 }
@@ -1280,6 +1284,290 @@ function finale(){
 }
 byId('btnAgain').addEventListener('click',function(){byId('finale').style.display='none';init();});
 
+/* ============================================================
+   导出推演报告（EXPORT-REPORT）
+   引擎零触碰：全部数据来自已有的 userSim / baseSim / roundRecs / 事件流 DOM，
+   不新增任何 sim.step() 或其它引擎调用。
+   产物：单文件自包含 HTML（样式内联、零外链、断网可开）+ 可选 .json 复现包。
+   回看态下导出内容截至当前 scrub 回合，报告头会写明。
+   ============================================================ */
+function esc(s){ return String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function nf(v,d){ return (typeof v==='number'&&isFinite(v))? v.toFixed(d===undefined?2:d) : '—'; }
+function pad2(n){ return (n<10?'0':'')+n; }
+function stamp(){ var d=new Date();
+  return {date:d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate()),
+          full:d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+' '+
+               pad2(d.getHours())+':'+pad2(d.getMinutes())}; }
+function dl(name,blob){
+  var u=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=u; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} URL.revokeObjectURL(u); },0);
+}
+/* 报告复用现役主题令牌：这里读的是 CSS 变量，所以换肤后报告自动跟着换，不用改两遍 */
+var RPT_TOKENS=['--page','--panel','--panel-2','--ink','--ink-2','--accent','--line',
+  '--evt-policy','--evt-fraud','--evt-region','--evt-firm','--evt-media','--evt-market',
+  '--evt-sys','--evt-wave','--sans','--mono'];
+function rptVars(){
+  return RPT_TOKENS.map(function(k){ return '    '+k+':'+cssv(k,'#000')+';'; }).join('\n');
+}
+function nodeLabel(op){
+  var n=PNODES.find(function(x){return x.id===op[1];});
+  var nm=n?n.name:op[1];
+  return op[2]>0 ? (nm+' Lv'+op[2]+(n&&n.lvs[op[2]-1]?'（'+n.lvs[op[2]-1].tag+'）':'')) : ('废止「'+nm+'」');
+}
+function polText(p){
+  if(!p) return '—';
+  return (MODE_CN[p.mode]||p.mode)+' 强度'+p.intensity+' · 核查'+p.audit+
+    (p.x&&Object.keys(p.x).length? ' · 通道'+Object.keys(p.x).map(function(k){return k+'='+p.x[k];}).join('/') : '');
+}
+/* 事件全录：事件只存在于事件流 DOM（引擎不留档），故从那里读回来。
+   evtBody 是 prepend 的（新在前）且上限 200 条，两点都在报告里如实标注。 */
+function collectEvents(upto){
+  var out=[], kids=byId('evtBody').children;
+  for(var i=kids.length-1;i>=0;i--){                     // 反向 = 恢复时间正序
+    var p=kids[i], t=+p.dataset.t;
+    if(!(t>=0) || t>upto) continue;
+    out.push({t:t, type:(p.className.split(/\s+/)[0]||'sys'),
+              html:p.innerHTML.replace(/^<b>.*?<\/b>/,'')});
+  }
+  return out;
+}
+function buildReport(){
+  var sim=cur(), base=curBase();
+  var upto=sim.t-1;                                      // 已推演完的最后一回合
+  var S=stamp();
+  var h=sim.history[sim.history.length-1]||null, hb=base.history[base.history.length-1]||null;
+  var recs=roundRecs.slice(0, sim.t);
+  var TITLE='万历 · 推演报告 · 种子'+ENGINE.CFG.seed+' · 截至 '+sim.yearLabel(Math.max(0,upto));
+
+  /* —— 1 元数据头 —— */
+  var meta=[
+    ['随机种子', ENGINE.CFG.seed+'（同种子同操作可逐位重放）'],
+    ['场景包', '光伏 2009–2018（半年一拍）'],
+    ['推演区间', sim.yearLabel(0)+' — '+sim.yearLabel(Math.max(0,upto))+'（共 '+sim.t+' 回合）'],
+    ['运行模式', takenOver? '玩家接管' : '史实自动驾驶'],
+    ['导出状态', scrub.on? ('回看态 · 内容截至 t'+scrub.k+'（'+sim.yearLabel(scrub.k)+'），其后回合不在本报告内')
+                        : '最新态'],
+    ['导出时间', S.full]
+  ];
+  if(branchLog.length){
+    /* 只报"分叉那一刻的政策"会误导：自动驾驶下分叉时两者本就相同，
+       真正的差异始于分叉之后。所以这里同时列出分叉后的实际操作。 */
+    meta.push(['分叉记录', branchLog.map(function(b){
+      var same=polText(b.mine)===polText(b.hist);
+      var after=[];
+      for(var t=b.t+1;t<recs.length;t++){
+        (recs[t].ops||[]).forEach(function(o){ after.push('t'+t+' '+nodeLabel(o)); });
+      }
+      return '<b>在 '+esc(b.label)+'（t'+b.t+'）分叉</b>'+
+        '<br>· 分叉时生效政策：'+esc(polText(b.mine))+
+          (same? '（与史实相同——差异始于分叉之后）'
+               : '；同期史实为 '+esc(polText(b.hist)))+
+        '<br>· 分叉后你的操作：'+(after.length? esc(after.join('；')) : '<span class="dim">无（仅沿用分叉时的政策继续推演）</span>');
+    }).join('<hr style="border:0;border-top:1px solid var(--line);margin:6px 0">')]);
+  }
+
+  /* —— 2 终局 KPI ± 基线 —— */
+  function kpiRow(name,uv,bv,unit,dec){
+    if(uv==null) return '';
+    var d=(typeof uv==='number'&&typeof bv==='number')? uv-bv : null;
+    var cls=d===null||Math.abs(d)<1e-9? '' : (d>0?' up':' down');
+    return '<tr><td>'+esc(name)+'</td><td class="num">'+nf(uv,dec)+esc(unit)+'</td>'+
+      '<td class="num dim">'+nf(bv,dec)+esc(unit)+'</td>'+
+      '<td class="num'+cls+'">'+(d===null?'—':(d>0?'+':'')+nf(d,dec))+'</td></tr>';
+  }
+  var kpi = h&&hb ? [
+    kpiRow('财政累计投入',h.fiscalTotal,hb.fiscalTotal,' 亿',0),
+    kpiRow('骗补流失',h.waste,hb.waste,' 亿',0),
+    kpiRow('名角存活',h.alive,hb.alive,' / '+ENGINE.FIRMS.length,0),
+    kpiRow('长尾存活',h.exAlive,hb.exAlive,' 家',0),
+    kpiRow('成本前沿',h.Cf,hb.Cf,' 元/W',2),
+    kpiRow('市场价格',h.P,hb.P,' 元/W',2),
+    kpiRow('公众舆情',h.opinion,hb.opinion,' /100',0)
+  ].join('') : '<tr><td colspan="4">尚无推演数据</td></tr>';
+
+  /* —— 3 逐回合全史表 —— */
+  var hist=sim.history.map(function(x,i){
+    var b=base.history[i]||{}, fr=(x.fraudRegion||[0,0,0]);
+    return '<tr><td>t'+x.t+'</td><td>'+esc(sim.yearLabel(x.t))+'</td>'+
+      '<td class="num">'+nf(x.P)+'</td><td class="num">'+nf(x.Cf)+'</td>'+
+      '<td class="num">'+nf(x.D)+'</td><td class="num">'+nf(x.S)+'</td>'+
+      '<td class="num">'+nf(x.S>0.01?x.D/x.S:0)+'</td>'+
+      '<td class="num">'+x.alive+'</td><td class="num">'+x.exAlive+'</td>'+
+      '<td class="num">'+x.exDeadCum+'</td>'+
+      '<td class="num">'+nf(x.fiscalTotal,0)+'</td><td class="num">'+nf(x.waste,0)+'</td>'+
+      '<td class="num">'+nf(x.opinion,0)+'</td>'+
+      '<td class="num">'+(fr[0]+fr[1]+fr[2])+'</td>'+
+      '<td class="num dim">'+nf(b.fiscalTotal,0)+' / '+nf(b.waste,0)+'</td></tr>';
+  }).join('');
+
+  /* —— 4 政策操作时间线 —— */
+  var ops=recs.map(function(r,i){
+    var list=(r.ops||[]).map(function(o){return nodeLabel(o);});
+    return '<tr><td>t'+i+'</td><td>'+esc(sim.yearLabel(i))+'</td>'+
+      '<td>'+(list.length? list.map(esc).join('<br>') : '<span class="dim">（无操作）</span>')+'</td>'+
+      '<td class="mono">'+esc(polText(r.policy))+'</td></tr>';
+  }).join('');
+
+  /* —— 5 叙事层 —— */
+  var evs=collectEvents(upto).map(function(e){
+    return '<div class="ev '+esc(e.type)+'"><b>'+esc(sim.yearLabel(e.t))+'</b>'+e.html+'</div>';
+  }).join('');
+  var firms=sim.firms.map(function(f){
+    var c=f.lastCard;
+    var mono=(f.monologues||[]).slice(-3).reverse().map(function(m){
+      return '<p><b>'+esc(sim.yearLabel(m.t))+'</b>'+esc(m.note)+'</p>'; }).join('');
+    return '<div class="card"><h4>'+esc(f.emoji+' '+f.name)+
+      ' <small>'+esc(f.alive?'存活':(f.dead==='exit'?'已离场':'已破产'))+
+      ' · 产能 '+nf(f.K)+' GW · 现金 '+nf(Math.max(0,f.cash),0)+' 亿 · 成本系数 '+nf(f.f,3)+
+      (f.prov?' · 驻地 '+esc(f.prov):'')+'</small></h4>'+
+      '<div class="segs"><div><h6>壹 观测</h6><ul>'+
+        (c&&c.observed? c.observed.map(function(s){return '<li>'+esc(s)+'</li>';}).join('') : '<li class="dim">—</li>')+
+      '</ul></div><div><h6>贰 调取记忆</h6><ul>'+
+        (c&&c.recalled&&c.recalled.length? c.recalled.map(function(m){
+          return '<li>『'+esc(sim.yearLabel(m.t))+'』'+esc(m.text)+'</li>';}).join('') : '<li class="dim">（尚无相关记忆）</li>')+
+      '</ul></div><div><h6>叁 决策依据</h6><p class="pill">'+esc(c?c.rule:'—')+'</p>'+
+        '<h6>肆 行动</h6><p class="act">'+esc(c?c.act:'—')+'</p></div>'+
+      '<div><h6>伍 内心独白</h6>'+(mono||'<p class="dim">—</p>')+'</div></div></div>';
+  }).join('');
+  var provs=sim.provs.map(function(pv){
+    var c=pv.lastCard, band=sim.regions[pv.band];
+    var seats=c? c.seats.map(function(s){
+      var k=SEATKEY[s.s]||'zs', mag=Math.min(1,Math.abs(s.v)/3)*50, left=s.v>=0?50:50-mag;
+      return '<div class="seat '+k+'"><em>'+esc(s.s)+'</em>'+
+        '<span class="lev"><i style="left:'+left+'%;width:'+mag+'%"></i></span>'+
+        '<b>'+(s.v>0?'+':'')+s.v+'</b></div>'; }).join('') : '<span class="dim">（本省尚未开过会）</span>';
+    return '<div class="card"><h4>🏛️ '+esc(pv.name)+'省内阁 <small>'+esc(band.name)+
+      '带 · 执行折扣 '+nf(pv.disc)+'（带基准 '+nf(band.disc)+'）· 本省实核 '+
+      Math.round(sim.effA(pv.band,curPolicy(),pv.id))+' · 救助 '+pv.rescues+'/2 次</small></h4>'+
+      '<div class="segs"><div><h6>观测</h6><ul>'+
+        (c? c.observed.map(function(s){return '<li>'+esc(s)+'</li>';}).join('') : '<li class="dim">—</li>')+
+      '</ul></div><div><h6>席位立场</h6>'+seats+'</div>'+
+      '<div><h6>票决算式</h6><p class="pill">'+esc(c?c.rule:'—')+'</p>'+
+        '<h6>行动</h6><p class="act">'+esc(c?c.act:'—')+'</p></div></div></div>';
+  }).join('');
+
+  /* —— 6 复现数据 —— */
+  var repro={seed:ENGINE.CFG.seed, rounds:sim.t, exportedAt:S.full,
+             scrubbedTo:(scrub.on?scrub.k:null), branches:branchLog.map(function(b){return b.t;}),
+             ops:recs.map(function(r){return r.ops;}), history:sim.history};
+  var reproJson=JSON.stringify(repro);
+  var jsonHref='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(repro,null,1));
+  var jsonName='wanli-report-seed'+ENGINE.CFG.seed+'-t'+upto+'-'+S.date+'.json';
+
+  /* —— 快照（增强项 E1/E2）—— */
+  var shots='';
+  try{
+    renderer.render(scene,camera);                       // 必须紧接着取，否则缓冲区已被清
+    shots+='<img class="shot" alt="终局地图" src="'+renderer.domElement.toDataURL('image/png')+'">';
+  }catch(e){ shots+='<p class="dim">（地图快照不可用：'+esc(e.message)+'）</p>'; }
+  var sparks='';
+  ['ch1','ch2','ch3','ch4'].forEach(function(id,i){
+    try{ var cv=byId(id);
+      sparks+='<figure><figcaption>'+esc(['价格与成本前沿','需求与产能','长尾厂商存活数','财政累计投入'][i])+
+              '</figcaption><img src="'+cv.toDataURL('image/png')+'" alt=""></figure>';
+    }catch(e){}
+  });
+
+  return {name:'wanli-report-seed'+ENGINE.CFG.seed+'-t'+upto+'-'+S.date+'.html',
+          jsonName:jsonName, json:JSON.stringify(repro,null,1),
+  html:'<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">'+
+  '<meta name="viewport" content="width=device-width,initial-scale=1">'+
+  '<title>'+esc(TITLE)+'</title><style>\n'+
+  '  :root{\n'+rptVars()+'\n  }\n'+
+  '  *{box-sizing:border-box} body{margin:0;padding:26px 30px 60px;background:var(--page);color:var(--ink);'+
+  'font-family:var(--sans);font-size:13px;line-height:1.6}\n'+
+  '  .wrap{max-width:1080px;margin:0 auto}\n'+
+  '  h1{font-size:22px;letter-spacing:.06em;margin:0 0 4px;display:flex;align-items:center;gap:10px}\n'+
+  '  h1::before{content:"";width:6px;height:22px;background:var(--accent);flex:0 0 auto}\n'+
+  '  .lede{color:var(--ink-2);margin:0 0 20px;font-size:12px}\n'+
+  '  h2{font-size:14px;letter-spacing:.14em;margin:30px 0 8px;padding-top:9px;border-top:2px solid var(--ink)}\n'+
+  '  h2 small{font-weight:400;letter-spacing:0;color:var(--ink-2);margin-left:8px;font-size:11px}\n'+
+  '  table{width:100%;border-collapse:collapse;font-size:11.5px}\n'+
+  '  th,td{padding:4px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}\n'+
+  '  th{color:var(--ink-2);font-weight:600;font-size:10px;letter-spacing:.08em;border-bottom:1px solid var(--ink)}\n'+
+  '  td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}\n'+
+  '  td.mono{font-family:var(--mono);font-size:10.5px}\n'+
+  '  .dim{color:var(--ink-2)} td.up{color:var(--accent)} td.down{color:#0f6b5c}\n'+
+  '  .meta{display:grid;grid-template-columns:120px 1fr;gap:3px 14px;font-size:12px;'+
+  'background:var(--panel);border:1px solid var(--line);padding:12px 14px}\n'+
+  '  .meta b{color:var(--ink-2);font-weight:600}\n'+
+  '  .ev{border-left:3px solid var(--ink-2);padding:2px 0 2px 9px;margin:3px 0;font-size:11.5px}\n'+
+  '  .ev b{display:block;font:10px var(--mono);color:var(--ink-2)}\n'+
+  '  .ev.policy{border-color:var(--evt-policy)} .ev.fraud{border-color:var(--evt-fraud)}\n'+
+  '  .ev.region{border-color:var(--evt-region)} .ev.firm{border-color:var(--evt-firm)}\n'+
+  '  .ev.media{border-color:var(--evt-media)} .ev.market{border-color:var(--evt-market)}\n'+
+  '  .ev.sys{border-color:var(--evt-sys)} .ev.wave{border-color:var(--evt-wave)}\n'+
+  '  .card{background:var(--panel);border:1px solid var(--line);padding:11px 13px;margin:9px 0}\n'+
+  '  .card h4{margin:0 0 7px;font-size:13px} .card h4 small{font-weight:400;color:var(--ink-2);font-size:10.5px}\n'+
+  '  .segs{display:grid;grid-template-columns:1.1fr 1.1fr 1fr 1.2fr;gap:12px}\n'+
+  '  .segs>div{border-left:1px solid var(--line);padding-left:9px}\n'+
+  '  h6{margin:0 0 3px;font-size:9.5px;letter-spacing:.2em;color:var(--ink-2);font-weight:600}\n'+
+  '  .segs ul{margin:0 0 6px;padding-left:14px} .segs li{font-size:11px}\n'+
+  '  .pill{display:inline-block;background:var(--panel-2);border:1px solid var(--line);padding:2px 8px;margin:0 0 6px;font-size:10.5px}\n'+
+  '  .act{font:600 12px var(--mono);margin:0 0 6px}\n'+
+  '  .segs p{margin:0 0 5px;font-size:11px}\n'+
+  '  .seat{display:grid;grid-template-columns:44px 1fr 26px;gap:5px;align-items:center;margin-bottom:4px;font-size:10.5px}\n'+
+  '  .seat .lev{position:relative;height:7px;background:#e6e4de;display:block}\n'+
+  '  .seat .lev i{position:absolute;top:0;height:100%}\n'+
+  '  .seat.zs b,.seat.zs .lev i{color:#8a6a1a;background:#8a6a1a}\n'+
+  '  .seat.cz b,.seat.cz .lev i{color:#1e3a6e;background:#1e3a6e}\n'+
+  '  .seat.jg b,.seat.jg .lev i{color:#7d4436;background:#7d4436}\n'+
+  '  .seat b{text-align:right;font-family:var(--mono)} .seat em{font-style:normal;color:var(--ink-2)}\n'+
+  '  .shot{width:100%;max-width:620px;border:1px solid var(--line);display:block;margin:8px 0}\n'+
+  '  .sparks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px}\n'+
+  '  .sparks img{width:100%;border:1px solid var(--line);display:block}\n'+
+  '  .sparks figcaption{font-size:10.5px;font-weight:700;margin-bottom:2px}\n'+
+  '  details{margin-top:10px;background:var(--panel);border:1px solid var(--line);padding:10px 13px}\n'+
+  '  summary{cursor:pointer;font-weight:600;font-size:12px}\n'+
+  '  pre{white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:9.5px;'+
+  'background:var(--panel-2);padding:10px;max-height:340px;overflow:auto;border:1px solid var(--line)}\n'+
+  '  .btnbar{position:fixed;top:14px;right:18px;display:flex;gap:8px}\n'+
+  '  .btnbar a,.btnbar button{font-family:var(--sans);font-size:12px;padding:5px 12px;cursor:pointer;'+
+  'border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none}\n'+
+  '  .btnbar button{border-color:var(--accent);color:var(--accent)}\n'+
+  '  @media print{.btnbar{display:none} body{padding:0} .card,.meta,details{break-inside:avoid}}\n'+
+  '</style></head><body><div class="wrap">'+
+  '<div class="btnbar"><button onclick="window.print()">打印 / 存 PDF</button>'+
+  '<a download="'+esc(jsonName)+'" href="'+jsonHref+'">下载复现数据 .json</a></div>'+
+  '<h1>万历 · 政企推演场 — 推演报告</h1>'+
+  '<p class="lede">'+esc(TITLE)+'　·　本文件自包含，断网可打开；所有数字来自本次推演的引擎输出，未经二次加工。</p>'+
+  shots+
+  '<h2>壹 · 元数据</h2><div class="meta">'+
+    meta.map(function(m){return '<b>'+esc(m[0])+'</b><span>'+m[1]+'</span>';}).join('')+'</div>'+
+  '<h2>贰 · 终局 KPI ± 史实基线 <small>差值 = 你的宇宙 − 基线宇宙；同种子，唯一差异是政策</small></h2>'+
+  '<table><thead><tr><th>指标</th><th style="text-align:right">你的宇宙</th>'+
+    '<th style="text-align:right">史实基线</th><th style="text-align:right">差值</th></tr></thead><tbody>'+kpi+'</tbody></table>'+
+  (sparks? '<div class="sparks">'+sparks+'</div>':'')+
+  '<h2>叁 · 逐回合全史 <small>共 '+sim.history.length+' 行</small></h2>'+
+  '<table><thead><tr><th>t</th><th>年份</th><th>价格</th><th>成本</th><th>需求</th><th>产能</th>'+
+    '<th>供需比</th><th>名角</th><th>长尾</th><th>累计死亡</th><th>财政</th><th>流失</th><th>舆情</th>'+
+    '<th>骗补起数</th><th>基线 财政/流失</th></tr></thead><tbody>'+hist+'</tbody></table>'+
+  '<h2>肆 · 政策操作时间线 <small>ops = 该回合拟定、下一期生效</small></h2>'+
+  '<table><thead><tr><th>t</th><th>年份</th><th>本回合政策操作</th><th>编译后生效政策</th></tr></thead><tbody>'+ops+'</tbody></table>'+
+  '<h2>伍 · 叙事层</h2>'+
+  '<h3 style="font-size:12px;margin:14px 0 4px">事件全录 <small class="dim">（来自事件流；上限 200 条，超出部分已在界面滚出）</small></h3>'+evs+
+  '<h3 style="font-size:12px;margin:18px 0 4px">八名角 · 终局五段决策卡</h3>'+firms+
+  '<h3 style="font-size:12px;margin:18px 0 4px">四省内阁 · 末期决策卡</h3>'+provs+
+  '<h2>陆 · 复现数据</h2>'+
+  '<details><summary>展开 JSON（seed + 逐回合 ops + 全史）</summary>'+
+  '<p class="dim" style="font-size:11.5px">此数据 + <code>engine/engine2.js</code> 可逐位重放本次推演：'+
+  '以 seed 新建 Sim，按 ops 逐回合 compilePolicy 后 step，得到的 history 应与此处逐位相同。'+
+  '（引擎确定性由 GR9 双宇宙锁步回归保证。）</p>'+
+  '<pre>'+esc(reproJson)+'</pre></details>'+
+  '</div></body></html>'};
+}
+function doExport(){
+  if(!userSim||userSim.t===0) return;
+  var r=buildReport();
+  dl(r.name, new Blob([r.html],{type:'text/html;charset=utf-8'}));
+  window.__lastReport=r;                                  // 供无头验收台读取
+  log('sys','【导出】已生成推演报告 '+r.name+'（自包含单文件，断网可开）。');
+}
+byId('btnExport').addEventListener('click',doExport);
+function syncExportBtn(){ byId('btnExport').disabled=!(userSim&&userSim.t>0); }
+
 /* ---------- 播放控制 ---------- */
 var btnPlay=byId('btnPlay');
 function startPlay(){if(gameOver||scrub.on)return;stopPlay();
@@ -1294,7 +1582,7 @@ byId('speed').addEventListener('change',function(){if(playTimer)startPlay();});
 function init(){
   userSim=new ENGINE.Sim(ENGINE.CFG.seed);baseSim=new ENGINE.Sim(ENGINE.CFG.seed);
   activeNodes={};apRemaining=AP_PER_ROUND;pendingOps=[];roundRecs=[];
-  takenOver=false;gameOver=false;playerCtrl=null;
+  takenOver=false;gameOver=false;playerCtrl=null;branchLog=[];
   scrub={on:false,k:-1,u:null,b:null,active:null};
   byId('scrubBanner').style.display='none';
   byId('finale').style.display='none';byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
