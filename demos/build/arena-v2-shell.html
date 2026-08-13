@@ -748,7 +748,7 @@ cvs.addEventListener('wheel',function(e){e.preventDefault();lastPointer=performa
   cam.tr=Math.min(52,Math.max(10,cam.tr+e.deltaY*.02));},{passive:false});
 
 /* ---------- 推演状态 ---------- */
-var userSim,baseSim,activeNodes,apRemaining,pendingOps,roundRecs,takenOver,gameOver,selected,playTimer=null;
+var userSim,baseSim,activeNodes,apRemaining,roundBaseNodes,roundRecs,takenOver,gameOver,selected,playTimer=null;
 var scrub={on:false,k:-1,u:null,b:null,active:null};
 var selProv=null;   /* T-F2：当前选中的名角省（provs[].id），与 selected 互斥 */
 var branchLog=[];  /* 分叉留档：导出报告要标分叉点与当时的政策差异 */
@@ -825,20 +825,53 @@ function markEvtAt(k){
 var treeBody=byId('treeBody'),nodeTip=byId('nodeTip');
 function opName(o){var n=PNODES.find(function(x){return x.id===o[1];});
   return o[2]>0?(n.name+' Lv'+o[2]):('废止「'+n.name+'」');}
+/* —— 行动点：按「相对本回合起点的净变化」结算 ——
+   旧实现是每点一次扣一次，于是"启用后又取消"要花 2 点，误触无法挽回。
+   现在本回合内可以随便调，进入下一回合前才以净差额定账。
+   计费口径 = Σ |当前等级 − 回合起点等级| × 该节点行动点成本：
+     · Lv0→Lv3 仍是 3 点（与旧版一致，不动政策树的经济）
+     · 启用再取消、回到起点 = 0 点（本次修的就是这个）
+     · 巡查组这类 cost=2 的节点，一次开关仍是 2 点 */
+function snapNodes(o){ var c={}; Object.keys(o).forEach(function(k){c[k]=o[k];}); return c; }
+function nodeCost(id){ var n=PNODES.find(function(x){return x.id===id;}); return (n&&n.cost)||1; }
+function apSpent(act){
+  var ids={}, s=0;
+  Object.keys(roundBaseNodes).forEach(function(k){ ids[k]=1; });
+  Object.keys(act).forEach(function(k){ ids[k]=1; });
+  Object.keys(ids).forEach(function(id){
+    s+=Math.abs((act[id]||0)-(roundBaseNodes[id]||0))*nodeCost(id); });
+  return s;
+}
+/* 本回合要落账的操作 = 与起点的净差额（不是逐次点击流水）。
+   撤销掉的误触因此不会进 roundRecs，也不会出现在导出报告里。 */
+function netOps(){
+  var out=[], ids=[];
+  Object.keys(activeNodes).forEach(function(k){ ids.push(k); });
+  Object.keys(roundBaseNodes).forEach(function(k){ if(ids.indexOf(k)<0) ids.push(k); });
+  ids.forEach(function(id){
+    var a=activeNodes[id]||0;
+    if(a!==(roundBaseNodes[id]||0)) out.push(['set',id,a]); });
+  return out;
+}
 function userOp(id,lv){
   if(scrub.on||gameOver)return;
   var n=PNODES.find(function(x){return x.id===id;});
-  var cost=n.cost||1;
-  if(apRemaining<cost){log('sys','行动点不足——政策注意力是稀缺品（本回合还剩 '+apRemaining+' 点）。',userSim.t);return;}
   var st=nodeState(n,activeNodes,userSim,apRemaining);
   if(lv>0&&(st.s==='locked'||st.s==='blocked')){log('sys',n.name+'：'+st.why,userSim.t);return;}
-  apRemaining-=cost;
-  if(lv>0)activeNodes[id]=lv;else delete activeNodes[id];
-  pendingOps.push(['set',id,lv]);
+  var trial=snapNodes(activeNodes);
+  if(lv>0)trial[id]=lv; else delete trial[id];
+  var spent=apSpent(trial);
+  if(spent>AP_PER_ROUND){
+    log('sys','行动点不足——政策注意力是稀缺品（本回合 '+AP_PER_ROUND+' 点已用 '+apSpent(activeNodes)+
+      ' 点）。可以撤回本回合的改动把点数退回来。',userSim.t);
+    return; }
+  var backToStart=((trial[id]||0)===(roundBaseNodes[id]||0));
+  activeNodes=trial; apRemaining=AP_PER_ROUND-spent;
   if(!takenOver){takenOver=true;
     byId('autopilotHint').innerHTML='<b>你已接管</b>——史实剧本停用，基线宇宙继续按史实运行供对照。';
     log('sys','【接管】'+userSim.yearLabel()+'：你从这里改写政策组合。',userSim.t);}
-  log('policy','【拟定】'+opName(['set',id,lv])+'（下一期生效）',userSim.t);
+  log('policy', backToStart? ('【撤回】'+n.name+'：本回合的改动已撤销，行动点已退还')
+                           : ('【拟定】'+opName(['set',id,lv])+'（下一期生效）'), userSim.t);
   renderTree();updateAP();
 }
 function renderTree(){
@@ -932,7 +965,7 @@ byId('btnBranch').addEventListener('click',function(){
     mine:(roundRecs[scrub.k]||{}).policy, hist:ENGINE.scriptPolicy(scrub.k)});
   userSim=scrub.u;baseSim=scrub.b;activeNodes=scrub.active;
   roundRecs=roundRecs.slice(0,scrub.k+1);
-  takenOver=true;gameOver=false;pendingOps=[];apRemaining=AP_PER_ROUND;
+  takenOver=true;gameOver=false;roundBaseNodes=snapNodes(activeNodes);apRemaining=AP_PER_ROUND;
   scrub.on=false;byId('scrubBanner').style.display='none';markEvtAt(-1);
   byId('btnPlay').disabled=false;byId('btnStep').disabled=false;
   byId('autopilotHint').innerHTML='<b>已分叉</b>——你从 '+userSim.yearLabel(userSim.t-1)+' 之后接管历史。';
@@ -1089,13 +1122,11 @@ function tick(){
   if(!takenOver&&AUTOPILOT_OPS[userSim.t]){
     AUTOPILOT_OPS[userSim.t].forEach(function(o){
       if(o[2]>0)activeNodes[o[1]]=o[2];else delete activeNodes[o[1]];
-      pendingOps.push(o);
       log('policy','【史实】'+opName(o),userSim.t);
     });
   }
   var pol=compilePolicy(activeNodes);
-  roundRecs.push({ops:pendingOps.slice(),policy:pol});
-  pendingOps=[];
+  roundRecs.push({ops:netOps(),policy:pol});
   var res=userSim.step(pol,playerCtrl);
   baseSim.step(ENGINE.scriptPolicy(baseSim.t));
   res.ev.forEach(function(e){log(e.type,e.msg,e.t);});
@@ -1106,6 +1137,7 @@ function tick(){
     else if(fl.kind==='fine')spawnFlow(firmTop(fl.id),govTop(),col,n);
     else spawnFlow(govTop(),firmTop(fl.id),col,n);
   });
+  roundBaseNodes=snapNodes(activeNodes);   /* 新回合的起点：从这里开始算净差额 */
   apRemaining=AP_PER_ROUND;updateAP();
   pushFeed();refreshAll();
   if(userSim.t>=ENGINE.CFG.rounds){gameOver=true;stopPlay();setTimeout(finale,800);}
@@ -1581,7 +1613,7 @@ byId('speed').addEventListener('change',function(){if(playTimer)startPlay();});
 
 function init(){
   userSim=new ENGINE.Sim(ENGINE.CFG.seed);baseSim=new ENGINE.Sim(ENGINE.CFG.seed);
-  activeNodes={};apRemaining=AP_PER_ROUND;pendingOps=[];roundRecs=[];
+  activeNodes={};apRemaining=AP_PER_ROUND;roundBaseNodes={};roundRecs=[];
   takenOver=false;gameOver=false;playerCtrl=null;branchLog=[];
   scrub={on:false,k:-1,u:null,b:null,active:null};
   byId('scrubBanner').style.display='none';
