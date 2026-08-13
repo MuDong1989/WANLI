@@ -18,7 +18,7 @@
 
 | 窗口 | 地盘 |
 |---|---|
-| A 线窗口（T-F1 进行中） | `demos/**`（含 build 管线与 arena-v2 壳） |
+| A 线窗口（**已退役，R4**） | `demos/**`（含 build 管线与 arena-v2 壳）——**现由 build CC 持有** |
 | 引擎与 specs 维护窗口（T0 已完成，待命） | `engine/**` + `specs/` 既有文件 + `grill-report.md` |
 | 新窗口 | 所认领工单的白名单（默认从 C2 / P0-8 / P0-6 里挑） |
 | 参考裁决窗口 | `rulings.md`、`reference-manifest.md` |
