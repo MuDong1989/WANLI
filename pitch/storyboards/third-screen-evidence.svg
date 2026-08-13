@@ -1,0 +1,293 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="3600" viewBox="0 0 1600 3600" role="img" aria-labelledby="title desc">
+  <title id="title">万历第三屏：证据如何进入塔基</title>
+  <desc id="desc">四拍连续分镜：下潜塔基、现实取样、假设登记、可证伪实验。</desc>
+  <defs>
+    <linearGradient id="paperFade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ece9e1"/>
+      <stop offset="0.58" stop-color="#e4e1d9"/>
+      <stop offset="1" stop-color="#c9cbc5"/>
+    </linearGradient>
+    <linearGradient id="deepFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8e5dd"/>
+      <stop offset="1" stop-color="#cdd0ca"/>
+    </linearGradient>
+    <radialGradient id="goldGlow">
+      <stop offset="0" stop-color="#d59a3a" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#d59a3a" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#737a76" stroke-opacity=".12"/>
+    </pattern>
+    <filter id="grain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency=".72" numOctaves="3" seed="12" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="gray"/>
+      <feComponentTransfer in="gray"><feFuncA type="table" tableValues="0 .06"/></feComponentTransfer>
+    </filter>
+    <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <marker id="arrowGold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0l10 5-10 5z" fill="#b67c28"/>
+    </marker>
+    <style>
+      text{font-family:'Noto Sans SC','Microsoft YaHei',sans-serif;fill:#182022;letter-spacing:0}
+      .mono{font-family:'JetBrains Mono',Consolas,monospace}
+      .frame-title{font-size:64px;font-weight:500}
+      .frame-sub{font-size:22px;fill:#59615f}
+      .kicker{font-size:12px;letter-spacing:5px;fill:#a36c23}
+      .label{font-size:18px;font-weight:500}
+      .small{font-size:13px;fill:#626a67}
+      .micro{font-size:10px;letter-spacing:2px;fill:#737b78}
+      .num{font-family:'JetBrains Mono',Consolas,monospace;font-size:54px;font-weight:500;fill:#b67c28}
+      .hair{fill:none;stroke:#5f6865;stroke-opacity:.34;stroke-width:1}
+      .gold{fill:none;stroke:#b67c28;stroke-width:1.4}
+      .dash{stroke-dasharray:5 9}
+      .frame-no{font-family:'JetBrains Mono',Consolas,monospace;font-size:11px;letter-spacing:3px;fill:#a36c23}
+      .note{font-family:'JetBrains Mono',Consolas,monospace;font-size:11px;fill:#5f6764}
+      .status-ok{fill:#b67c28}.status-open{fill:none;stroke:#737b78;stroke-width:1.2}
+    </style>
+  </defs>
+
+  <!-- ====================================================== FRAME 01 -->
+  <g id="frame-01" data-beat="foundation-dive">
+    <rect width="1600" height="900" fill="url(#paperFade)"/>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+    <rect width="1600" height="900" fill="#000" filter="url(#grain)" opacity=".45"/>
+    <text x="78" y="74" class="frame-no">03 / EVIDENCE FOUNDATION / BEAT 01</text>
+    <text x="78" y="158" class="frame-title">镜头向下，进入塔基</text>
+    <text x="80" y="200" class="frame-sub">第二屏的三层塔仍在同一空间中；塔尖与塔身退出视野，塔基成为证据入口。</text>
+
+    <!-- tower base: deliberately cropped at the top to imply camera movement -->
+    <g id="foundation" transform="translate(1070 45)">
+      <ellipse cx="0" cy="96" rx="342" ry="92" fill="#192325"/>
+      <ellipse cx="0" cy="78" rx="316" ry="74" fill="#46514e" stroke="#c39141" stroke-width="4"/>
+      <ellipse cx="0" cy="73" rx="248" ry="50" fill="#d6d2c7" stroke="#8e642c" stroke-width="2"/>
+      <path d="M-284 78v76c15 65 548 66 568 0V78" fill="#273234" stroke="#b67c28" stroke-width="2"/>
+      <path d="M-246 125c70 43 418 43 492 0" fill="none" stroke="#d3a652" stroke-width="5"/>
+      <g stroke="#d3a652" stroke-width="8">
+        <path d="M-214 109v87M-126 130v86M0 136v88M126 130v86M214 109v87"/>
+      </g>
+      <ellipse cx="0" cy="211" rx="258" ry="68" fill="#303b3b" stroke="#b67c28" stroke-width="2"/>
+      <ellipse cx="0" cy="221" rx="206" ry="43" fill="#d9d5ca" opacity=".75"/>
+    </g>
+
+    <!-- descending evidence rings -->
+    <g id="evidence-rings" transform="translate(1070 390)">
+      <ellipse rx="336" ry="95" class="hair" stroke-width="2"/>
+      <ellipse cy="95" rx="276" ry="76" class="hair"/>
+      <ellipse cy="185" rx="218" ry="57" class="gold dash"/>
+      <ellipse cy="262" rx="150" ry="39" class="hair"/>
+      <circle r="190" fill="url(#goldGlow)" opacity=".45"/>
+      <path d="M0 0v278" class="gold dash" marker-end="url(#arrowGold)"/>
+      <g class="mono micro" text-anchor="middle">
+        <text y="-8">FOUNDATION / MECHANISM</text>
+        <text y="88">PROVENANCE</text>
+        <text y="178">REGISTRY</text>
+        <text y="254">PROBE</text>
+      </g>
+    </g>
+
+    <g transform="translate(80 560)">
+      <path d="M0 0h430" class="hair"/>
+      <text y="38" class="kicker">CAMERA MOVE</text>
+      <text y="90" class="label">塔基不是背景板，而是一台证据处理器。</text>
+      <text y="128" class="small">Three.js：塔基环向镜头靠近并放大，中心孔洞打开。</text>
+      <text y="156" class="small">GSAP：塔体的 Y 位移与相机 FOV 同步，形成“穿过塔基”的连续镜头。</text>
+      <path d="M0 202h430" class="hair"/>
+      <text y="240" class="note">SCROLL 00—18%  /  towerBase.scale 1 → 3.4</text>
+      <text y="267" class="note">camera.position.z 15.8 → 7.2  /  scrub: 0.8</text>
+    </g>
+    <text x="1490" y="846" class="frame-no" text-anchor="end">TOWER → EVIDENCE ENGINE</text>
+  </g>
+
+  <!-- ====================================================== FRAME 02 -->
+  <g id="frame-02" data-beat="provenance" transform="translate(0 900)">
+    <rect width="1600" height="900" fill="#e9e6de"/>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+    <rect width="1600" height="900" fill="#000" filter="url(#grain)" opacity=".38"/>
+    <text x="78" y="74" class="frame-no">03 / EVIDENCE FOUNDATION / BEAT 02</text>
+    <text x="78" y="158" class="frame-title">现实取样，不凭空造数</text>
+    <text x="80" y="200" class="frame-sub">每一条进入引擎的数据都保留来源、口径、时间与验证状态。</text>
+
+    <!-- source streams -->
+    <g id="source-streams" transform="translate(78 290)">
+      <g id="stream-policy">
+        <text class="kicker">01 / POLICY RECORDS</text>
+        <text y="36" class="label">政策原文</text>
+        <path d="M0 67h365" class="hair"/>
+        <g transform="translate(0 94)">
+          <circle cx="6" cy="4" r="4" class="status-ok"/><text x="24" y="9" class="small">财建〔2009〕397号</text>
+          <circle cx="6" cy="51" r="4" class="status-ok"/><text x="24" y="56" class="small">补助总投资 50%</text>
+          <circle cx="6" cy="98" r="4" class="status-ok"/><text x="24" y="103" class="small">政策生效与退出时间线</text>
+          <circle cx="6" cy="145" r="4" class="status-ok"/><text x="24" y="150" class="small">核查、处罚与规范条件</text>
+        </g>
+      </g>
+      <g id="stream-firm" transform="translate(0 314)">
+        <text class="kicker">02 / SUBJECT SAMPLE</text>
+        <text y="36" class="label">主体样本</text>
+        <path d="M0 67h365" class="hair"/>
+        <g transform="translate(0 94)">
+          <circle cx="6" cy="4" r="4" class="status-ok"/><text x="24" y="9" class="small">头部企业现实原型</text>
+          <circle cx="6" cy="51" r="4" class="status-open"/><text x="24" y="56" class="small">A 股聚类 → 类型配比</text>
+          <circle cx="6" cy="98" r="4" class="status-open"/><text x="24" y="103" class="small">行业普查 → 总量与尾形</text>
+        </g>
+      </g>
+      <g id="stream-region" transform="translate(430 314)">
+        <text class="kicker">03 / INSTITUTION INDEX</text>
+        <text y="36" class="label">地方制度</text>
+        <path d="M0 67h365" class="hair"/>
+        <g transform="translate(0 94)">
+          <circle cx="6" cy="4" r="4" class="status-ok"/><text x="24" y="9" class="small">财政自给率 · 同量纲对表</text>
+          <circle cx="6" cy="51" r="4" class="status-open"/><text x="24" y="56" class="small">城投利差 · 序数已核</text>
+          <circle cx="6" cy="98" r="4" class="status-open"/><text x="24" y="103" class="small">执行折扣 · 口径未核</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- provenance gate -->
+    <g id="provenance-gate" transform="translate(1090 468)">
+      <circle r="244" fill="none" stroke="#596360" stroke-opacity=".22"/>
+      <circle r="188" fill="none" stroke="#596360" stroke-opacity=".32"/>
+      <circle r="132" fill="#1b2426"/>
+      <circle r="111" fill="none" stroke="#c48c35" stroke-width="2" stroke-dasharray="3 8"/>
+      <circle r="12" fill="#c48c35"/>
+      <path d="M-640-178C-395-178-325-45-138-45M-640 137C-385 137-346 0-138 0M-210 137C-320 137-315 45-138 45" class="gold dash"/>
+      <text y="-18" class="mono micro" text-anchor="middle" fill="#d9d6cc">PROVENANCE</text>
+      <text y="7" class="mono micro" text-anchor="middle" fill="#d9d6cc">GATE</text>
+      <text y="54" class="mono" font-size="26" text-anchor="middle" fill="#d5a24d">来源闸门</text>
+      <g transform="translate(-85 166)">
+        <circle r="4" class="status-ok"/><text x="14" y="4" class="micro">已核</text>
+        <circle cx="82" r="4" class="status-open"/><text x="96" y="4" class="micro">未核</text>
+      </g>
+    </g>
+    <text x="1490" y="846" class="frame-no" text-anchor="end">REAL UNIT / REAL SOURCE / REAL STATUS</text>
+  </g>
+
+  <!-- ====================================================== FRAME 03 -->
+  <g id="frame-03" data-beat="registry" transform="translate(0 1800)">
+    <rect width="1600" height="900" fill="url(#deepFade)"/>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+    <rect width="1600" height="900" fill="#000" filter="url(#grain)" opacity=".38"/>
+    <text x="78" y="74" class="frame-no">03 / EVIDENCE FOUNDATION / BEAT 03</text>
+    <text x="78" y="158" class="frame-title">假设先申报，再进入引擎</text>
+    <text x="80" y="200" class="frame-sub">理论必须有代码落点，参数必须有身份标签；找不到的数字保持空白。</text>
+
+    <g id="registry-ledger" transform="translate(78 285)">
+      <path d="M0 0h1440M0 88h1440M0 176h1440M0 264h1440M0 352h1440M0 440h1440" class="hair"/>
+      <path d="M74 0v440M470 0v440M850 0v440M1095 0v440M1280 0v440" class="hair"/>
+      <g class="mono micro">
+        <text x="18" y="-18">ID</text><text x="94" y="-18">MECHANISM / THEORY</text><text x="490" y="-18">EVIDENCE</text>
+        <text x="870" y="-18">STATUS</text><text x="1115" y="-18">CODE CONTRACT</text><text x="1300" y="-18">RESULT</text>
+      </g>
+      <g transform="translate(0 0)">
+        <text x="18" y="52" class="mono small">T10</text><text x="94" y="40" class="label">委托—代理</text><text x="94" y="64" class="micro">中央核查 × 地方执行折扣</text>
+        <text x="490" y="52" class="small">地方执行与中央巡查资料</text><text x="870" y="52" class="mono small" fill="#a36c23">THEORY ANCHORED</text>
+        <text x="1115" y="52" class="mono small">effA()</text><text x="1300" y="52" class="small">实核</text>
+      </g>
+      <g transform="translate(0 88)">
+        <text x="18" y="52" class="mono small">T04</text><text x="94" y="40" class="label">软预算约束</text><text x="94" y="64" class="micro">救助延迟退出，而非消灭失败</text>
+        <text x="490" y="52" class="small">赛维式地方救助案例</text><text x="870" y="52" class="mono small" fill="#a36c23">MECHANISM TESTED</text>
+        <text x="1115" y="52" class="mono small">bound.skill</text><text x="1300" y="52" class="small">续命 3 回合</text>
+      </g>
+      <g transform="translate(0 176)">
+        <text x="18" y="52" class="mono small">A07</text><text x="94" y="40" class="label">财政自给率</text><text x="94" y="64" class="micro">地方优惠能力的直接指标</text>
+        <text x="490" y="52" class="small">四省预算收入 ÷ 支出</text><text x="870" y="52" class="mono small" fill="#a36c23">DIRECTION VERIFIED</text>
+        <text x="1115" y="52" class="mono small">selfFin</text><text x="1300" y="52" class="small">排序同序</text>
+      </g>
+      <g transform="translate(0 264)">
+        <text x="18" y="52" class="mono small">A09</text><text x="94" y="40" class="label">巡查折扣乘子</text><text x="94" y="64" class="micro">假定地方打折能力削减 60%</text>
+        <text x="490" y="52" class="small">缺少同量纲政策条款</text><text x="870" y="52" class="mono small">UNVERIFIED</text>
+        <text x="1115" y="52" class="mono small">discountMul=.4</text><text x="1300" y="52" class="small">保留空心标记</text>
+      </g>
+      <g transform="translate(0 352)">
+        <text x="18" y="52" class="mono small">A23</text><text x="94" y="40" class="label">核查剂量域</text><text x="94" y="64" class="micro">树内最大值 80，不能偷换成 100</text>
+        <text x="490" y="52" class="small">政策树契约与剂量实验</text><text x="870" y="52" class="mono small" fill="#a36c23">BOUND LOCKED</text>
+        <text x="1115" y="52" class="mono small">audit[20,80]</text><text x="1300" y="52" class="small">禁止越界</text>
+      </g>
+    </g>
+
+    <g transform="translate(80 790)">
+      <circle r="5" class="status-ok"/><text x="16" y="5" class="note">已核 / 可复现</text>
+      <circle cx="175" r="5" class="status-open"/><text x="191" y="5" class="note">未核 / 不填猜测值</text>
+      <path d="M430 0h230" class="gold"/>
+      <text x="680" y="5" class="label">万历不消灭假设，它让假设无处藏身。</text>
+    </g>
+    <text x="1490" y="846" class="frame-no" text-anchor="end">SOURCE → THEORY → ASSUMPTION → CODE</text>
+  </g>
+
+  <!-- ====================================================== FRAME 04 -->
+  <g id="frame-04" data-beat="falsification" transform="translate(0 2700)">
+    <rect width="1600" height="900" fill="#e8e5dd"/>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+    <rect width="1600" height="900" fill="#000" filter="url(#grain)" opacity=".4"/>
+    <text x="78" y="74" class="frame-no">03 / EVIDENCE FOUNDATION / BEAT 04</text>
+    <text x="78" y="158" class="frame-title">实验负责推翻我们</text>
+    <text x="80" y="200" class="frame-sub">不只输出一个答案，而是寻找结论成立的边界与翻转点。</text>
+
+    <!-- 9/9 regression -->
+    <g id="regression" transform="translate(80 290)">
+      <text class="kicker">HISTORICAL REGRESSION</text>
+      <text y="72" class="num">9 / 9</text>
+      <text y="109" class="small">黄金回归全绿</text>
+      <g transform="translate(0 160)">
+        <g fill="#b67c28">
+          <circle cx="6" cy="0" r="5"/><circle cx="47" cy="0" r="5"/><circle cx="88" cy="0" r="5"/>
+          <circle cx="129" cy="0" r="5"/><circle cx="170" cy="0" r="5"/><circle cx="211" cy="0" r="5"/>
+          <circle cx="252" cy="0" r="5"/><circle cx="293" cy="0" r="5"/><circle cx="334" cy="0" r="5"/>
+        </g>
+        <path d="M6 0h328" class="gold"/>
+      </g>
+      <text y="210" class="note">2013 H1 / 天阳破产点锚</text>
+      <text y="236" class="note">133 / 长尾死亡潮</text>
+      <text y="262" class="note">2.42 元/W / 终局成本前沿</text>
+    </g>
+
+    <!-- flip probe -->
+    <g id="flip-probe" transform="translate(565 290)">
+      <text class="kicker">DECISION FLIP PROBE</text>
+      <text y="72" class="num">55</text>
+      <text x="102" y="70" class="label">实核翻转点</text>
+      <g transform="translate(0 144)">
+        <path d="M0 80H430M0 0v80" class="hair"/>
+        <path d="M0 60C80 60 130 57 220 54L220 14C305 12 360 12 430 12" class="gold"/>
+        <path d="M220-8v108" class="gold dash"/>
+        <circle cx="220" cy="34" r="9" fill="#e8e5dd" stroke="#b67c28" stroke-width="3"/>
+        <text x="0" y="108" class="micro">0</text><text x="205" y="108" class="micro">55</text><text x="403" y="108" class="micro">100</text>
+        <text x="0" y="-12" class="micro">虚报</text><text x="390" y="-12" class="micro">收手</text>
+      </g>
+      <text y="298" class="note">注入近期被查记忆 → 0—100 全域收手</text>
+    </g>
+
+    <!-- multi seed -->
+    <g id="multi-seed" transform="translate(1080 290)">
+      <text class="kicker">MULTI-SEED ATTRIBUTION</text>
+      <text y="72" class="num">10</text>
+      <text x="92" y="70" class="label">SEEDS</text>
+      <g transform="translate(0 140)">
+        <path d="M0 80h410" class="hair"/>
+        <g fill="#68716e">
+          <circle cx="18" cy="62" r="5"/><circle cx="58" cy="38" r="5"/><circle cx="98" cy="70" r="5"/>
+          <circle cx="138" cy="25" r="5"/><circle cx="178" cy="48" r="5"/><circle cx="218" cy="18" r="5"/>
+          <circle cx="258" cy="54" r="5"/><circle cx="298" cy="32" r="5"/><circle cx="338" cy="65" r="5"/><circle cx="378" cy="42" r="5"/>
+        </g>
+        <path d="M0 46h410" class="gold dash"/>
+      </g>
+      <text y="272" class="note">单种子贡献可翻符号</text>
+      <text y="298" class="note">结论必须跨种子报告</text>
+    </g>
+
+    <!-- closing line and transition to 2009 -->
+    <g id="closing" transform="translate(80 690)">
+      <path d="M0 0h1440" class="hair"/>
+      <text y="58" class="frame-title" style="font-size:42px">现实提供边界，理论提供机制，</text>
+      <text y="112" class="frame-title" style="font-size:42px">实验负责推翻我们。</text>
+      <g transform="translate(1320 58)">
+        <circle cx="90" cy="0" r="86" fill="url(#goldGlow)"/>
+        <text x="90" y="18" class="mono" font-size="58" text-anchor="middle" fill="#b67c28">2009</text>
+        <path d="M-30 0h28" class="gold" marker-end="url(#arrowGold)"/>
+        <text x="90" y="55" class="micro" text-anchor="middle">LOAD PHOTOVOLTAIC</text>
+      </g>
+    </g>
+    <text x="1490" y="846" class="frame-no" text-anchor="end">EVIDENCE PASSED / LOAD EXHIBIT A</text>
+  </g>
+</svg>

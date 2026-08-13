@@ -24,7 +24,7 @@
 html,body{margin:0;background:var(--ink);color:var(--ink);font-family:var(--sans)}
 body{overflow-x:hidden}
 button{font:inherit}
-.story{height:760vh;position:relative;background:var(--paper)}
+.story{height:1080vh;position:relative;background:var(--paper)}
 .stage{position:sticky;top:0;height:100dvh;min-height:620px;overflow:hidden;isolation:isolate;background:var(--paper)}
 .backdrop{position:absolute;inset:0;z-index:-5;background-image:url('./assets/wanli-hero.webp');background-size:cover;background-position:center;transform:scale(1.035);filter:saturate(.62) contrast(.88) brightness(1.05)}
 .backdrop::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(239,237,231,.98) 0%,rgba(235,232,224,.94) 39%,rgba(225,223,216,.64) 60%,rgba(10,17,19,.14) 100%)}
@@ -71,33 +71,37 @@ button{font:inherit}
 .metric-strip{display:flex;gap:34px;margin-top:30px}
 .metric strong{display:block;font-family:var(--mono);font-size:clamp(38px,4vw,62px);font-weight:400;line-height:1;color:var(--gold)}
 .metric span{display:block;margin-top:8px;font-size:12px;color:var(--ink-soft)}
-.visual{position:absolute;right:clamp(30px,4vw,72px);top:50%;width:min(43vw,620px);height:min(66vh,570px);transform:translateY(-50%)}
-.chart-title{position:absolute;left:0;top:0;font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:#69716e}
+.visual{position:absolute;right:clamp(28px,3.6vw,62px);top:50%;width:min(35vw,510px);height:min(66vh,570px);transform:translateY(-50%);isolation:isolate}
+.visual::before{content:'';position:absolute;z-index:-1;inset:-8% -8% -8% -13%;background:linear-gradient(90deg,rgba(238,236,230,.16),rgba(238,236,230,.9) 16%,rgba(238,236,230,.97));mask-image:linear-gradient(90deg,transparent,#000 12%,#000)}
+.chart-title{position:absolute;left:0;top:0;font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:#303b3a}
 .actor-map svg,.longtail-chart svg,.mechanism-map svg{width:100%;height:100%;overflow:visible}
-.actor-map .node{fill:rgba(234,230,219,.88);stroke:rgba(30,39,39,.34);stroke-width:1}
-.actor-map .node.key{fill:#b47a2b;stroke:#b47a2b}
-.actor-map .relation{fill:none;stroke:rgba(180,122,43,.5);stroke-width:1;stroke-dasharray:5 7}
-.actor-map .pulse{fill:#b47a2b}
+.actor-map{width:min(38vw,550px)}
+.actor-map svg{transform:translateX(2%)}
+.actor-map .node{fill:#f1eee5;stroke:#1d2c2c;stroke-width:1.4}
+.actor-map .node.key{fill:#c7831f;stroke:#8d5712}
+.actor-map .relation{fill:none;stroke:rgba(166,103,19,.78);stroke-width:1.35;stroke-dasharray:5 7}
+.actor-map .pulse{fill:#c7831f}
 .actor-map text,.longtail-chart text,.mechanism-map text{font-family:var(--mono);fill:#4f5856;letter-spacing:.06em}
 .actor-map .label-main{font-family:var(--sans);font-size:15px;letter-spacing:0;fill:#172022}
 .actor-map .label-small{font-size:8px}
 .relation-tags{position:absolute;left:50%;bottom:8%;display:flex;gap:8px;transform:translateX(-50%)}
 .relation-tags span{padding:6px 8px;border-top:1px solid rgba(180,122,43,.55);font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:#6d5a3d}
 .longtail-chart{height:min(58vh,500px)}
-.longtail-chart .axis{stroke:rgba(43,52,51,.28);stroke-width:1}
-.longtail-chart .guide{stroke:rgba(43,52,51,.15);stroke-width:1;stroke-dasharray:2 7}
-.longtail-chart .bar{fill:#697673}
-.longtail-chart .bar.head{fill:#b47a2b}
-.longtail-chart .bar.risk{fill:#8d3f32}
-.longtail-chart .bar.exit{fill:#a8aaa5}
+.longtail-chart svg{transform:translateX(2%)}
+.longtail-chart .axis{stroke:#263534;stroke-width:1.3}
+.longtail-chart .guide{stroke:rgba(38,53,52,.28);stroke-width:1;stroke-dasharray:2 7}
+.longtail-chart .bar{fill:#294b4b}
+.longtail-chart .bar.head{fill:#c7831f}
+.longtail-chart .bar.risk{fill:#9f3028}
+.longtail-chart .bar.exit{fill:#737a77}
 .parameter-row{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap}
 .parameter-row span{padding:7px 10px;border-top:1px solid var(--line);font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:#626b68}
 .mechanism-map{height:min(62vh,530px)}
-.mechanism-map .rail{stroke:rgba(27,36,36,.23);stroke-width:1}
-.mechanism-map .flow{fill:none;stroke:#b47a2b;stroke-width:1.6;stroke-dasharray:7 7}
+.mechanism-map .rail{stroke:rgba(27,44,43,.52);stroke-width:1.2}
+.mechanism-map .flow{fill:none;stroke:#c7831f;stroke-width:2.4;stroke-dasharray:7 7}
 .mechanism-map .rail-head{font-family:var(--sans);font-size:16px;letter-spacing:0;fill:#172022}
 .mechanism-map .rail-en{font-size:8px;fill:#8a7659}
-.mechanism-map .item{font-family:var(--sans);font-size:12px;letter-spacing:0;fill:#59615f}
+.mechanism-map .item{font-family:var(--sans);font-size:12px;letter-spacing:0;fill:#263534}
 .mechanism-map .operator{font-size:23px;fill:#b47a2b}
 .interface-visual{display:grid;align-content:center;gap:0;padding:4vh 0}
 .io-line{display:grid;grid-template-columns:1fr 42px 1fr;align-items:center;min-height:74px;border-top:1px solid var(--line)}
@@ -142,9 +146,10 @@ button{font:inherit}
   .slogan{font-size:clamp(17px,4.6vw,23px);white-space:normal;text-wrap:balance}
   .counter-row{height:80px}.counter{font-size:clamp(62px,17vw,90px)}.times{font-size:22px;margin-bottom:5px}.promise{margin-top:20px;font-size:9px}
   .beat-copy,.intro-copy{left:22px;right:22px;top:auto;bottom:45px;width:auto;transform:none}
+  .beat-copy::before{content:'';position:absolute;z-index:-1;inset:-34px -22px -45px;background:linear-gradient(180deg,rgba(233,230,222,0),rgba(233,230,222,.9) 18%,rgba(233,230,222,.97) 42%)}
   .beat h2,.intro-copy h2{font-size:clamp(30px,9vw,42px)}.beat-lead{margin-top:12px;font-size:13px;line-height:1.55;max-width:31em}.beat-question{margin-top:12px;padding-top:9px;font-size:15px}
   .intro-copy{bottom:56px}.intro-rule{margin:14px 0}.intro-manifesto{font-size:10px}.metric-strip{gap:22px;margin-top:15px}.metric strong{font-size:34px}.metric span{font-size:10px}
-  .visual{right:18px;left:18px;top:18px;width:auto;height:47vh;transform:none}.chart-title{top:8px}.relation-tags{display:none}
+  .visual{right:14px;left:14px;top:14px;width:auto;height:43vh;transform:none}.visual::before{inset:-4%}.chart-title{top:8px}.relation-tags{display:none}
   .beat-actors .beat-copy,.beat-tail .beat-copy,.beat-mechanism .beat-copy,.beat-interface .beat-copy{bottom:35px}
   .beat-actors .visual,.beat-tail .visual,.beat-mechanism .visual,.beat-interface .visual{opacity:.7}
   .parameter-row{display:none}.decision-switch{margin:8px 0}.decision-switch div{padding:9px}.decision-switch strong{font-size:14px}.io-line{min-height:42px}.io-value{font-size:13px}
@@ -190,7 +195,7 @@ button{font:inherit}
             <span class="intro-rule"></span>
             <p class="intro-manifesto">顺着一座塔，看清谁在决策、产业如何演化、因果由什么锁定。</p>
           </div>
-        </div>
+        </section>
 
         <section class="beat beat-actors" data-beat="actors">
           <div class="beat-copy">
@@ -451,6 +456,22 @@ button{font:inherit}
   }
   var pearl=new THREE.Mesh(new THREE.SphereGeometry(.14,18,12),mat.gold);pearl.position.y=4.62;pearl.castShadow=true;towerTop.add(pearl);
 
+  // Scroll-linked focus instruments. They stay hidden in the hero and activate
+  // only when the narrative inspects the corresponding architectural layer.
+  var focusRings=[];
+  function focusRing(y,r){
+    var group=new THREE.Group();
+    var ringMat=new THREE.MeshBasicMaterial({color:0xd7a64e,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});
+    var ring=new THREE.Mesh(new THREE.RingGeometry(r,r+.035,96),ringMat);
+    ring.rotation.x=Math.PI/2;group.add(ring);
+    for(var i=0;i<4;i++){
+      var tick=box(.34,.018,.045,ringMat,group,Math.cos(i*Math.PI/2)*(r+.16),0,Math.sin(i*Math.PI/2)*(r+.16),-i*Math.PI/2);
+      tick.castShadow=false;tick.receiveShadow=false;
+    }
+    group.position.y=y;group.scale.setScalar(.72);towerRoot.add(group);focusRings.push({group:group,material:ringMat});return group;
+  }
+  var topFocus=focusRing(3.28,1.52),midFocus=focusRing(.48,2.18),baseFocus=focusRing(-3.34,2.95);
+
   // Fine wireframe edges give the tower an instrument-like, inspectable finish.
   [towerTop,towerMid,towerBase].forEach(function(group){
     group.traverse(function(o){
@@ -483,10 +504,27 @@ button{font:inherit}
     }});
   }else counter.textContent='10000';
 
+  // One bar is one sampled enterprise. Heights follow a long-tail curve;
+  // color encodes head firms, risk observations and exits.
+  var tailBars=document.getElementById('tailBars');
+  if(tailBars){
+    var bars='';
+    for(var b=0;b<72;b++){
+      var height=Math.max(5,300/Math.pow(1+b*.2,.72));
+      var x=42+b*7.55, y=444-height;
+      var cls=b<8?'bar head':(b===19||b===31||b===46?'bar risk':(b===55||b===64||b===69?'bar exit':'bar'));
+      bars+='<rect class="'+cls+'" x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="4.2" height="'+height.toFixed(1)+'"/>';
+    }
+    tailBars.innerHTML=bars;
+  }
+
   var clock=new THREE.Clock(),scrollProgress=0,reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
   function render(){
     var dt=Math.min(clock.getDelta(),.05);
     if(!reduce && scrollProgress<.12) towerRoot.rotation.y+=dt*.055;
+    if(!reduce){
+      focusRings.forEach(function(item,index){item.group.rotation.y+=dt*(index%2?.28:-.22)});
+    }
     renderer.render(scene,camera);
     requestAnimationFrame(render);
   }
@@ -503,45 +541,137 @@ button{font:inherit}
     var mm=gsap.matchMedia();
     mm.add({desktop:'(min-width:861px)',mobile:'(max-width:860px)',reduce:'(prefers-reduced-motion:reduce)'},function(ctx){
       var isDesktop=ctx.conditions.desktop,isReduce=ctx.conditions.reduce;
-      var finalX=isDesktop?1.55:.62, startX=isDesktop?3.2:1.75;
-      var startY=isDesktop?.08:-1.45, finalY=isDesktop?.04:-.42;
-      var startScale=isDesktop?.86:.5,finalScale=isDesktop?.82:.56;
+      var startX=isDesktop?3.2:1.75;
+      var startY=isDesktop?.08:-1.45;
+      var startScale=isDesktop?.86:.5;
       gsap.set(towerRoot.position,{x:startX,y:startY});gsap.set(towerRoot.scale,{x:startScale,y:startScale,z:startScale});
-      gsap.set([towerTop.position,towerMid.position,towerBase.position],{y:0});
+      gsap.set([towerTop.position,towerMid.position,towerBase.position],{y:0,x:0});
+      gsap.set([towerTop.rotation,towerMid.rotation,towerBase.rotation],{x:0,y:0,z:0});
+      gsap.set(focusRings.map(function(r){return r.group.scale}),{x:.72,y:.72,z:.72});
+      gsap.set(focusRings.map(function(r){return r.material}),{opacity:0});
+      gsap.set('.beat',{autoAlpha:0,y:28});
+      gsap.set('.beat .visual',{autoAlpha:0,x:38});
+      var beatNumber=document.getElementById('beatNumber'),beatName=document.getElementById('beatName');
+      var beatLabels=[['00 / 05','AGENT DEPTH PYRAMID'],['01 / 05','KEY ACTORS'],['02 / 05','LONG-TAIL POPULATION'],['03 / 05','CAUSAL FOUNDATION'],['04 / 05','AGENT INTERFACE'],['05 / 05','ONE FOUNDATION']];
+      function setBeat(index){beatNumber.textContent=beatLabels[index][0];beatName.textContent=beatLabels[index][1]}
       var tl=gsap.timeline({
         defaults:{ease:'none'},
-        scrollTrigger:{trigger:'#story',start:'top top',end:'bottom bottom',scrub:isReduce?true:.75,onUpdate:function(self){scrollProgress=self.progress;document.getElementById('progressFill').style.transform='scaleY('+self.progress+')'}}
+        scrollTrigger:{id:'wanli-deep-scroll',trigger:'#story',start:'top top',end:'bottom bottom',scrub:isReduce?true:.72,onUpdate:function(self){
+          scrollProgress=self.progress;
+          document.getElementById('progressFill').style.transform='scaleY('+self.progress+')';
+          setBeat(Math.min(5,Math.max(0,Math.round((self.progress-.12)/.16))));
+        }}
       });
       tl.addLabel('hero',0)
-        .to('#hero',{y:isDesktop?-190:-105,autoAlpha:0,duration:.23},.08)
-        .to('#brand',{y:-45,autoAlpha:0,duration:.18},.1)
-        .to('#scrollCue',{y:-22,autoAlpha:0,duration:.1},.04)
-        .to('#backdrop',{scale:1.09,filter:'saturate(.42) contrast(.8) brightness(.94)',duration:.55},0)
-        .to(towerRoot.position,{x:finalX,y:finalY,duration:.35},.12)
-        .to(towerRoot.rotation,{y:.18,x:-.02,duration:.45},.12)
-        .to(towerRoot.scale,{x:finalScale,y:finalScale,z:finalScale,duration:.35},.12)
-        .addLabel('separate',.48)
-        .to(towerTop.position,{y:isDesktop?1.28:.92,duration:.25},'separate')
-        .to(towerTop.rotation,{y:-.18,z:-.025,duration:.25},'separate')
-        .to(towerMid.position,{y:.05,duration:.25},'separate')
-        .to(towerMid.rotation,{y:.12,duration:.25},'separate')
-        .to(towerBase.position,{y:isDesktop?-1.12:-.78,duration:.25},'separate')
-        .to(towerBase.rotation,{y:-.1,z:.018,duration:.25},'separate')
-        .to('#chapter',{autoAlpha:1,duration:.16},.5)
-        .to('.layer',{x:0,autoAlpha:1,stagger:.045,duration:.15},.57)
-        .fromTo('.layer-lines path',{strokeDashoffset:120},{strokeDashoffset:0,duration:.2,stagger:.035},.58);
+        .to('#hero',{y:isDesktop?-220:-120,autoAlpha:0,duration:.42},.25)
+        .to('#brand',{y:-55,autoAlpha:0,duration:.34},.28)
+        .to('#scrollCue',{y:-22,autoAlpha:0,duration:.2},.14)
+        .to('#backdrop',{scale:1.1,filter:'saturate(.38) contrast(.78) brightness(.91)',duration:1.1},0)
+        .to(towerRoot.position,{x:isDesktop?2.45:.55,y:isDesktop?.02:-.2,duration:.65},.28)
+        .to(towerRoot.rotation,{y:.12,x:-.02,duration:.75},.28)
+        .to(towerRoot.scale,{x:isDesktop?.8:.54,y:isDesktop?.8:.54,z:isDesktop?.8:.54,duration:.65},.28)
+        .to('#chapter',{autoAlpha:1,duration:.24},.52)
+        .to('.beat-intro',{autoAlpha:1,y:0,duration:.28},.62)
+        .addLabel('intro',.62)
+        .to({}, {duration:.9})
+
+        // Tower crown: deepen the key actors without losing the common structure below.
+        .to('.beat-intro',{autoAlpha:0,y:-24,duration:.22})
+        .to('.beat-actors',{autoAlpha:1,y:0,duration:.3},'<.12')
+        .to(towerRoot.position,{x:isDesktop?.2:.1,y:isDesktop?-2.15:-2.35,duration:.42},'<')
+        .to(towerRoot.scale,{x:isDesktop?1.04:.68,y:isDesktop?1.04:.68,z:isDesktop?1.04:.68,duration:.42},'<')
+        .to(towerRoot.rotation,{y:-.14,duration:.42},'<')
+        .to(towerTop.position,{y:.5,duration:.32},'<.08')
+        .to(towerMid.position,{y:-.08,duration:.32},'<')
+        .to(towerBase.position,{y:-.35,duration:.32},'<')
+        .to(topFocus.scale,{x:1.08,y:1.08,z:1.08,duration:.34},'<')
+        .to(focusRings[0].material,{opacity:.85,duration:.24},'<')
+        .to('.actor-map',{autoAlpha:1,x:0,duration:.34},'>.12')
+        .from('.actor-map .relation',{strokeDashoffset:100,duration:.42,stagger:.025},'<.08')
+        .from('.actor-map .node',{scale:0,transformOrigin:'center',duration:.28,stagger:.025},'<.06')
+        .addLabel('actors')
+        .to({}, {duration:1.12})
+
+        // Tower body: zoom out just enough to reveal each enterprise as a real unit.
+        .to('.beat-actors',{autoAlpha:0,y:-24,duration:.22})
+        .to('.beat-tail',{autoAlpha:1,y:0,duration:.3},'<.12')
+        .to(towerRoot.position,{x:isDesktop?.15:.15,y:isDesktop?-.25:.7,duration:.45},'<')
+        .to(towerRoot.scale,{x:isDesktop?.84:.48,y:isDesktop?.84:.48,z:isDesktop?.84:.48,duration:.45},'<')
+        .to(towerRoot.rotation,{y:.22,duration:.45},'<')
+        .to(towerTop.position,{y:.75,duration:.34},'<')
+        .to(towerMid.position,{y:0,duration:.34},'<')
+        .to(towerBase.position,{y:-.72,duration:.34},'<')
+        .to(focusRings[0].material,{opacity:0,duration:.18},'<')
+        .to(midFocus.scale,{x:1.08,y:1.08,z:1.08,duration:.34},'<')
+        .to(focusRings[1].material,{opacity:.78,duration:.24},'<')
+        .to('.longtail-chart',{autoAlpha:1,x:0,duration:.36},'>.14')
+        .from('#tailBars .bar',{scaleY:0,transformOrigin:'bottom',duration:.58,stagger:.007},'<.08')
+        .addLabel('tail')
+        .to({}, {duration:1.2})
+
+        // Tower base: expose the causal contract shared by every actor.
+        .to('.beat-tail',{autoAlpha:0,y:-24,duration:.22})
+        .to('.beat-mechanism',{autoAlpha:1,y:0,duration:.3},'<.12')
+        .to(towerRoot.position,{x:isDesktop?.1:.2,y:isDesktop?2.32:1.62,duration:.46},'<')
+        .to(towerRoot.scale,{x:isDesktop?.95:.62,y:isDesktop?.95:.62,z:isDesktop?.95:.62,duration:.46},'<')
+        .to(towerRoot.rotation,{y:-.2,duration:.46},'<')
+        .to(towerTop.position,{y:1.15,duration:.36},'<')
+        .to(towerMid.position,{y:.2,duration:.36},'<')
+        .to(towerBase.position,{y:-.35,duration:.36},'<')
+        .to(focusRings[1].material,{opacity:0,duration:.18},'<')
+        .to(baseFocus.scale,{x:1.05,y:1.05,z:1.05,duration:.34},'<')
+        .to(focusRings[2].material,{opacity:.8,duration:.24},'<')
+        .to('.mechanism-map',{autoAlpha:1,x:0,duration:.36},'>.14')
+        .from('.mechanism-map .rail,.mechanism-map text',{autoAlpha:0,x:16,duration:.34,stagger:.012},'<.05')
+        .from('.mechanism-map .flow',{strokeDashoffset:180,duration:.62},'<.12')
+        .addLabel('mechanism')
+        .to({}, {duration:1.2})
+
+        // Only the decision adapter changes; deterministic settlement remains locked.
+        .to('.beat-mechanism',{autoAlpha:0,y:-24,duration:.22})
+        .to('.beat-interface',{autoAlpha:1,y:0,duration:.3},'<.12')
+        .to(towerRoot.position,{x:isDesktop?.18:.15,y:isDesktop?-2.05:-2.18,duration:.46},'<')
+        .to(towerRoot.scale,{x:isDesktop?1.0:.66,y:isDesktop?1.0:.66,z:isDesktop?1.0:.66,duration:.46},'<')
+        .to(towerRoot.rotation,{y:.08,duration:.46},'<')
+        .to(towerTop.position,{y:.7,duration:.34},'<')
+        .to(towerMid.position,{y:-.12,duration:.34},'<')
+        .to(towerBase.position,{y:-.45,duration:.34},'<')
+        .to(focusRings[2].material,{opacity:.18,duration:.2},'<')
+        .to(topFocus.scale,{x:1.12,y:1.12,z:1.12,duration:.34},'<')
+        .to(focusRings[0].material,{opacity:1,duration:.24},'<')
+        .to('.interface-visual',{autoAlpha:1,x:0,duration:.36},'>.14')
+        .from('.interface-visual',{clipPath:'inset(0 100% 0 0)',duration:.52},'<')
+        .addLabel('interface')
+        .to({}, {duration:1.2})
+
+        // Reassemble into one inspectable system before moving to the next chapter.
+        .to('.beat-interface',{autoAlpha:0,y:-24,duration:.22})
+        .to('.finale',{autoAlpha:1,y:0,duration:.3},'<.12')
+        .to(towerRoot.position,{x:isDesktop?2.55:.82,y:isDesktop?.05:-.22,duration:.56},'<')
+        .to(towerRoot.scale,{x:isDesktop?.81:.55,y:isDesktop?.81:.55,z:isDesktop?.81:.55,duration:.56},'<')
+        .to(towerRoot.rotation,{y:-.34,x:.01,duration:.56},'<')
+        .to([towerTop.position,towerMid.position,towerBase.position],{x:0,y:0,duration:.5},'<')
+        .to([towerTop.rotation,towerMid.rotation,towerBase.rotation],{x:0,y:0,z:0,duration:.5},'<')
+        .to(focusRings.map(function(r){return r.material}),{opacity:0,duration:.28},'<')
+        .addLabel('finale')
+        .to({}, {duration:1.35});
       window.__wanliTimeline=tl;
       return function(){window.__wanliTimeline=null;tl.kill()};
     });
     addEventListener('load',function(){
       ScrollTrigger.refresh();
-      if(new URLSearchParams(location.search).get('frame')==='2'){
+      var previewFrame=new URLSearchParams(location.search).get('frame');
+      if(previewFrame){
         requestAnimationFrame(function(){requestAnimationFrame(function(){
           var tl=window.__wanliTimeline;
           if(!tl||!tl.scrollTrigger)return;
           tl.scrollTrigger.disable(false);
           scrollTo(0,0);
-          tl.progress(.82);
+          var frameMap={intro:'intro',actors:'actors',tail:'tail',mechanism:'mechanism',interface:'interface',finale:'finale','2':'tail'};
+          var previewLabel=frameMap[previewFrame]||'intro';
+          tl.seek(previewLabel,false);
+          var previewIndex=['intro','actors','tail','mechanism','interface','finale'].indexOf(previewLabel);
+          setBeat(Math.max(0,previewIndex));
         })});
       }
     },{once:true});
