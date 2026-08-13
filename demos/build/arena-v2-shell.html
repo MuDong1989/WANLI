@@ -260,7 +260,7 @@
        视口侧实现在 app 段（VIEW_BG / GridHelper / HemisphereLight），不在本块。
      ═══════════════════════════════════════════════════════ */
   :root{
-    --page:#fbfaf8; --panel:#ffffff; --panel-2:#eef4f8; --grid:#ffffff;
+    --page:#fcfcfc; --panel:#fcfcfc; --panel-2:#eef4f8; --grid:#ffffff;
     --ink:#121212; --ink-2:#555550; --accent:#e3120b; --line:#d8d6d0;
     /* 旧令牌重定向：金色强调让位给 accent，但"招商席赭金"等语义色仍需自己的色相 */
     --night:#fbfaf8; --dim:#555550;
@@ -296,7 +296,7 @@
   #brand .sub{color:var(--ink-2);border-left-color:var(--line)}
   #clock{color:var(--ink)}
   #era{color:var(--ink-2);border-color:var(--line)}
-  .btn{background:#fff;color:var(--ink)}
+  .btn{background:var(--panel);color:var(--ink)}
   .btn:hover{border-color:var(--ink);color:var(--ink)}
   .btn.primary{border-color:var(--accent);color:var(--accent);background:rgba(227,18,11,.05)}
   #apBox{color:var(--ink-2)}
@@ -310,14 +310,14 @@
     border-top:1px solid var(--line);margin-top:6px;padding-top:7px}
   #autopilotHint{border-left-color:var(--accent);background:rgba(227,18,11,.045);color:var(--ink-2)}
   #autopilotHint b{color:var(--accent)}
-  .pnode{background:#fff;border-color:var(--line)}
+  .pnode{background:var(--panel);border-color:var(--line)}
   .pnode.avail:hover{border-color:var(--ink);background:#faf9f7}
   .pnode.active{border-color:var(--line);border-left:3px solid var(--accent);background:rgba(227,18,11,.045)}
   .pnode .pips i{background:#e2e0da}
   .pnode.active .pips i.on{background:var(--accent);box-shadow:none}
   .pnode.locked,.pnode.blocked{opacity:1}
   .pnode.locked .nname,.pnode.blocked .nname{color:#9d9a93}
-  .pnode .ops b{background:#fff}
+  .pnode .ops b{background:var(--panel)}
   .pnode .ops b:hover{border-color:var(--accent);color:var(--accent)}
   .pnode .lvtag{color:var(--ink-2)}
 
@@ -329,7 +329,7 @@
   #cardFlow{border-bottom-color:var(--line)}
   .rgroup{border-right-color:var(--line)}
   .rgroup .rlab{color:var(--ink-2)}
-  .acard{background:#fff;border-color:var(--line)}
+  .acard{background:var(--panel);border-color:var(--line)}
   .acard:hover{border-color:var(--ink)}
   .acard.sel{border-color:var(--accent);background:rgba(227,18,11,.05)}
   .acard .who{display:flex;align-items:center;gap:5px}
@@ -356,7 +356,7 @@
   .seatRow.zs b,.seatRow.zs .lev i{color:#8a6a1a;background:#8a6a1a}   /* 招商=赭金 */
   .seatRow.cz b,.seatRow.cz .lev i{color:#1e3a6e;background:#1e3a6e}   /* 财政=藏蓝 */
   .seatRow.jg b,.seatRow.jg .lev i{color:#7d4436;background:#7d4436}   /* 监管=暗砖红，刻意拉开与 accent 的色相/饱和距离，见验收 */
-  .pcard{background:#fff;border-color:var(--line)}
+  .pcard{background:var(--panel);border-color:var(--line)}
   .pcard .who{color:var(--vio)}
   .pcard .act{color:var(--ink)}
   .pcard .disc{color:var(--ink-2)}
@@ -377,7 +377,7 @@
   #evtBody p.wave  {border-color:var(--evt-wave)}   #evtBody p.region{border-color:var(--evt-region)}
   #evtBody p.jump:hover{background:#f5f4f1}
   #evtBody p.at{background:rgba(227,18,11,.07)}
-  .chip{background:#fff;color:var(--ink-2);border-color:var(--line)}
+  .chip{background:var(--panel);color:var(--ink-2);border-color:var(--line)}
   .chip:hover{border-color:var(--ink);color:var(--ink)}
   .chip.on{color:#fff}
   #evtHint{color:#9d9a93}
@@ -408,7 +408,7 @@
   .tcell.played{background:#d7d5cd;border-color:#c9c6bd}
   .tcell.played:hover{background:#c2bfb5}
   .tcell.cur{background:var(--accent);border-color:var(--accent);box-shadow:none}
-  .tcell.scrub{background:#fff;border:2px solid var(--accent)}
+  .tcell.scrub{background:var(--panel);border:2px solid var(--accent)}
   .tcell .yr{color:var(--ink-2)}
   #tlLabel{color:var(--ink-2)}
   #scrubBanner{border-color:var(--accent);color:var(--accent);background:var(--panel)}
