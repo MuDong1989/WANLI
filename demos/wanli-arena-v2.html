@@ -8,6 +8,10 @@
   :root{
     --night:#080c12; --panel:rgba(13,18,26,0.92); --line:rgba(127,166,206,0.15);
     --gold:#e8b64c; --ink:#cfd8e6; --dim:#8fa1b8; --teal:#7fd6c2; --red:#ef5350; --vio:#b9a8ef;
+    /* 事件类型色与图表色抽成变量：事件条/chips/sparkline 共用一个源，换肤只改一处 */
+    --evt-policy:#e8b64c; --evt-region:#b9a8ef; --evt-firm:#a8e6d5; --evt-fraud:#ef5350;
+    --evt-media:#f0a5a3; --evt-market:#8b98ab; --evt-wave:#e8b0d0; --evt-sys:#7fd6c2;
+    --base-line:#8b98ab; --chip-all:#cfd8e6;
     --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
     --serif:'Songti SC','Noto Serif SC','SimSun',serif;
     /* —— 分区尺寸（比例可调，拓扑不可调，见 frontend-layout-spec §0）—— */
@@ -244,6 +248,88 @@
   ::-webkit-scrollbar-thumb{background:rgba(127,166,206,.25);border-radius:3px}
   #quote{position:fixed;right:calc(var(--dockR) + 14px);top:calc(var(--topH) + 14px);z-index:5;pointer-events:none;
     font:11px/1.9 var(--serif);letter-spacing:.2em;color:rgba(232,182,76,.35);writing-mode:vertical-rl}
+
+  /* ══════════════════════ LIGHT THEME ══════════════════════
+     RESTYLE-LIGHT 实验块（2026-08-13，build CC）。
+     回退 = 整块删除 + 重新出包，不留残迹；JS 侧只读 CSS 变量，无需改回。
+     ★ three.js 主视口刻意不翻：#c 的底色由 renderer.setClearColor(0x080c12) 决定，
+       不归 CSS 管，故视口保持深色。压在视口上的覆盖层（.lbl 地图标签、#quote 竖排题字）
+       也必须留在深底配色里——下面第一组就是把它们从翻转中钉回去。
+     ═══════════════════════════════════════════════════════ */
+  :root{
+    --night:#f6f7f8; --panel:#ffffff; --line:rgba(22,32,46,.16);
+    --ink:#16202e; --dim:#5b6a7d;
+    --gold:#8a6000; --teal:#0f7a68; --red:#c0392b; --vio:#5240a8;
+    /* 事件类型色：白底上同色相压暗，保持八类仍可互相区分 */
+    --evt-policy:#8a6000; --evt-region:#5240a8; --evt-firm:#0d6e5c; --evt-fraud:#c0392b;
+    --evt-media:#b03a52; --evt-market:#55637a; --evt-wave:#96357e; --evt-sys:#0f7a68;
+    --base-line:#5b6a7d; --chip-all:#3a4757;
+  }
+  /* ① 视口覆盖层回钉：这两条原本引用被翻转的变量，不钉住就会在深色画面上消失 */
+  .lbl span{color:#9fb0c4}
+  .lbl.prov b{color:#c3b6f5}
+
+  /* ② 骨架与面板 */
+  body{background:var(--night)}
+  #topbar{background:linear-gradient(180deg,#ffffff,#f2f4f6)}
+  #brand .zh{color:#1b2534;text-shadow:none}
+  #treeDock,#decision,#evtDock,#chartDock{background:var(--panel)}
+  #timeline{background:#eef0f3}
+
+  /* ③ 控件 */
+  .btn{background:#fff}
+  .btn:hover{background:#f0faf8}
+  .btn.primary{background:rgba(138,96,0,.08)}
+  .pnode .ops b{background:#fff}
+  .pnode.active{background:rgba(138,96,0,.07)}
+  .acard{background:#fff}
+  .acard.sel{background:rgba(138,96,0,.10)}
+  .pcard{background:rgba(82,64,168,.05)}
+  .pcard.sel{background:rgba(82,64,168,.12)}
+  .pcard.rescue{background:rgba(138,96,0,.10)}
+  #apBox i{background:rgba(138,96,0,.16);border-color:rgba(138,96,0,.55)}
+
+  /* ④ 事件流（炸点①）：文字与左边框统一取加深后的同色相。
+        深色版里两者略有差异（文字更亮），白底上统一反而更清楚。 */
+  #evtBody p.market{color:var(--evt-market);border-color:var(--evt-market)}
+  #evtBody p.policy{color:var(--evt-policy);border-color:var(--evt-policy)}
+  #evtBody p.media {color:var(--evt-media); border-color:var(--evt-media)}
+  #evtBody p.fraud {color:var(--evt-fraud); border-color:var(--evt-fraud)}
+  #evtBody p.firm  {color:var(--evt-firm);  border-color:var(--evt-firm)}
+  #evtBody p.sys   {color:var(--evt-sys);   border-color:var(--evt-sys)}
+  #evtBody p.wave  {color:var(--evt-wave);  border-color:var(--evt-wave)}
+  #evtBody p.region{color:var(--evt-region);border-color:var(--evt-region)}
+  #evtBody p b{color:#6b7a8d}
+  #evtBody p.jump:hover{background:rgba(15,122,104,.10)}
+  #evtBody p.at{background:rgba(82,64,168,.13)}
+  /* 炸点②：chips 与事件条同源（都读 --evt-*），选中态改白字压在饱和底上 */
+  .chip{background:#fff}
+  .chip.on{color:#fff}
+  #evtHint,#filmStrip{color:var(--dim)}
+
+  /* ⑤ 炸点③：sparkline 与 KPI。画布底翻白，线色改读 --gold/--teal/--vio/--base-line，
+        基线宇宙的虚线单独压到 --base-line:#5b6a7d，白底上不会再消失。 */
+  canvas.spark{background:#fbfbfc;border-color:rgba(22,32,46,.16)}
+
+  /* ⑥ 炸点④：三席位杠杆条 + 制度带行。色相保留、明度压暗，立场仍一眼可辨。 */
+  .seatRow .lev{background:rgba(22,32,46,.10)}
+  .seatRow.cz b,.seatRow.cz .lev i{color:#1d6fb8;background:#1d6fb8}
+  #bandRows .rrow b{color:var(--ink)!important}   /* 带名颜色是内联的，只能 !important 压 */
+  #bandRows .bar{background:rgba(22,32,46,.10)}
+  #bandRows .bar i{filter:brightness(.70) saturate(1.4)}  /* 条形填充同样内联，用滤镜加深 */
+
+  /* ⑦ 时间线 */
+  .tcell{background:rgba(22,32,46,.07);border-color:rgba(22,32,46,.13)}
+  .tcell.played{background:rgba(15,122,104,.22);border-color:rgba(15,122,104,.40)}
+  .tcell.played:hover{background:rgba(15,122,104,.40)}
+  .tcell.cur{background:rgba(138,96,0,.40);border-color:var(--gold);box-shadow:0 0 8px rgba(138,96,0,.35)}
+  .tcell.scrub{background:rgba(82,64,168,.40);border-color:var(--vio)}
+  .tcell .yr{color:var(--dim)}
+
+  /* ⑧ 浮层：白底上没有明暗差可用，改靠投影分层 */
+  #nodeTip,#exTip,#finale,#scrubBanner{box-shadow:0 6px 26px rgba(20,30,45,.18)}
+  ::-webkit-scrollbar-thumb{background:rgba(22,32,46,.22)}
+  /* ══════════════════ LIGHT THEME 结束 ══════════════════ */
 </style>
 </head>
 <body>
@@ -1107,6 +1193,9 @@ if(typeof module!=='undefined' && module.exports){
 (function(){
 'use strict';
 function byId(id){return document.getElementById(id);}
+/* 取 CSS 变量：颜色的唯一真相在样式区，JS 只读不写——换肤时 JS 一行都不用动 */
+var CSSVAR=getComputedStyle(document.documentElement);
+function cssv(n,fb){ var v=(CSSVAR.getPropertyValue(n)||'').trim(); return v||fb; }
 var NF=ENGINE.FIRMS.length;
 
 /* ---------- 舞台尺寸 ---------- */
@@ -1291,8 +1380,8 @@ function curPolicy(){return scrub.on?roundRecs[scrub.k].policy:compilePolicy(act
    每条事件带 data-t（所属回合）与 data-type，供 chips 过滤与点击跳期。 */
 var EVT_TYPES=[['policy','政策'],['region','地方'],['firm','企业'],['fraud','骗补'],
                ['media','媒体'],['market','市场'],['wave','潮涌'],['sys','系统']];
-var EVT_COL={policy:'#e8b64c',region:'#b9a8ef',firm:'#a8e6d5',fraud:'#ef5350',
-             media:'#f0a5a3',market:'#8b98ab',wave:'#e8b0d0',sys:'#7fd6c2'};
+var EVT_COL=(function(){ var o={};
+  EVT_TYPES.forEach(function(x){ o[x[0]]=cssv('--evt-'+x[0],'#8b98ab'); }); return o; })();
 var evtOn={}; EVT_TYPES.forEach(function(x){evtOn[x[0]]=true;});
 function log(cls,msg,t){
   var s=cur(), k=(t!==undefined)?t:Math.max(0,s.t-1);
@@ -1322,7 +1411,7 @@ function renderChips(){
     cnt[ty]=(cnt[ty]||0)+1; tot++; }
   var allOn=EVT_TYPES.every(function(x){return evtOn[x[0]];});
   var html='<span class="chip'+(allOn?' on':'')+'" data-ty="all"'+
-    (allOn?' style="background:#cfd8e6;border-color:#cfd8e6"':'')+'>全部<i>'+tot+'</i></span>';
+    (allOn?' style="background:'+cssv('--chip-all','#cfd8e6')+';border-color:'+cssv('--chip-all','#cfd8e6')+'"':'')+'>全部<i>'+tot+'</i></span>';
   EVT_TYPES.forEach(function(x){
     var ty=x[0],on=evtOn[ty]!==false,c=EVT_COL[ty];
     html+='<span class="chip '+(on?'on':'off')+'" data-ty="'+ty+'"'+
@@ -1722,10 +1811,12 @@ function drawLine(ctx,data,color,dash,mn,mx,w,hh){
 }
 function drawCharts(){
   var u=cur(),b=curBase();
-  [['ch1',[[series(u,'P'),'#e8b64c',0],[series(u,'Cf'),'#7fd6c2',0],[series(b,'P'),'#8b98ab',1]]],
-   ['ch2',[[series(u,'D'),'#7fd6c2',0],[series(u,'S'),'#e8b64c',0],[series(b,'S'),'#8b98ab',1]]],
-   ['ch3',[[series(u,'exAlive'),'#b9a8ef',0],[series(b,'exAlive'),'#8b98ab',1]]],
-   ['ch4',[[series(u,'fiscalTotal'),'#e8b64c',0],[series(b,'fiscalTotal'),'#8b98ab',1]]]
+  var GC=cssv('--gold','#e8b64c'), TC=cssv('--teal','#7fd6c2'),
+      VC=cssv('--vio','#b9a8ef'),  BC=cssv('--base-line','#8b98ab');
+  [['ch1',[[series(u,'P'),GC,0],[series(u,'Cf'),TC,0],[series(b,'P'),BC,1]]],
+   ['ch2',[[series(u,'D'),TC,0],[series(u,'S'),GC,0],[series(b,'S'),BC,1]]],
+   ['ch3',[[series(u,'exAlive'),VC,0],[series(b,'exAlive'),BC,1]]],
+   ['ch4',[[series(u,'fiscalTotal'),GC,0],[series(b,'fiscalTotal'),BC,1]]]
   ].forEach(function(d){
     var cv=byId(d[0]),ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
     var all=[];d[1].forEach(function(s){all=all.concat(s[0]);});
@@ -1737,7 +1828,7 @@ function drawCharts(){
 function finale(){
   var u=userSim.history[19],b=baseSim.history[19];
   function row(nm,uv,bv,un){return '<div class="row"><span>'+nm+'</span><b>'+uv+un+
-    ' <span style="color:#8b98ab;font-weight:400">/ 基线 '+bv+un+'</span></b></div>';}
+    ' <span style="color:'+cssv('--base-line','#8b98ab')+';font-weight:400">/ 基线 '+bv+un+'</span></b></div>';}
   byId('finaleRows').innerHTML=
     row('财政累计',u.fiscalTotal.toFixed(0),b.fiscalTotal.toFixed(0),'亿')+
     row('骗补流失',u.waste.toFixed(0),b.waste.toFixed(0),'亿')+
