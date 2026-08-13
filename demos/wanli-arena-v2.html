@@ -117,7 +117,7 @@
   #dtHead h4{font-size:13.5px}
   #dtHead small{display:block;font-size:10px;color:var(--dim)}
   #dtHead .pnl{margin-left:auto;font:9.5px var(--mono);color:var(--dim);text-align:right;line-height:1.6}
-  #segs{display:grid;grid-template-columns:1.1fr 1.1fr 1fr 1.2fr;gap:10px}
+  #segs,.segs{display:grid;grid-template-columns:1.1fr 1.1fr 1fr 1.2fr;gap:10px}
   .seg{border-left:1px solid var(--line);padding-left:9px;min-width:0}
   .seg h5{font-size:9.5px;letter-spacing:.28em;color:var(--dim);font-weight:500;margin-bottom:4px}
   .seg h5 i{font-style:normal;color:var(--gold);margin-right:4px}
@@ -131,6 +131,40 @@
   .segMono p b{display:block;font:9.5px var(--mono);color:var(--dim)}
   #dtEmpty{color:var(--dim);font-size:11.5px;line-height:1.9;padding:6px 2px}
   #dtEmpty b{color:var(--teal)}
+  /* 省内阁卡（T-F2）：与名角五段卡共用 #detail 面板，见 frontend-layout-spec §1.3 末条 */
+  .pcard{min-width:118px;max-width:140px;padding:5px 8px;border:1px solid rgba(185,168,239,.28);border-radius:7px;
+    cursor:pointer;font-size:10.5px;line-height:1.45;background:rgba(185,168,239,.05)}
+  .pcard:hover{border-color:var(--vio)}
+  .pcard.sel{border-color:var(--vio);background:rgba(185,168,239,.14);box-shadow:0 0 8px rgba(185,168,239,.25)}
+  .pcard .who{font-size:11px;letter-spacing:.03em;color:var(--vio)}
+  .pcard .act{font:600 10px var(--mono);color:#cfc2f5;margin-top:1px;overflow:hidden;text-overflow:ellipsis;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .pcard .disc{color:var(--dim);font:9.5px var(--mono);margin-top:1px}
+  .pcard.rescue{border-color:rgba(232,182,76,.6);background:rgba(232,182,76,.08)}
+  .pcard.rescue .who{color:var(--gold)}
+  #dtProv .phead{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  #dtProv .phead .face{font-size:20px}
+  #dtProv .phead h4{font-size:13.5px;color:var(--vio)}
+  #dtProv .phead small{display:block;font-size:10px;color:var(--dim)}
+  #dtProv .phead .pnl{margin-left:auto;font:9.5px var(--mono);color:var(--dim);text-align:right;line-height:1.6}
+  .seatRow{display:grid;grid-template-columns:44px 1fr 26px;gap:5px;align-items:center;margin-bottom:5px}
+  .seatRow em{font-style:normal;font-size:10.5px;color:var(--dim)}
+  .seatRow .lev{position:relative;height:7px;border-radius:3px;background:rgba(127,166,206,.10)}
+  .seatRow .lev::before{content:'';position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:rgba(127,166,206,.35)}
+  .seatRow .lev i{position:absolute;top:0;height:100%;border-radius:3px;transition:width .4s,left .4s}
+  .seatRow b{font:600 10px var(--mono);text-align:right}
+  .seatRow.zs b,.seatRow.zs .lev i{color:var(--gold);background:var(--gold)}
+  .seatRow.cz b,.seatRow.cz .lev i{color:#6fb2f5;background:#6fb2f5}
+  .seatRow.jg b,.seatRow.jg .lev i{color:var(--red);background:var(--red)}
+  .seatRow b{background:none!important}
+  .segRescue{margin-top:7px;padding:5px 8px;border-left:2px solid var(--gold);background:rgba(232,182,76,.07);
+    font-size:10.5px;color:var(--gold);line-height:1.55}
+  /* 省标签挂在质心下方（名角楼标签挂上方），避免同点相撞 */
+  .lbl.prov{opacity:.7;transform:translate(-50%,4px)}
+  .lbl.prov b{font:9.5px var(--mono);letter-spacing:.06em;color:var(--vio)}
+  .lbl.prov span{font:9px var(--mono)}
+  .lbl.prov.sel{opacity:1}
+  .lbl.prov.sel b{color:#d9cdff;text-shadow:0 0 9px rgba(185,168,239,.8)}
 
   /* —— 右二整列：事件流 —— */
   #evtDock{position:fixed;right:var(--chartW);top:var(--topH);bottom:var(--tlH);width:var(--evtW);z-index:20;
@@ -231,14 +265,15 @@
 <div id="decision">
   <div id="dpHead">
     <h3>AGENT 与决策链</h3><span id="dpRound">未开局</span>
-    <span id="dpHint">点击地图上的名角楼或下方决策卡 → 展开五段决策卡</span>
+    <span id="dpHint">点击名角楼 / 省域 / 下方任意卡 → 展开五段决策卡（企业与省内阁同面板）</span>
   </div>
   <div id="cardFlow"></div>
   <div id="filmStrip"><i></i><i></i><i></i><i></i>决策链胶片 · 20 格连环画位（待引擎 f.cards 全史 · T-E1）</div>
   <div id="detail">
     <div id="dtEmpty">
       尚未选中主体。<b>决策链</b>回答的是：这一步棋，它<b>看到了什么</b>、<b>想起了什么</b>、<b>依据哪条规则</b>、<b>做了什么</b>、<b>心里怎么想</b>。<br>
-      八名角同处一个供给池：技术长期主义者、激进扩张者、资本故事家、跨界追风者、骗补投机者、观望代工厂、政企绑定型、国资型。
+      八名角同处一个供给池：技术长期主义者、激进扩张者、资本故事家、跨界追风者、骗补投机者、观望代工厂、政企绑定型、国资型。<br>
+      点地图上的<b>省域</b>（江苏 / 江西 / 河北 / 辽宁）看<b>省内阁票决</b>：招商、财政、监管三席位打分，决定中央核查落地时打几折。
     </div>
     <div id="dtBody" style="display:none">
       <div id="dtHead">
@@ -252,6 +287,21 @@
         <div class="seg"><h5><i>叁</i>决策依据</h5><span class="rulePill" id="segRule">–</span>
           <h5 style="margin-top:9px"><i>肆</i>行动</h5><div class="segAct" id="segAct">–</div></div>
         <div class="seg"><h5><i>伍</i>内心独白</h5><div class="segMono" id="segMono"></div></div>
+      </div>
+    </div>
+    <!-- 省内阁卡（T-F2）：数据源 sim.provs[].lastCard（engine2.js:219-222），零随机数票决 -->
+    <div id="dtProv" style="display:none">
+      <div class="phead">
+        <div class="face">🏛️</div>
+        <div><h4 id="pvName">–</h4><small id="pvSub">–</small></div>
+        <div class="pnl" id="pvPnl"></div>
+      </div>
+      <div class="segs">
+        <div class="seg"><h5><i>壹</i>观测</h5><ul id="pvObserved"></ul></div>
+        <div class="seg"><h5><i>贰</i>席位立场</h5><div id="pvSeats"></div></div>
+        <div class="seg"><h5><i>叁</i>票决算式</h5><span class="rulePill" id="pvRule">–</span>
+          <h5 style="margin-top:9px"><i>肆</i>行动</h5><div class="segAct" id="pvAct">–</div></div>
+        <div class="seg"><h5><i>伍</i>本省台账</h5><div id="pvLedger"></div></div>
       </div>
     </div>
   </div>
@@ -643,6 +693,7 @@ Sim.prototype.step=function(policy,ctrl){
           var mc=CFG.moveCostK*f.K*capex;
           if(f.cash>mc*1.05){
             f.cash-=mc; var oldH=f.home; f.home=pd0.move; f.moveCd=CFG.moveCoolRounds; f.movedNow=true;
+            if(f.prov!==undefined) delete f.prov; /* 省级绑定不随厂迁移:迁出即解除,effA 回退制度带折扣,救助脐带断(A22/Q4) */
             self.writeMem(f,'move','从'+self.regions[oldH].name+'迁往'+self.regions[pd0.move].name+',一次性成本'+mc.toFixed(1)+'亿',0.9);
             ev.push({t:t,type:'firm',msg:f.name+'整体迁址：'+self.regions[oldH].name+'→'+self.regions[pd0.move].name+'（迁址费'+mc.toFixed(1)+'亿，本期出货受损）'});
           } else ev.push({t:t,type:'firm',msg:f.name+'：现金不足以支付迁址费'+mc.toFixed(1)+'亿，迁址取消'});
@@ -794,11 +845,11 @@ Sim.prototype.step=function(policy,ctrl){
         return;
       }
     }
-    if(f.cash<0){ f.alive=false; f.dead='bankrupt'; deadK+=f.K;
+    if(f.cash<0){ f.alive=false; f.dead='bankrupt'; f.deadT=t; deadK+=f.K;
       ev.push({t:t,type:'firm',msg:f.name+'资金链断裂，破产退出'});
       self.alive().forEach(function(g){ self.writeMem(g,'peer_bankrupt','同行'+f.name+'倒下了',0.9); });
     } else if(f.arch==='chaser' && f.entered && f.lossStreak>=2){
-      f.alive=false; f.dead='exit'; deadK+=f.K;
+      f.alive=false; f.dead='exit'; f.deadT=t; deadK+=f.K;
       ev.push({t:t,type:'firm',msg:f.name+'连亏两期，割肉离场："这波风口，是别人的。"'});
     }
   });
@@ -868,7 +919,7 @@ Sim.prototype.step=function(policy,ctrl){
   this.history.push({t:t,P:P,Cf:this.frontier,D:D,S:S,alive:left.length,
     exAlive:exAlive, exDeaths:exDeaths, exDeadCum:this.exDeadCum, exK:exK, castK:castK,
     fiscalTotal:this.fiscal.cap+this.fiscal.gen-this.fiscal.fines,
-    waste:this.fiscal.waste, opinion:this.opinion,
+    waste:this.fiscal.waste, opinion:this.opinion, local:this.fiscal.local||0,
     shares:[shares[0]/totS,shares[1]/totS,shares[2]/totS], fraudRegion:fraudRegion});
   this.t++;
   return {ev:ev, flows:flows, exDeaths:exDeaths};
@@ -886,7 +937,7 @@ if(typeof module!=='undefined' && module.exports){
 
 /* ---------- ENGINE bridge：现役 engine/engine2.js 的浏览器出口 ---------- */
 var ENGINE={Sim:Sim,scriptPolicy:scriptPolicy,CFG:CFG,FIRMS:FIRMS,REGIONS:REGIONS,PROVS:PROVS,
-  ARCH:ARCH,MODE_CN:MODE_CN,mulberry32:mulberry32};
+  CABW:CABW,ARCH:ARCH,MODE_CN:MODE_CN,mulberry32:mulberry32};
 /* ============================================================
    万历 · 政策树 v1（光伏包）—— 21 节点 × 5 支线
    结构：节点(UI/状态机) → compile() → {mode,intensity,audit,x{...}} → 引擎
@@ -983,7 +1034,13 @@ var PNODES=[
 
 var AP_PER_ROUND=3; /* 政策注意力预算（Sims 理性疏忽的政府侧版本）*/
 
-/* ---------- 编译器：活跃节点 → 引擎政策对象 ---------- */
+/* ---------- 编译器：活跃节点 → 引擎政策对象 ----------
+   同键多节点合成语义（A25，全部 17 键强制分类，未分类键编译期报错）：
+   加法类=求和；乘法类=连乘；pick 类=按"从严"取 min/max（此前为数组序后写覆盖，
+   现役唯一冲突对 subEligF{技术门槛1.1,领跑者1.05} 旧序恰得从严值，逐位等价）。 */
+var XK_ADD={demandBonus:1,opinionDrip:1,fiscalDrip:1,entryBonus:1,forceExit:1};
+var XK_MUL={shockMul:1,capexMul:1,rdCostMul:1,discountMul:1,dKCapMul:1};
+var XK_PICK={fineMult:'max',mediaProb:'max',subEligF:'min',entryGateF:'min',entryGateK0:'max',lowIntegCut:'max',opexRelief:'max'};
 function compilePolicy(active){
   var pol={mode:'none',intensity:0,audit:5,x:{}};
   PNODES.forEach(function(n){
@@ -994,11 +1051,10 @@ function compilePolicy(active){
       if(eff.core.audit!==undefined) pol.audit=eff.core.audit;
     }
     if(eff.x) Object.keys(eff.x).forEach(function(k){
-      if(k==='demandBonus'||k==='opinionDrip'||k==='fiscalDrip'||k==='entryBonus'||k==='forceExit')
-        pol.x[k]=(pol.x[k]||0)+eff.x[k];
-      else if(k==='shockMul'||k==='capexMul'||k==='rdCostMul'||k==='discountMul'||k==='dKCapMul')
-        pol.x[k]=(pol.x[k]||1)*eff.x[k];
-      else pol.x[k]=eff.x[k];
+      if(XK_ADD[k]) pol.x[k]=(pol.x[k]||0)+eff.x[k];
+      else if(XK_MUL[k]) pol.x[k]=(pol.x[k]||1)*eff.x[k];
+      else if(XK_PICK[k]) pol.x[k]=(pol.x[k]===undefined)? eff.x[k] : Math[XK_PICK[k]](pol.x[k],eff.x[k]);
+      else throw new Error('compilePolicy: 未分类效果键 "'+k+'"（节点 '+n.id+'）——新键须先入 XK_* 分类表并登记 assumption-registry A25');
     });
   });
   return pol;
@@ -1074,6 +1130,9 @@ CHINA_GEO.features.forEach(function(f){
 CENTROID['河北']=[115.5,38.6];CENTROID['内蒙古']=[111.5,41.0];CENTROID['广东']=[113.6,23.2];
 CENTROID['陕西']=[108.9,34.5];CENTROID['辽宁']=[122.6,41.3];CENTROID['甘肃']=[103.5,36.0];
 var NEUTRAL=new THREE.Color(0x10151d), sideMat=new THREE.MeshStandardMaterial({color:0x0a0e15,roughness:.85});
+/* 四名角省：地图省名 → 引擎 provs[].id（engine2.js:45-50）。只有这四省有内阁与省级执行折扣 */
+var NAMED_PROV={}; ENGINE.PROVS.forEach(function(p){NAMED_PROV[p.name]=p.id;});
+var provMeshes=[];   /* 名角省的顶面 mesh，供点击命中 */
 function ringPts(ring){
   var step=Math.max(1,Math.ceil(ring.length/220)), pts=[];
   for(var i=0;i<ring.length;i+=step){ var p=PROJ(ring[i][0],ring[i][1]); pts.push(new THREE.Vector2(p[0],-p[1])); }
@@ -1091,6 +1150,7 @@ CHINA_GEO.features.forEach(function(f){
     for(var h=1;h<poly.length;h++){ var hp=ringPts(poly[h]); if(hp.length>2) shape.holes.push(new THREE.Path(hp)); }
     var g=new THREE.ExtrudeGeometry(shape,{depth:0.45,bevelEnabled:false});
     var m=new THREE.Mesh(g,[cap,sideMat]); m.rotation.x=-Math.PI/2; scene.add(m);
+    if(NAMED_PROV[name]){ m.userData.provId=NAMED_PROV[name]; provMeshes.push(m); }
     if(outer.length>8){
       var lg=new THREE.BufferGeometry().setFromPoints(outer.map(function(v){return new THREE.Vector3(v.x,0.47,v.y);}));
       scene.add(new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:0x24354c,transparent:true,opacity:0.6})));
@@ -1135,6 +1195,13 @@ ENGINE.FIRMS.forEach(function(f){
   scene.add(grp);
   var el=mkLbl('<b style="color:'+f.css+'">'+f.emoji+' '+f.name+'</b><span></span>');
   firmVisuals[f.id]={grp:grp,body:body,ghost:ghost,glow:glow,el:el,curH:0.35,tH:0.35,curG:0,tG:0,x:p[0],z:p[1]};
+});
+/* 四名角省地面标签：把"省域亮度=当地实际核查"从观感落成数字，票决后的分化可读可截图 */
+var provLabels={};
+ENGINE.PROVS.forEach(function(p){
+  var c=CENTROID[p.name]||[112,33], q=PROJ(c[0],c[1]);
+  var el=mkLbl('<b>'+p.name+'</b><span></span>'); el.classList.add('prov');
+  provLabels[p.id]={el:el,x:q[0],z:q[1],name:p.name};
 });
 
 /* ---------- 群演楼海 ---------- */
@@ -1198,10 +1265,12 @@ cvs.addEventListener('wheel',function(e){e.preventDefault();lastPointer=performa
 /* ---------- 推演状态 ---------- */
 var userSim,baseSim,activeNodes,apRemaining,pendingOps,roundRecs,takenOver,gameOver,selected,playTimer=null;
 var scrub={on:false,k:-1,u:null,b:null,active:null};
+var selProv=null;   /* T-F2：当前选中的名角省（provs[].id），与 selected 互斥 */
 /* 企业镜头预留通道（§3）：{firmId:{dK,rd,fake,move,note}}；本版不开 UI，接口不封死 */
 var playerCtrl=null;
 function cur(){return scrub.on?scrub.u:userSim;}
 function curBase(){return scrub.on?scrub.b:baseSim;}
+function curPolicy(){return scrub.on?roundRecs[scrub.k].policy:compilePolicy(activeNodes);}
 function log(cls,msg,t){var p=document.createElement('p');p.className=cls;
   var s=cur();
   p.innerHTML='<b>'+(t!==undefined?s.yearLabel(t):s.yearLabel(Math.max(0,s.t-1)))+'</b>'+msg;
@@ -1337,25 +1406,48 @@ function pushFeed(){
       '<div class="rule">'+f.lastCard.rule+'</div>';
     g.appendChild(c);
   });
+  /* T-F2：同一回合组里，八名角卡之后接四省内阁卡——政府侧与企业侧同排，逐期刷新 */
+  userSim.provs.forEach(function(pv){
+    if(!pv.lastCard||pv.lastCard.t!==userSim.t-1)return;
+    var rescued=pv.lastCard.act.indexOf('救助')>=0;
+    var c=document.createElement('div');
+    c.className='pcard'+(selProv===pv.id?' sel':'')+(rescued?' rescue':'');
+    c.dataset.prov=pv.id;
+    c.innerHTML='<div class="who">🏛️ '+pv.name+'内阁</div><div class="act">'+pv.lastCard.act+'</div>'+
+      '<div class="disc">折扣 '+pv.disc.toFixed(2)+' · 实核 '+Math.round(userSim.effA(pv.band,roundRecs[userSim.t-1].policy,pv.id))+'</div>';
+    g.appendChild(c);
+  });
   cardFlow.prepend(g);
   while(cardFlow.children.length>12)cardFlow.lastChild.remove();
 }
 cardFlow.addEventListener('click',function(e){
+  var p=e.target.closest('.pcard');if(p){selectProv(p.dataset.prov);return;}
   var c=e.target.closest('.acard');if(c)selectFirm(c.dataset.firm);
 });
 function markSel(){
   cardFlow.querySelectorAll('.acard').forEach(function(c){
     c.classList.toggle('sel', c.dataset.firm===selected);
   });
+  cardFlow.querySelectorAll('.pcard').forEach(function(c){
+    c.classList.toggle('sel', c.dataset.prov===selProv);
+  });
 }
 
-/* ---------- 五段卡详情（底带） ---------- */
-function selectFirm(id){
-  selected=id||null;
-  byId('dtEmpty').style.display=selected?'none':'block';
+/* ---------- 五段卡详情（底带）：名角与省内阁共用本面板 ---------- */
+function syncPanes(){
+  byId('dtEmpty').style.display=(selected||selProv)?'none':'block';
   byId('dtBody').style.display=selected?'block':'none';
-  markSel();
+  byId('dtProv').style.display=selProv?'block':'none';
+}
+function selectFirm(id){
+  selected=id||null; if(selected)selProv=null;
+  syncPanes(); markSel();
   if(selected)renderDetail(selected);
+}
+function selectProv(pid){
+  selProv=pid||null; if(selProv)selected=null;
+  syncPanes(); markSel();
+  if(selProv)renderProvCard(selProv);
 }
 function renderDetail(id){
   var sim=cur(),f=sim.firms.find(function(x){return x.id===id;});
@@ -1375,6 +1467,50 @@ function renderDetail(id){
   byId('segMono').innerHTML=f.monologues.slice(-3).reverse().map(function(m){
     return '<p><b>'+sim.yearLabel(m.t)+'</b>'+m.note+'</p>';}).join('')||'<p>—</p>';
 }
+/* ---------- 省内阁五段卡（T-F2）----------
+   四栏 = 观测 / 席位立场 / 票决算式 / 行动，第五栏放本省台账（救助次数与驻地名角）。
+   席位杠杆条：招商金 / 财政蓝 / 监管红，以中线为零点向正负两侧伸展。
+   权重来自 ENGINE.CABW（engine2.js:51），与引擎票决用的是同一张表。 */
+var SEATKEY={'招商席':'zs','财政席':'cz','监管席':'jg'};   /* 卡面席位名 → CABW 权重键/配色类 */
+function renderProvCard(pid){
+  var sim=cur(), pv=null;
+  for(var i=0;i<sim.provs.length;i++) if(sim.provs[i].id===pid) pv=sim.provs[i];
+  if(!pv){selectProv(null);return;}
+  var band=sim.regions[pv.band], pol=curPolicy();
+  var W=(ENGINE.CABW||{})[pv.id]||{zs:1,cz:1,jg:1};
+  byId('pvName').textContent=pv.name+'省内阁';
+  byId('pvSub').textContent=band.name+'带 · 三席位票决（零随机数）';
+  byId('pvPnl').innerHTML='执行折扣 '+pv.disc.toFixed(2)+'（带基准 '+band.disc.toFixed(2)+'）<br>'+
+    '本省实核 '+Math.round(sim.effA(pv.band,pol,pv.id))+' · 带内实核 '+Math.round(sim.effA(pv.band,pol))+'<br>'+
+    '财政自给率 '+(pv.selfFin*100).toFixed(0)+'% · 救助 '+pv.rescues+'/2 次';
+  var c=pv.lastCard;
+  byId('pvObserved').innerHTML=c?c.observed.map(function(s){return '<li>'+s+'</li>';}).join(''):'<li>（本省尚未开过会）</li>';
+  if(c){
+    byId('pvSeats').innerHTML=c.seats.map(function(s){
+      var k=SEATKEY[s.s]||'zs', w=W[k];
+      var mag=Math.min(1,Math.abs(s.v)/3)*50;          /* 半幅 50%，|v| 上限按 3 归一 */
+      var left=s.v>=0?50:50-mag;
+      return '<div class="seatRow '+k+'"><em>'+s.s+'</em>'+
+        '<div class="lev"><i style="left:'+left+'%;width:'+mag+'%"></i></div>'+
+        '<b>'+(s.v>0?'+':'')+s.v+'</b></div>'+
+        '<div style="font:9px var(--mono);color:var(--dim);margin:-3px 0 5px 49px">权重 '+w.toFixed(1)+'</div>';
+    }).join('');
+    byId('pvRule').textContent=c.rule;
+    byId('pvAct').textContent=c.act;
+  } else {
+    byId('pvSeats').innerHTML='<div style="font-size:11px;color:var(--dim)">（推演一回合后出现）</div>';
+    byId('pvRule').textContent='—'; byId('pvAct').textContent='—';
+  }
+  /* 第五栏：本省台账——救助是内阁卡之外的省级动作，放这里才看得见"财政席反对但钱照发" */
+  var homeFirms=sim.firms.filter(function(f){return f.prov===pv.id;});
+  var led='<div style="font-size:11px;line-height:1.7">'+
+    (homeFirms.length? homeFirms.map(function(f){
+      return '<div>'+f.emoji+' '+f.name+' · '+(f.alive?'存活 K '+f.K.toFixed(2):'已'+(f.dead==='exit'?'离场':'破产'))+'</div>';
+    }).join('') : '<div style="color:var(--dim)">无政企绑定名角</div>')+'</div>';
+  if(pv.rescues>0) led+='<div class="segRescue">已动用救助 '+pv.rescues+'/2 次——软预算约束（Kornai）：'+
+    '财政席立场不进救助条件清单，见 assumption-registry A22。</div>';
+  byId('pvLedger').innerHTML=led;
+}
 function onTap(e){
   var r=stageRect();
   if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
@@ -1393,7 +1529,10 @@ function onTap(e){
     clearTimeout(tip._tm);tip._tm=setTimeout(function(){tip.style.display='none';},2400);
     return;
   }
-  selectFirm(null);
+  /* T-F2：四名角省的省域 → 省内阁卡（放在名角楼与群演之后，不改既有命中优先级） */
+  var ph=rc.intersectObjects(provMeshes);
+  if(ph.length){selectProv(ph[0].object.userData.provId);return;}
+  selectFirm(null);selectProv(null);
 }
 
 /* ---------- 主循环 ---------- */
@@ -1454,11 +1593,28 @@ function refreshAll(){
       '<small>实核 '+Math.round(sim.effA(j,pol))+'</small></div>';
   });
   byId('bandRows').innerHTML=rows;
-  /* 省域亮度=制度带实际核查（省级分化在 T-F2 接 sim.effA(band,pol,provId)） */
+  /* 省域亮度=当地实际核查。名角省走 sim.effA(band,pol,provId)——用内阁票决后的 pv.disc，
+     故江苏（票决加严）与辽宁（换届后维持宽松）在同一制度带里也会肉眼分化（T-F2）。 */
+  var provEff={};
+  sim.provs.forEach(function(pv){ provEff[pv.name]={id:pv.id,eff:sim.effA(pv.band,pol,pv.id),disc:pv.disc}; });
   Object.keys(provMat).forEach(function(name){
     var j=PROV_BAND[name];if(j===undefined)return;
-    var eff=sim.effA(j,pol),k=Math.min(1,eff/85);
-    provMat[name].color.copy(BANDS[j].col).lerp(new THREE.Color(0xffffff),0.06+k*0.22);
+    var mat=provMat[name],pe=provEff[name];
+    if(pe){                                    /* 名角省：省级实核，加宽亮度摆幅 + 自发光凸显 */
+      var kp=Math.min(1,pe.eff/85);
+      mat.color.copy(BANDS[j].col).lerp(new THREE.Color(0xffffff),0.05+kp*0.45);
+      mat.emissive.copy(BANDS[j].col); mat.emissiveIntensity=0.10+kp*0.55;
+    }else{                                     /* 其余省：制度带实核（引擎无省级维度，A21 已披露） */
+      var k=Math.min(1,sim.effA(j,pol)/85);
+      mat.color.copy(BANDS[j].col).lerp(new THREE.Color(0xffffff),0.06+k*0.22);
+    }
+  });
+  /* 名角省地面标签：省名 + 执行折扣 + 本省实核 */
+  sim.provs.forEach(function(pv){
+    var L=provLabels[pv.id];if(!L)return;
+    L.el.classList.toggle('sel',selProv===pv.id);
+    L.el.querySelector('b').textContent='🏛 '+pv.name+(selProv===pv.id?' ◂':'');
+    L.el.querySelector('span').textContent='折扣 '+pv.disc.toFixed(2)+' · 实核 '+Math.round(provEff[pv.name].eff);
   });
   /* 名角 */
   sim.firms.forEach(function(f){
@@ -1482,6 +1638,7 @@ function refreshAll(){
   exMesh.count=n;
   drawCharts();refreshTimeline();renderTree();
   if(selected)renderDetail(selected);
+  if(selProv)renderProvCard(selProv);
 }
 function series(sim,key){return sim.history.map(function(x){return x[key];});}
 function drawLine(ctx,data,color,dash,mn,mx,w,hh){
@@ -1548,8 +1705,8 @@ function init(){
   exCurH.length=0;exTH.length=0;exFlash.length=0;exCol.length=0;
   particles.forEach(function(p){scene.remove(p.m);});particles.length=0;
   byId('autopilotHint').innerHTML='<b>自动驾驶中</b>——史实政策正按时点自动点亮。点击任意节点即接管。';
-  selectFirm(null);
-  log('sys','万历引擎就绪 · 光伏包已加载（8 名角 · 4 省内阁 · 21 节点政策树）。左列是政策树，每回合 3 点行动力；中下是 Agent 决策链；底部时间线可回看任意回合并从那里分叉。');
+  selProv=null;selectFirm(null);
+  log('sys','万历引擎就绪 · 光伏包已加载（8 名角 · 4 省内阁 · 21 节点政策树）。左列是政策树，每回合 3 点行动力；中下是 Agent 决策链（点省域看内阁票决）；底部时间线可回看任意回合并从那里分叉。');
   updateAP();refreshAll();
 }
 
@@ -1612,6 +1769,9 @@ function animate(){
   }
   Object.keys(firmVisuals).forEach(function(id){
     var v=firmVisuals[id];proj2(v.x,0.46+v.curH+.55,v.z,v.el);
+  });
+  Object.keys(provLabels).forEach(function(pid){
+    var L=provLabels[pid];proj2(L.x,0.5,L.z,L.el);
   });
   proj2(BJp[0],2.6,BJp[1],bjLbl);
   renderer.render(scene,camera);
