@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .paper{fill:#e9e6de}.ink{stroke:#11191b}
+    @media (prefers-color-scheme:dark){.paper{fill:#172022}.ink{stroke:#f0ede4}}
+  </style>
+  <rect class="paper" width="64" height="64" rx="10"/>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="#b47a2b" stroke-width="1.8" stroke-dasharray="96 24" transform="rotate(-35 32 32)"/>
+  <g class="ink" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M32 8v48M28 12h8"/>
+    <path d="m23 19 9-5 9 5-9 4-9-4Zm-7 13 16-8 16 8-16 6-16-6ZM10 47l22-9 22 9-22 8-22-8Z"/>
+  </g>
+  <circle cx="51" cy="13" r="2.8" fill="#b47a2b"/>
+</svg>
