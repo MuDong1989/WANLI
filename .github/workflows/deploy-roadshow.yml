@@ -29,6 +29,8 @@ jobs:
           mkdir _site
           cp pitch/roadshow-scroll.html _site/index.html
           cp -R pitch/assets pitch/vendor _site/
+          mkdir _site/product
+          cp demos/wanli-arena-v2.html _site/product/index.html
           touch _site/.nojekyll
 
       - name: Configure GitHub Pages
