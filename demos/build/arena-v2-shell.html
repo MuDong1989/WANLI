@@ -252,10 +252,12 @@
   /* ═══════════════════ ECONOMIST THEME ═══════════════════
      RESTYLE-ECONOMIST（2026-08-13，build CC）——取代 RESTYLE-LIGHT。
      回退 = 整块删除 + 重新出包；JS 侧只读 CSS 变量，无需改回。
-     ★ three.js 主视口刻意不翻：#c 底色由 renderer.setClearColor(0x080c12) 决定，
-       不归 CSS 管。浅色版面里的深色地图窗 = 刊物里的深色地图插图。
-       压在视口上的覆盖层（.lbl 地图标签、#quote 竖排题字、骗补红闪/救助金等
-       视口内特效）一律留在深底配色——下面第一组把它们从翻转里钉回去。
+     ★ 视口配色沿革（重要，别照着过期注释改）：
+       初版遵守「铁律2 视口一字节不动」，视口保持深底，故压在其上的覆盖层
+       被刻意钉成浅色。2026-08-13 用户改令：视口改浅底 + 地面网格，与主题同族。
+       于是两件事必须同时翻——① 覆盖层（.lbl / #quote）改深色，见下方第一组；
+       ② 省域着色由「越亮=实核越高」翻成 choropleth「墨越重=实核越高」，见 refreshAll。
+       视口侧实现在 app 段（VIEW_BG / GridHelper / HemisphereLight），不在本块。
      ═══════════════════════════════════════════════════════ */
   :root{
     --page:#fbfaf8; --panel:#ffffff; --panel-2:#eef4f8; --grid:#ffffff;
@@ -270,9 +272,14 @@
     --base-line:#8e8b84; --chip-all:#3a3a36;
     --sans:"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
   }
-  /* ① 视口覆盖层回钉（引用了被翻转的变量，不钉就会在深色画面上消失）*/
-  .lbl span{color:#9fb0c4}
-  .lbl.prov b{color:#c3b6f5}
+  /* ① 视口覆盖层：视口已转浅底（用户改令），这些压在地图上的标签必须跟着翻成深色。
+     深底时代它们是浅色的——照搬过来会在浅底上直接消失。 */
+  .lbl{text-shadow:0 1px 4px rgba(255,255,255,.95)}   /* 白描边替代原黑描边 */
+  .lbl b{filter:saturate(1.5) brightness(.58)}        /* 名角主题色是内联的，只能滤镜压深 */
+  .lbl span{color:#4a5560}
+  .lbl.prov b{color:#4a3a8c;filter:none}
+  .lbl.dead b{color:#8a9099}
+  #quote{color:rgba(18,18,18,.20)}                    /* 竖排题字：淡金在浅底上不可见 */
 
   /* ② 版面骨架：报刊字体栈 + 数字等宽对齐 */
   html,body{font-family:var(--sans);background:var(--page);color:var(--ink)}
@@ -518,7 +525,7 @@
   <figure class="fig"><h4>财政累计投入</h4>
     <p class="sub">亿元｜灰虚线=史实基线</p><canvas class="spark" id="ch4"></canvas></figure>
   <div id="bandRows"></div>
-  <div id="legend"><b style="color:var(--ink)">黑实线</b>=你的宇宙 · <b style="color:var(--ink)">灰虚线</b>=史实基线 · <b style="color:var(--accent)">红点</b>=末期劣于基线<br>省域亮度=当地实际核查 · 红闪=虚报<br>同一种子：两个宇宙唯一差异是政策</div>
+  <div id="legend"><b style="color:var(--ink)">黑实线</b>=你的宇宙 · <b style="color:var(--ink)">灰虚线</b>=史实基线 · <b style="color:var(--accent)">红点</b>=末期劣于基线<br>省域墨色=当地实际核查（越深越严）· 红闪=虚报<br>同一种子：两个宇宙唯一差异是政策</div>
 </div>
 
 <!-- 底部通宽：时间线 -->
@@ -563,17 +570,30 @@ function stageRect(){ return cvs.getBoundingClientRect(); }
 var renderer=new THREE.WebGLRenderer({canvas:cvs,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 var scene=new THREE.Scene();
-renderer.setClearColor(0x080c12);
-scene.fog=new THREE.Fog(0x080c12,42,120);
+/* -- 视口配色（用户指令：浅底 + 网格，与报刊主题同族）--
+   注意：这一段推翻了 RESTYLE 两单的「铁律2 视口一字节不动」，是用户本人的改令。
+   浅底会翻转一个语义：原来「越亮=实核越高」，在浅底上会变成「越亮=越看不见」，
+   故省域着色同步改为 choropleth（墨越重=实核越高），见 refreshAll。 */
+var VIEW_BG=0xeef1f4,      /* 视口底：比 --panel-2 稍冷一档，和图表衬底同族 */
+    VIEW_PALE=0xdde3e8,    /* 低实核省份的淡墨端，仍能与底色区分出陆地 */
+    GRID_MINOR=0xd4dbe2, GRID_MAJOR=0xbcc6cf;
+renderer.setClearColor(VIEW_BG);
+scene.fog=new THREE.Fog(VIEW_BG,42,120);   /* 雾色必须跟底色走，否则远处几何体会褪成深色 */
 var camera=new THREE.PerspectiveCamera(45,1,0.1,300);
 function fitStage(){ var r=stageRect(); if(!r.width||!r.height)return;
   renderer.setSize(r.width,r.height,false);
   camera.aspect=r.width/r.height; camera.updateProjectionMatrix(); }
 addEventListener('resize',fitStage);
 
-scene.add(new THREE.HemisphereLight(0x35496a,0x0a0d12,0.95));
-var key=new THREE.DirectionalLight(0xbcd4f0,0.75); key.position.set(14,26,12); scene.add(key);
-var rim=new THREE.DirectionalLight(0x7fd6c2,0.2); rim.position.set(-16,10,-14); scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xffffff,0xd6dde4,0.92));   /* 天光转白，地面反光转浅灰 */
+var key=new THREE.DirectionalLight(0xffffff,0.62); key.position.set(14,26,12); scene.add(key);
+var rim=new THREE.DirectionalLight(0xbcd0e0,0.18); rim.position.set(-16,10,-14); scene.add(rim);
+/* 地面网格：贴在 y=0.015（省域顶面在 y=0.45），所以只在陆地之外露出来，
+   给浅底一层数据纸底纹，而不会盖住省份。 */
+var grid=new THREE.GridHelper(160,64,GRID_MAJOR,GRID_MINOR);
+grid.position.y=0.015;
+grid.material.transparent=true; grid.material.opacity=0.55; grid.material.depthWrite=false;
+scene.add(grid);
 
 /* ---------- 地图：解码 → 投影 → 挤出 ---------- */
 decodeGeo(CHINA_GEO);
@@ -592,7 +612,8 @@ CHINA_GEO.features.forEach(function(f){
 });
 CENTROID['河北']=[115.5,38.6];CENTROID['内蒙古']=[111.5,41.0];CENTROID['广东']=[113.6,23.2];
 CENTROID['陕西']=[108.9,34.5];CENTROID['辽宁']=[122.6,41.3];CENTROID['甘肃']=[103.5,36.0];
-var NEUTRAL=new THREE.Color(0x10151d), sideMat=new THREE.MeshStandardMaterial({color:0x0a0e15,roughness:.85});
+var NEUTRAL=new THREE.Color(VIEW_PALE), PALE_C=new THREE.Color(VIEW_PALE),
+    sideMat=new THREE.MeshStandardMaterial({color:0xc2cad2,roughness:.85});   /* 挤出侧壁转浅灰 */
 /* 四名角省：地图省名 → 引擎 provs[].id（engine2.js:45-50）。只有这四省有内阁与省级执行折扣 */
 var NAMED_PROV={}; ENGINE.PROVS.forEach(function(p){NAMED_PROV[p.name]=p.id;});
 var provMeshes=[];   /* 名角省的顶面 mesh，供点击命中 */
@@ -616,7 +637,7 @@ CHINA_GEO.features.forEach(function(f){
     if(NAMED_PROV[name]){ m.userData.provId=NAMED_PROV[name]; provMeshes.push(m); }
     if(outer.length>8){
       var lg=new THREE.BufferGeometry().setFromPoints(outer.map(function(v){return new THREE.Vector3(v.x,0.47,v.y);}));
-      scene.add(new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:0x24354c,transparent:true,opacity:0.6})));
+      scene.add(new THREE.LineLoop(lg,new THREE.LineBasicMaterial({color:0x8b98a6,transparent:true,opacity:0.75})));
     }
   });
 });
@@ -674,7 +695,7 @@ var exMesh=new THREE.InstancedMesh(exGeoBox,
   new THREE.MeshStandardMaterial({roughness:.6,metalness:.05,emissive:0x0e1114,emissiveIntensity:.5}),EX_CAP);
 exMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); exMesh.count=0; scene.add(exMesh);
 var EXC=[new THREE.Color(0x3d7f78),new THREE.Color(0x93803f),new THREE.Color(0x5a6c92)];
-var DEADC=new THREE.Color(0x1a1f26),FLASHC=new THREE.Color(0xff5040);
+var DEADC=new THREE.Color(0xc9cdd2),FLASHC=new THREE.Color(0xe3120b);   /* 倒闭=褪色；红闪对齐 accent 红 */
 function mb32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function wpick(list,u){var s=0;for(var i=0;i<list.length;i++){s+=list[i][1];if(u<=s)return list[i][0];}return list[list.length-1][0];}
 var exInfoCache={};
@@ -1122,14 +1143,13 @@ function refreshAll(){
   Object.keys(provMat).forEach(function(name){
     var j=PROV_BAND[name];if(j===undefined)return;
     var mat=provMat[name],pe=provEff[name];
-    if(pe){                                    /* 名角省：省级实核，加宽亮度摆幅 + 自发光凸显 */
-      var kp=Math.min(1,pe.eff/85);
-      mat.color.copy(BANDS[j].col).lerp(new THREE.Color(0xffffff),0.05+kp*0.45);
-      mat.emissive.copy(BANDS[j].col); mat.emissiveIntensity=0.10+kp*0.55;
-    }else{                                     /* 其余省：制度带实核（引擎无省级维度，A21 已披露） */
-      var k=Math.min(1,sim.effA(j,pol)/85);
-      mat.color.copy(BANDS[j].col).lerp(new THREE.Color(0xffffff),0.06+k*0.22);
-    }
+    /* 浅底地图用 choropleth：实核越高 -> 墨越重（印刷地图惯例）。
+       深底时代是反的（越亮=越强），换浅底后若不翻，高实核会变成最看不见的那一档。 */
+    var k=Math.min(1,(pe?pe.eff:sim.effA(j,pol))/85);
+    var ink=pe? 0.20+k*0.80      /* 名角省：省级实核，墨色摆幅拉满 */
+              : 0.16+k*0.44;     /* 其余省：制度带实核（引擎无省级维度，A21 已披露） */
+    mat.color.copy(PALE_C).lerp(BANDS[j].col,ink);
+    mat.emissiveIntensity=0;                 /* 浅底上加色自发光只会把墨色洗掉 */
   });
   /* 名角省地面标签：省名 + 执行折扣 + 本省实核 */
   sim.provs.forEach(function(pv){
